@@ -1,0 +1,68 @@
+﻿<Window x:Class="PuntoFlower.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PuntoFlower"
+        mc:Ignorable="d"
+        Title="PuntoFlower - Gestión de Florería" 
+        Height="650" Width="1100" 
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F5F5">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="#2C3E50">
+            <StackPanel Margin="10,20,10,10">
+                <TextBlock Text="PuntoFlower" 
+                           Foreground="White" 
+                           FontSize="24" 
+                           FontWeight="Bold" 
+                           HorizontalAlignment="Center" 
+                           Margin="0,0,0,30"/>
+
+                <Button Content="Punto de Venta" Style="{StaticResource MenuButtonStyle}"/>
+                <Button Content="Inventario / Flores" Style="{StaticResource MenuButtonStyle}" Margin="0,10,0,0"/>
+                <Button Content="Agenda de Pedidos" Style="{StaticResource MenuButtonStyle}" Margin="0,10,0,0"/>
+                <Button Content="Reportes e Ingresos" Style="{StaticResource MenuButtonStyle}" Margin="0,10,0,0"/>
+                <Button Content="Gastos y Surtido" Style="{StaticResource MenuButtonStyle}" Margin="0,10,0,0"/>
+
+                <Separator Background="Gray" Margin="0,30,0,10"/>
+                <Button Content="Configuración" Style="{StaticResource MenuButtonStyle}"/>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="White" Padding="20,0">
+                <DockPanel LastChildFill="False">
+                    <TextBlock Text="Bienvenido al Sistema" 
+                               VerticalAlignment="Center" 
+                               FontSize="16" 
+                               FontWeight="SemiBold" 
+                               Foreground="#333"/>
+                    <TextBlock Text="17 de Marzo, 2026" 
+                               DockPanel.Dock="Right" 
+                               VerticalAlignment="Center" 
+                               Foreground="#777"/>
+                </DockPanel>
+            </Border>
+
+            <ContentControl x:Name="MainContent" Grid.Row="1" Margin="20">
+                <TextBlock Text="Selecciona una opción del menú para comenzar" 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center" 
+                           FontSize="18" 
+                           Foreground="#AAA"/>
+            </ContentControl>
+        </Grid>
+    </Grid>
+</Window>

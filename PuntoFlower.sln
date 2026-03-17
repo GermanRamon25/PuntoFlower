@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36908.2 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PuntoFlower", "PuntoFlower\PuntoFlower.csproj", "{3AD5F3D0-6DC1-45B6-BB44-56D85ACDE6E6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3AD5F3D0-6DC1-45B6-BB44-56D85ACDE6E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3AD5F3D0-6DC1-45B6-BB44-56D85ACDE6E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3AD5F3D0-6DC1-45B6-BB44-56D85ACDE6E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3AD5F3D0-6DC1-45B6-BB44-56D85ACDE6E6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C25AC191-D83D-4984-96E0-07E2BAAAE59E}
+	EndGlobalSection
+EndGlobal
