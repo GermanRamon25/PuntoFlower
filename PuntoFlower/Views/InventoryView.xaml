@@ -1,0 +1,82 @@
+﻿<UserControl x:Class="PuntoFlower.Views.InventoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="900">
+
+    <Grid Background="#F5F5F5">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="White" Margin="10" CornerRadius="8" Padding="15">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+            </Border.Effect>
+            <DockPanel LastChildFill="False">
+                <StackPanel Orientation="Horizontal">
+                    <TextBox x:Name="txtSearch" Width="250" Height="35" VerticalContentAlignment="Center" 
+                             Tag="Buscar flor o insumo..." Margin="0,0,10,0"/>
+                    <Button Content="Buscar" Width="80" Background="#3498DB" Foreground="White" BorderThickness="0"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                    <Button Content="+ Nueva Flor" Width="120" Height="35" Background="#27AE60" Foreground="White" FontWeight="Bold" BorderThickness="0" Margin="5,0"/>
+                    <Button Content="Surtir Stock" Width="120" Height="35" Background="#F39C12" Foreground="White" FontWeight="Bold" BorderThickness="0" Margin="5,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1" Background="White" Margin="10,0,10,10" CornerRadius="8">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+            </Border.Effect>
+            <Grid Margin="10">
+                <DataGrid x:Name="dgInventario" AutoGenerateColumns="False" Background="Transparent" 
+                          BorderThickness="0" CanUserAddRows="False" RowHeight="35" 
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" 
+                          HorizontalGridLinesBrush="#EEE" IsReadOnly="True">
+
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#F8F9FA"/>
+                            <Setter Property="Foreground" Value="#2C3E50"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Padding" Value="10,5"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                            <Setter Property="BorderBrush" Value="#DDD"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Nombre" Width="*" Binding="{Binding Nombre}"/>
+                        <DataGridTextColumn Header="Categoría" Width="150" Binding="{Binding Categoria}"/>
+                        <DataGridTextColumn Header="Existencia" Width="100" Binding="{Binding StockActual}"/>
+
+                        <DataGridTextColumn Header="Precio Compra" Width="120" Binding="{Binding PrecioCompra, StringFormat={}{0:C}}"/>
+                        <DataGridTextColumn Header="Precio Venta" Width="120" Binding="{Binding PrecioVenta, StringFormat={}{0:C}}"/>
+
+                        <DataGridTemplateColumn Header="Estado" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border x:Name="StatusBorder" CornerRadius="10" Padding="8,2" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="StatusText" Text="Óptimo" Foreground="#27AE60" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding NecesitaSurtir}" Value="True">
+                                            <Setter TargetName="StatusText" Property="Text" Value="Reabastecer"/>
+                                            <Setter TargetName="StatusText" Property="Foreground" Value="#E74C3C"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

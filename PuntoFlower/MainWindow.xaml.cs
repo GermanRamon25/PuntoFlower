@@ -12,17 +12,29 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using PuntoFlower.Views; // Referencia necesaria para ver las carpetas de vistas
 
 namespace PuntoFlower
 {
-    /// <summary>
-    /// Lógica de interacción para MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         public MainWindow()
         {
             InitializeComponent();
+            // Al arrancar, nos aseguramos de que el Dashboard sea lo primero en verse
+            MainContent.Content = new DashboardView();
+        }
+
+        // Lógica para el botón de Resumen
+        private void btnDashboard_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new DashboardView();
+        }
+
+        // Lógica para el botón de Inventario
+        private void btnInventario_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new InventoryView();
         }
     }
 }
