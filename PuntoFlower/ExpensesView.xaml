@@ -1,0 +1,64 @@
+﻿<UserControl x:Class="PuntoFlower.Views.ExpensesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800">
+    <Grid Background="#F5F5F5">
+        <StackPanel Margin="20">
+            <TextBlock Text="Registro de Gastos" FontSize="24" FontWeight="Bold" Margin="0,0,0,20" Foreground="#2C3E50"/>
+
+            <Border Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,20">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                </Border.Effect>
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel Margin="0,0,15,0">
+                        <TextBlock Text="Descripción" Margin="0,0,0,5" Foreground="#7F8C8D"/>
+                        <TextBox x:Name="txtDesc" Width="200" Height="30" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,15,0">
+                        <TextBlock Text="Monto ($)" Margin="0,0,0,5" Foreground="#7F8C8D"/>
+                        <TextBox x:Name="txtMonto" Width="100" Height="30" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,15,0">
+                        <TextBlock Text="Categoría" Margin="0,0,0,5" Foreground="#7F8C8D"/>
+                        <ComboBox x:Name="cbCategoria" Width="170" Height="30" VerticalContentAlignment="Center">
+                            <ComboBoxItem Content="Pago Empleada"/>
+                            <ComboBoxItem Content="Bodega Floral (Insumos)"/>
+                            <ComboBoxItem Content="Material de Limpieza"/>
+                            <ComboBoxItem Content="Pago de Material"/>
+                            <ComboBoxItem Content="Renta / Servicios"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <Button Content="Registrar Gasto" Background="#E74C3C" Foreground="White" 
+                            Padding="20,0" Height="35" VerticalAlignment="Bottom" FontWeight="Bold" BorderThickness="0">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="5"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <Border Background="White" CornerRadius="10" Padding="10">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                </Border.Effect>
+                <DataGrid x:Name="dgGastos" AutoGenerateColumns="False" Height="350" 
+                          Background="Transparent" BorderThickness="0" CanUserAddRows="False"
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" IsReadOnly="True"
+                          HorizontalGridLinesBrush="#EEE">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="120"/>
+                        <DataGridTextColumn Header="Descripción" Binding="{Binding Descripcion}" Width="*"/>
+                        <DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="180"/>
+                        <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="100"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

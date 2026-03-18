@@ -26,16 +26,44 @@
                            HorizontalAlignment="Center" 
                            Margin="0,0,0,30"/>
 
-                <Button x:Name="btnDashboard" Content="Resumen General" Style="{StaticResource MenuButtonStyle}" Click="btnDashboard_Click"/>
-                <Button x:Name="btnInventario" Content="Inventario / Flores" Style="{StaticResource MenuButtonStyle}" Margin="0,10,0,0" Click="btnInventario_Click"/>
+                <Button x:Name="btnDashboard" 
+                        Content="Resumen General" 
+                        Style="{StaticResource MenuButtonStyle}" 
+                        Click="btnDashboard_Click"/>
 
-                <Button Content="Punto de Venta" Style="{StaticResource MenuButtonStyle}" Margin="0,10,0,0"/>
-                <Button Content="Agenda de Pedidos" Style="{StaticResource MenuButtonStyle}" Margin="0,10,0,0"/>
-                <Button Content="Reportes e Ingresos" Style="{StaticResource MenuButtonStyle}" Margin="0,10,0,0"/>
-                <Button Content="Gastos y Surtido" Style="{StaticResource MenuButtonStyle}" Margin="0,10,0,0"/>
+                <Button x:Name="btnInventario" 
+                        Content="Inventario / Flores" 
+                        Style="{StaticResource MenuButtonStyle}" 
+                        Margin="0,10,0,0" 
+                        Click="btnInventario_Click"/>
+
+                <Button x:Name="btnVentas" 
+                        Content="Punto de Venta" 
+                        Style="{StaticResource MenuButtonStyle}" 
+                        Margin="0,10,0,0" 
+                        Click="btnVentas_Click"/>
+                
+                <Button x:Name="btnAgenda" 
+                        Content="Agenda de Pedidos" 
+                        Style="{StaticResource MenuButtonStyle}" 
+                        Margin="0,10,0,0"/>
+
+                <Button x:Name="btnReportes" 
+                        Content="Reportes e Ingresos" 
+                        Style="{StaticResource MenuButtonStyle}" 
+                        Margin="0,10,0,0"/>
+
+                <Button x:Name="btnGastos" 
+                        Content="Gastos y Surtido" 
+                        Style="{StaticResource MenuButtonStyle}" 
+                        Margin="0,10,0,0" 
+                        Click="btnGastos_Click"/>
 
                 <Separator Background="Gray" Margin="0,30,0,10"/>
-                <Button Content="Configuración" Style="{StaticResource MenuButtonStyle}"/>
+
+                <Button x:Name="btnConfiguracion" 
+                        Content="Configuración" 
+                        Style="{StaticResource MenuButtonStyle}"/>
             </StackPanel>
         </Border>
 
@@ -52,6 +80,7 @@
                                FontSize="16" 
                                FontWeight="SemiBold" 
                                Foreground="#333"/>
+
                     <TextBlock Text="17 de Marzo, 2026" 
                                DockPanel.Dock="Right" 
                                VerticalAlignment="Center" 

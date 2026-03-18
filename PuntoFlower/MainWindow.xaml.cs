@@ -25,16 +25,28 @@ namespace PuntoFlower
             MainContent.Content = new DashboardView();
         }
 
-        // Lógica para el botón de Resumen
+        // LOGICA PARA EL BOTON DE RESUMEN
         private void btnDashboard_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new DashboardView();
         }
 
-        // Lógica para el botón de Inventario
+        // LOGICA PARA EL BOTON DE INVENTARIO 
         private void btnInventario_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new InventoryView();
+        }
+
+        // MEOTOD PARA NAVERGAR A LA VISTA DE DATOS 
+        private void btnGastos_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new ExpensesView();
+        }
+
+        //METODO PARA LA VENTA 
+        private void btnVentas_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new SalesView();
         }
     }
 }
