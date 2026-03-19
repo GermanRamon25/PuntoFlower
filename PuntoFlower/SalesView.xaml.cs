@@ -12,8 +12,8 @@ namespace PuntoFlower.Views
 {
     public partial class SalesView : UserControl
     {
-        public ObservableCollection<Venta> ProductosEnTicket { get; set; }
-        private List<Venta> composicionRamoActual = new List<Venta>(); // Flores sueltas del ramo mixto
+        public ObservableCollection<VentaProxy> ProductosEnTicket { get; set; }
+        private List<Venta> composicionRamoActual = new List<Venta>();
         private int capacidadRamo = 0;
         private decimal precioRamo = 0;
         private int floresAgregadas = 0;
@@ -21,7 +21,7 @@ namespace PuntoFlower.Views
         public SalesView()
         {
             InitializeComponent();
-            ProductosEnTicket = new ObservableCollection<Venta>();
+            ProductosEnTicket = new ObservableCollection<VentaProxy>();
             lstVenta.ItemsSource = ProductosEnTicket;
         }
 
@@ -46,7 +46,6 @@ namespace PuntoFlower.Views
             cbInsumos.ItemsSource = lista;
         }
 
-        // Define la capacidad y el precio según tu tabla de mayoreo
         private void Ramo_Checked(object sender, RoutedEventArgs e)
         {
             var rb = sender as RadioButton;
@@ -60,7 +59,6 @@ namespace PuntoFlower.Views
                 case 24: precioRamo = 850; break;
                 case 36: precioRamo = 1200; break;
                 case 50: precioRamo = 1650; break;
-                    // Puedes agregar más casos según la imagen: 72, 100, 150...
             }
             ActualizarProgreso();
         }
@@ -70,39 +68,37 @@ namespace PuntoFlower.Views
             var flor = cbInsumos.SelectedItem as Producto;
             if (flor == null || capacidadRamo == 0) return;
 
-            int cant = int.Parse(txtCantFlor.Text);
+            if (!int.TryParse(txtCantFlor.Text, out int cant) || cant <= 0) return;
+
             if (floresAgregadas + cant > capacidadRamo)
             {
                 MessageBox.Show("Superas la capacidad del ramo seleccionado.");
                 return;
             }
 
-            // Guardamos temporalmente para descontar después
             composicionRamoActual.Add(new Venta { ProductoNombre = flor.Nombre, Cantidad = cant });
             floresAgregadas += cant;
             ActualizarProgreso();
+            txtCantFlor.Text = "0";
         }
 
         private void btnFinalizarRamo_Click(object sender, RoutedEventArgs e)
         {
             if (floresAgregadas != capacidadRamo)
             {
-                MessageBox.Show("Debes completar el número exacto de flores para este ramo.");
+                MessageBox.Show($"Debes completar las {capacidadRamo} flores. Llevas {floresAgregadas}.");
                 return;
             }
 
-            // Agregamos al ticket como un solo bloque cobrable
             string detalle = string.Join(", ", composicionRamoActual.Select(x => $"{x.Cantidad} {x.ProductoNombre}"));
 
-            ProductosEnTicket.Add(new Venta
+            ProductosEnTicket.Add(new VentaProxy
             {
                 ProductoNombre = $"Ramo {capacidadRamo} pz ({detalle})",
-                Total = precioRamo, // Precio de mayoreo
-                Cantidad = capacidadRamo,
-                Fecha = DateTime.Now
+                Total = precioRamo,
+                FloresInternas = new List<Venta>(composicionRamoActual)
             });
 
-            // Reiniciamos para el siguiente ramo
             composicionRamoActual.Clear();
             floresAgregadas = 0;
             capacidadRamo = 0;
@@ -122,16 +118,12 @@ namespace PuntoFlower.Views
                 {
                     foreach (var item in ProductosEnTicket)
                     {
-                        // 1. Registrar Venta
-                        SqlCommand cmdV = new SqlCommand("INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago) VALUES (GETDATE(), @n, @t, @c, 'Efectivo')", con, tra);
+                        SqlCommand cmdV = new SqlCommand("INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago) VALUES (GETDATE(), @n, @t, 1, 'Efectivo')", con, tra);
                         cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
                         cmdV.Parameters.AddWithValue("@t", item.Total);
-                        cmdV.Parameters.AddWithValue("@c", 1);
                         cmdV.ExecuteNonQuery();
 
-                        // 2. Descontar cada tipo de flor del inventario
-                        // Aquí la lógica debe extraer las flores individuales si es un ramo mixto
-                        foreach (var f in composicionRamoActual)
+                        foreach (var f in item.FloresInternas)
                         {
                             SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @cant WHERE Nombre = @nom", con, tra);
                             cmdS.Parameters.AddWithValue("@cant", f.Cantidad);
@@ -148,14 +140,34 @@ namespace PuntoFlower.Views
             }
         }
 
-        private void ActualizarProgreso()
+        private void btnEliminarItem_Click(object sender, RoutedEventArgs e)
         {
-            lblProgresoRamo.Text = $"Flores seleccionadas: {floresAgregadas} / {capacidadRamo}";
+            var item = (sender as Button).DataContext as VentaProxy;
+            if (item != null)
+            {
+                ProductosEnTicket.Remove(item);
+                ActualizarTotal();
+            }
         }
 
-        private void ActualizarTotal()
+        private void btnLimpiarTicket_Click(object sender, RoutedEventArgs e)
         {
-            txtTotal.Text = $"Total: {ProductosEnTicket.Sum(x => x.Total):C}";
+            if (ProductosEnTicket.Count > 0)
+            {
+                ProductosEnTicket.Clear();
+                ActualizarTotal();
+            }
+        }
+
+        private void ActualizarProgreso() => lblProgresoRamo.Text = $"Flores seleccionadas: {floresAgregadas} / {capacidadRamo}";
+        private void ActualizarTotal() => txtTotal.Text = $"Total: {ProductosEnTicket.Sum(x => x.Total):C}";
+
+        // Clase auxiliar para manejar la lista de flores dentro del ticket
+        public class VentaProxy
+        {
+            public string ProductoNombre { get; set; }
+            public decimal Total { get; set; }
+            public List<Venta> FloresInternas { get; set; }
         }
     }
 }
