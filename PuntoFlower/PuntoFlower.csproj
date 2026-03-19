@@ -36,6 +36,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
@@ -55,12 +56,16 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Data\PuntoFlower.cs" />
     <Compile Include="ExpensesView.xaml.cs">
       <DependentUpon>ExpensesView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Models\Gasto.cs" />
     <Compile Include="Models\Producto.cs" />
     <Compile Include="Models\Venta.cs" />
+    <Compile Include="NuevoProductoWindow.xaml.cs">
+      <DependentUpon>NuevoProductoWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="SalesView.xaml.cs">
       <DependentUpon>SalesView.xaml</DependentUpon>
     </Compile>
@@ -86,6 +91,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="NuevoProductoWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="SalesView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

@@ -18,14 +18,25 @@
             </Border.Effect>
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal">
-                    <TextBox x:Name="txtSearch" Width="250" Height="35" VerticalContentAlignment="Center" 
-                             Tag="Buscar flor o insumo..." Margin="0,0,10,0"/>
-                    <Button Content="Buscar" Width="80" Background="#3498DB" Foreground="White" BorderThickness="0"/>
+                    <TextBox x:Name="txtSearch" Width="250" Height="35" 
+                             VerticalContentAlignment="Center" Margin="0,0,10,0"
+                             TextChanged="txtSearch_TextChanged"
+                             KeyDown="txtSearch_KeyDown"/>
+
+                    <Button Content="Buscar" Width="80" Background="#3498DB" 
+                            Foreground="White" BorderThickness="0" 
+                            Click="btnBuscar_Click" Cursor="Hand"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                    <Button Content="+ Nueva Flor" Width="120" Height="35" Background="#27AE60" Foreground="White" FontWeight="Bold" BorderThickness="0" Margin="5,0"/>
-                    <Button Content="Surtir Stock" Width="120" Height="35" Background="#F39C12" Foreground="White" FontWeight="Bold" BorderThickness="0" Margin="5,0"/>
+                    <Button Content="+ Nueva Flor" x:Name="btnNuevaFlor" 
+                            Click="btnNuevaFlor_Click" Width="120" Height="35" 
+                            Background="#27AE60" Foreground="White" 
+                            FontWeight="Bold" BorderThickness="0" Margin="5,0" Cursor="Hand"/>
+
+                    <Button Content="Surtir Stock" Width="120" Height="35" 
+                            Background="#F39C12" Foreground="White" 
+                            FontWeight="Bold" BorderThickness="0" Margin="5,0" Cursor="Hand"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -55,7 +66,6 @@
                         <DataGridTextColumn Header="Nombre" Width="*" Binding="{Binding Nombre}"/>
                         <DataGridTextColumn Header="Categoría" Width="150" Binding="{Binding Categoria}"/>
                         <DataGridTextColumn Header="Existencia" Width="100" Binding="{Binding StockActual}"/>
-
                         <DataGridTextColumn Header="Precio Compra" Width="120" Binding="{Binding PrecioCompra, StringFormat={}{0:C}}"/>
                         <DataGridTextColumn Header="Precio Venta" Width="120" Binding="{Binding PrecioVenta, StringFormat={}{0:C}}"/>
 
