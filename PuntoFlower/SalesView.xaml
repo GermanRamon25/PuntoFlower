@@ -14,7 +14,6 @@
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="20">
                 <TextBlock Text="Punto de Venta" FontSize="28" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
-
                 <TextBlock Text="Ramos de Rosas (Selección Rápida)" FontSize="18" FontWeight="SemiBold" Margin="5,0,0,10" Foreground="#555"/>
 
                 <WrapPanel Orientation="Horizontal">
@@ -28,7 +27,6 @@
                             <TextBlock Text="$300.00" HorizontalAlignment="Center" Foreground="#E74C3C" FontSize="15"/>
                         </StackPanel>
                     </Button>
-
                     <Button Width="190" Height="240" Margin="8" Background="White" Click="btnAgregarRamo_Click" BorderThickness="0">
                         <Button.Effect>
                             <DropShadowEffect BlurRadius="10" ShadowDepth="2" Color="#DDD"/>
@@ -39,7 +37,6 @@
                             <TextBlock Text="$450.00" HorizontalAlignment="Center" Foreground="#E74C3C" FontSize="15"/>
                         </StackPanel>
                     </Button>
-
                     <Button Width="190" Height="240" Margin="8" Background="White" Click="btnAgregarRamo_Click" BorderThickness="0">
                         <Button.Effect>
                             <DropShadowEffect BlurRadius="10" ShadowDepth="2" Color="#DDD"/>
@@ -50,7 +47,6 @@
                             <TextBlock Text="$850.00" HorizontalAlignment="Center" Foreground="#E74C3C" FontSize="15"/>
                         </StackPanel>
                     </Button>
-
                     <Button Width="190" Height="240" Margin="8" Background="White" Click="btnAgregarRamo_Click" BorderThickness="0">
                         <Button.Effect>
                             <DropShadowEffect BlurRadius="10" ShadowDepth="2" Color="#DDD"/>
@@ -61,7 +57,6 @@
                             <TextBlock Text="$1,650.00" HorizontalAlignment="Center" Foreground="#E74C3C" FontSize="15"/>
                         </StackPanel>
                     </Button>
-
                     <Button Width="190" Height="240" Margin="8" Background="White" Click="btnAgregarRamo_Click" BorderThickness="0">
                         <Button.Effect>
                             <DropShadowEffect BlurRadius="10" ShadowDepth="2" Color="#DDD"/>
@@ -124,7 +119,7 @@
                             <TextBlock Text="TOTAL:" FontSize="26" FontWeight="Bold"/>
                             <TextBlock x:Name="txtTotal" Text="$0.00" FontSize="26" FontWeight="Bold" HorizontalAlignment="Right" Foreground="#27AE60"/>
                         </DockPanel>
-                        <Button Content="CONFIRMAR VENTA" Height="60" Background="#27AE60" Foreground="White" FontSize="20" FontWeight="Bold" BorderThickness="0">
+                        <Button Content="CONFIRMAR VENTA" Click="btnConfirmarVenta_Click" Height="60" Background="#27AE60" Foreground="White" FontSize="20" FontWeight="Bold" BorderThickness="0">
                             <Button.Resources>
                                 <Style TargetType="Border">
                                     <Setter Property="CornerRadius" Value="10"/>
