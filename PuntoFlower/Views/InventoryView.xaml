@@ -29,6 +29,11 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                    <Button Content="Eliminar Seleccionado" x:Name="btnEliminar" 
+                            Click="btnEliminar_Click" Width="150" Height="35" 
+                            Background="#E74C3C" Foreground="White" 
+                            FontWeight="Bold" BorderThickness="0" Margin="5,0" Cursor="Hand"/>
+
                     <Button Content="+ Nueva Flor" x:Name="btnNuevaFlor" 
                             Click="btnNuevaFlor_Click" Width="120" Height="35" 
                             Background="#27AE60" Foreground="White" 
@@ -49,7 +54,8 @@
                 <DataGrid x:Name="dgInventario" AutoGenerateColumns="False" Background="Transparent" 
                           BorderThickness="0" CanUserAddRows="False" RowHeight="35" 
                           HeadersVisibility="Column" GridLinesVisibility="Horizontal" 
-                          HorizontalGridLinesBrush="#EEE" IsReadOnly="True">
+                          HorizontalGridLinesBrush="#EEE" IsReadOnly="True"
+                          SelectionMode="Single">
 
                     <DataGrid.ColumnHeaderStyle>
                         <Style TargetType="DataGridColumnHeader">

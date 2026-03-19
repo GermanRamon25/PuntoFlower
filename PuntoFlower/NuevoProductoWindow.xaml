@@ -1,26 +1,27 @@
 ﻿<Window x:Class="PuntoFlower.Views.NuevoProductoWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Registrar Nueva Flor" Height="450" Width="400" 
+        Title="Registrar Nueva Flor/Insumo" Height="450" Width="400" 
         WindowStartupLocation="CenterOwner" Background="#FBFCFC">
     <Grid Margin="20">
         <StackPanel>
             <TextBlock Text="Datos del Producto" FontSize="22" FontWeight="Bold" Foreground="#A93226" Margin="0,0,0,20"/>
 
-            <TextBlock Text="Nombre de la Flor/Arreglo" Foreground="#566573"/>
-            <TextBox x:Name="txtNombre" Height="30" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
+            <TextBlock Text="Nombre de la Flor (Ej: Rosa Blanca, Rosa Roja, Girasol)" Foreground="#566573"/>
+            <TextBox x:Name="txtNombre" Height="30" Margin="0,5,0,15" VerticalContentAlignment="Center" 
+                     ToolTip="Usa nombres específicos para que el sistema descuente la flor correcta"/>
 
             <UniformGrid Columns="2">
                 <StackPanel Margin="0,0,5,0">
                     <TextBlock Text="Categoría" Foreground="#566573"/>
-                    <ComboBox x:Name="cbCategoria" Height="30" Margin="0,5">
+                    <ComboBox x:Name="cbCategoria" Height="30" Margin="0,5" SelectedIndex="0">
                         <ComboBoxItem Content="Venta"/>
                         <ComboBoxItem Content="Bodega"/>
                     </ComboBox>
                 </StackPanel>
                 <StackPanel Margin="5,0,0,0">
                     <TextBlock Text="Tipo de Venta" Foreground="#566573"/>
-                    <ComboBox x:Name="cbTipo" Height="30" Margin="0,5">
+                    <ComboBox x:Name="cbTipo" Height="30" Margin="0,5" SelectedIndex="3">
                         <ComboBoxItem Content="Ramos"/>
                         <ComboBoxItem Content="Coronas"/>
                         <ComboBoxItem Content="Medallones"/>

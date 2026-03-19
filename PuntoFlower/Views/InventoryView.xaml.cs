@@ -16,6 +16,11 @@ namespace PuntoFlower.Views
         {
             InitializeComponent();
             CargarDesdeSQL();
+
+            // Refrescar automáticamente al entrar a la vista (Útil tras vender)
+            this.IsVisibleChanged += (s, e) => {
+                if ((bool)e.NewValue) CargarDesdeSQL();
+            };
         }
 
         private void CargarDesdeSQL(string filtro = "")
@@ -59,11 +64,49 @@ namespace PuntoFlower.Views
                         }
                     }
                 }
+                // Limpiamos y asignamos para asegurar el refresco visual en el DataGrid
+                dgInventario.ItemsSource = null;
                 dgInventario.ItemsSource = listaProductos;
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error al cargar inventario: " + ex.Message);
+            }
+        }
+
+        // Lógica para eliminar el producto seleccionado (Botón reubicado arriba)
+        private void btnEliminar_Click(object sender, RoutedEventArgs e)
+        {
+            var seleccionado = dgInventario.SelectedItem as Producto;
+
+            if (seleccionado == null)
+            {
+                MessageBox.Show("Por favor, selecciona un producto de la tabla para eliminarlo.", "Atención", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show($"¿Deseas eliminar '{seleccionado.Nombre}' permanentemente?",
+                                         "Confirmar", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                ConexionDB db = new ConexionDB();
+                try
+                {
+                    using (SqlConnection conexion = db.OpenConnection())
+                    {
+                        string query = "DELETE FROM Productos WHERE Id = @id";
+                        SqlCommand cmd = new SqlCommand(query, conexion);
+                        cmd.Parameters.AddWithValue("@id", seleccionado.Id);
+                        cmd.ExecuteNonQuery();
+                    }
+                    MessageBox.Show("Producto eliminado correctamente.");
+                    CargarDesdeSQL();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al eliminar: " + ex.Message);
+                }
             }
         }
 
@@ -80,7 +123,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // Refresco automático al borrar el texto del buscador
         private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (string.IsNullOrEmpty(txtSearch.Text))
