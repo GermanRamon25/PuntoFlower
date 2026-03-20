@@ -72,13 +72,13 @@ namespace PuntoFlower.Views
 
             if (pedidoSeleccionado != null)
             {
-                // Debes tener creada la ventana DetallesPedidoWindow
+               
                 DetallesPedidoWindow ventana = new DetallesPedidoWindow(pedidoSeleccionado);
                 ventana.Owner = Window.GetWindow(this);
 
                 if (ventana.ShowDialog() == true)
                 {
-                    // Si se marcó como entregado, refrescamos la lista
+                    
                     CargarPedidos();
                 }
             }
