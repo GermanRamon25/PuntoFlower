@@ -1,0 +1,44 @@
+﻿<Window x:Class="PuntoFlower.Views.NuevoPedidoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Registrar Nuevo Pedido" Height="600" Width="450"
+        WindowStartupLocation="CenterOwner" Background="#FBFCFC">
+    <Grid Margin="25">
+        <StackPanel>
+            <TextBlock Text="Detalles del Pedido" FontSize="24" FontWeight="Bold" Foreground="#2E4053" Margin="0,0,0,20"/>
+
+            <TextBlock Text="Nombre del Cliente" Foreground="#566573"/>
+            <TextBox x:Name="txtCliente" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
+
+            <UniformGrid Columns="2">
+                <StackPanel Margin="0,0,5,0">
+                    <TextBlock Text="Teléfono" Foreground="#566573"/>
+                    <TextBox x:Name="txtTelefono" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Margin="5,0,0,0">
+                    <TextBlock Text="Fecha de Entrega" Foreground="#566573"/>
+                    <DatePicker x:Name="dpFecha" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
+                </StackPanel>
+            </UniformGrid>
+
+            <TextBlock Text="¿Qué pidió el cliente? (Ej: Ramo 24 Rosas Rojas)" Foreground="#566573" FontWeight="SemiBold"/>
+            <TextBox x:Name="txtDescripcion" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center" BorderBrush="#3498DB"/>
+
+            <TextBlock Text="Dirección de Entrega (Dejar vacío si recoge en tienda)" Foreground="#566573"/>
+            <TextBox x:Name="txtDireccion" Height="50" Margin="0,5,0,15" TextWrapping="Wrap" AcceptsReturn="True"/>
+
+            <TextBlock Text="Nota para la Tarjeta / Dedicatoria" Foreground="#566573"/>
+            <TextBox x:Name="txtNota" Height="50" Margin="0,5,0,15" TextWrapping="Wrap" AcceptsReturn="True"/>
+
+            <Button Content="GUARDAR EN AGENDA" Height="50" Margin="0,10,0,0" 
+                    Background="#27AE60" Foreground="White" FontWeight="Bold" 
+                    Click="btnGuardar_Click" BorderThickness="0" Cursor="Hand">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="10"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -42,12 +42,12 @@
                         Style="{StaticResource MenuButtonStyle}" 
                         Margin="0,10,0,0" 
                         Click="btnVentas_Click"/>
-                
+
                 <Button x:Name="btnAgenda" 
                         Content="Agenda de Pedidos" 
                         Style="{StaticResource MenuButtonStyle}" 
-                        Margin="0,10,0,0"/>
-
+                        Margin="0,10,0,0"
+                        Click="btnAgenda_Click"/>
                 <Button x:Name="btnReportes" 
                         Content="Reportes e Ingresos" 
                         Style="{StaticResource MenuButtonStyle}" 

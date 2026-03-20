@@ -37,16 +37,22 @@ namespace PuntoFlower
             MainContent.Content = new InventoryView();
         }
 
-        // MEOTOD PARA NAVERGAR A LA VISTA DE DATOS 
-        private void btnGastos_Click(object sender, RoutedEventArgs e)
-        {
-            MainContent.Content = new ExpensesView();
-        }
-
-        //METODO PARA LA VENTA 
+        // LOGICA PARA LA VENTA 
         private void btnVentas_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new SalesView();
+        }
+
+        // NUEVO: LOGICA PARA LA AGENDA DE PEDIDOS
+        private void btnAgenda_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new AgendaView();
+        }
+
+        // METODO PARA NAVEGAR A LOS GASTOS 
+        private void btnGastos_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new ExpensesView();
         }
     }
 }

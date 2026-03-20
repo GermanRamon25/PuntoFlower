@@ -12,8 +12,8 @@ namespace PuntoFlower.Views
 {
     public partial class SalesView : UserControl
     {
-        public ObservableCollection<VentaProxy> ProductosEnTicket { get; set; }
-        private List<Venta> composicionRamoActual = new List<Venta>();
+        public ObservableCollection<ItemTicket> ProductosEnTicket { get; set; }
+        private List<DetalleInsumo> composicionRamoActual = new List<DetalleInsumo>();
         private int capacidadRamo = 0;
         private decimal precioRamo = 0;
         private int floresAgregadas = 0;
@@ -21,14 +21,11 @@ namespace PuntoFlower.Views
         public SalesView()
         {
             InitializeComponent();
-            ProductosEnTicket = new ObservableCollection<VentaProxy>();
+            ProductosEnTicket = new ObservableCollection<ItemTicket>();
             lstVenta.ItemsSource = ProductosEnTicket;
         }
 
-        private void UserControl_Loaded(object sender, RoutedEventArgs e)
-        {
-            CargarInsumos();
-        }
+        private void UserControl_Loaded(object sender, RoutedEventArgs e) => CargarInsumos();
 
         private void CargarInsumos()
         {
@@ -36,80 +33,90 @@ namespace PuntoFlower.Views
             ConexionDB db = new ConexionDB();
             using (SqlConnection con = db.OpenConnection())
             {
-                string query = "SELECT Nombre FROM Productos";
+                // Traemos todos los datos para usar el precio en Venta Libre
+                string query = "SELECT Nombre, PrecioVenta FROM Productos";
                 SqlCommand cmd = new SqlCommand(query, con);
                 using (SqlDataReader r = cmd.ExecuteReader())
                 {
-                    while (r.Read()) lista.Add(new Producto { Nombre = r["Nombre"].ToString() });
+                    while (r.Read()) lista.Add(new Producto
+                    {
+                        Nombre = r["Nombre"].ToString(),
+                        PrecioVenta = Convert.ToDecimal(r["PrecioVenta"])
+                    });
                 }
             }
-            cbInsumos.ItemsSource = lista;
+            cbInsumosRamos.ItemsSource = lista;
+            cbInsumosLibre.ItemsSource = lista;
         }
 
+        // --- LÓGICA DE RAMOS (MAYOREO) ---
         private void Ramo_Checked(object sender, RoutedEventArgs e)
         {
             var rb = sender as RadioButton;
             capacidadRamo = int.Parse(rb.Tag.ToString());
-
             switch (capacidadRamo)
             {
                 case 6: precioRamo = 300; break;
                 case 12: precioRamo = 450; break;
                 case 18: precioRamo = 650; break;
                 case 24: precioRamo = 850; break;
-                case 36: precioRamo = 1200; break;
-                case 50: precioRamo = 1650; break;
+                    // Puedes añadir 36, 50, etc. según tu tabla
             }
             ActualizarProgreso();
         }
 
         private void btnAgregarAlRamo_Click(object sender, RoutedEventArgs e)
         {
-            var flor = cbInsumos.SelectedItem as Producto;
+            var flor = cbInsumosRamos.SelectedItem as Producto;
             if (flor == null || capacidadRamo == 0) return;
+            if (!int.TryParse(txtCantFlorRamo.Text, out int cant) || cant <= 0) return;
 
-            if (!int.TryParse(txtCantFlor.Text, out int cant) || cant <= 0) return;
+            if (floresAgregadas + cant > capacidadRamo) { MessageBox.Show("Capacidad excedida."); return; }
 
-            if (floresAgregadas + cant > capacidadRamo)
-            {
-                MessageBox.Show("Superas la capacidad del ramo seleccionado.");
-                return;
-            }
-
-            composicionRamoActual.Add(new Venta { ProductoNombre = flor.Nombre, Cantidad = cant });
+            composicionRamoActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
             floresAgregadas += cant;
             ActualizarProgreso();
-            txtCantFlor.Text = "0";
+            txtCantFlorRamo.Text = "0";
         }
 
         private void btnFinalizarRamo_Click(object sender, RoutedEventArgs e)
         {
-            if (floresAgregadas != capacidadRamo)
-            {
-                MessageBox.Show($"Debes completar las {capacidadRamo} flores. Llevas {floresAgregadas}.");
-                return;
-            }
+            if (floresAgregadas != capacidadRamo) { MessageBox.Show("Ramo incompleto."); return; }
 
-            string detalle = string.Join(", ", composicionRamoActual.Select(x => $"{x.Cantidad} {x.ProductoNombre}"));
-
-            ProductosEnTicket.Add(new VentaProxy
+            ProductosEnTicket.Add(new ItemTicket
             {
-                ProductoNombre = $"Ramo {capacidadRamo} pz ({detalle})",
-                Total = precioRamo,
-                FloresInternas = new List<Venta>(composicionRamoActual)
+                ProductoNombre = $"Ramo Personalizado {capacidadRamo} pz",
+                Total = precioRamo, // Precio fijo de mayoreo
+                InsumosADescontar = new List<DetalleInsumo>(composicionRamoActual),
+                DetalleVisual = string.Join(", ", composicionRamoActual.Select(x => $"{x.Cantidad} {x.Nombre}"))
             });
 
             composicionRamoActual.Clear();
-            floresAgregadas = 0;
-            capacidadRamo = 0;
+            floresAgregadas = 0; capacidadRamo = 0;
+            ActualizarTotal(); ActualizarProgreso();
+        }
+
+        // --- LÓGICA DE VENTA LIBRE ---
+        private void btnAgregarVentaLibre_Click(object sender, RoutedEventArgs e)
+        {
+            var prod = cbInsumosLibre.SelectedItem as Producto;
+            if (prod == null) return;
+            if (!int.TryParse(txtCantLibre.Text, out int cant) || cant <= 0) return;
+
+            // Aquí el precio es Cantidad * PrecioVenta del inventario
+            ProductosEnTicket.Add(new ItemTicket
+            {
+                ProductoNombre = $"{prod.Nombre} (Suelto)",
+                Total = prod.PrecioVenta * cant,
+                InsumosADescontar = new List<DetalleInsumo> { new DetalleInsumo { Nombre = prod.Nombre, Cantidad = cant } },
+                DetalleVisual = $"{cant} unidades x {prod.PrecioVenta:C} c/u"
+            });
             ActualizarTotal();
-            ActualizarProgreso();
         }
 
         private void btnConfirmarVenta_Click(object sender, RoutedEventArgs e)
         {
             if (ProductosEnTicket.Count == 0) return;
-
             ConexionDB db = new ConexionDB();
             using (SqlConnection con = db.OpenConnection())
             {
@@ -118,56 +125,50 @@ namespace PuntoFlower.Views
                 {
                     foreach (var item in ProductosEnTicket)
                     {
+                        // 1. Guardar Venta
                         SqlCommand cmdV = new SqlCommand("INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago) VALUES (GETDATE(), @n, @t, 1, 'Efectivo')", con, tra);
                         cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
                         cmdV.Parameters.AddWithValue("@t", item.Total);
                         cmdV.ExecuteNonQuery();
 
-                        foreach (var f in item.FloresInternas)
+                        // 2. Descontar Insumos
+                        foreach (var insumo in item.InsumosADescontar)
                         {
-                            SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @cant WHERE Nombre = @nom", con, tra);
-                            cmdS.Parameters.AddWithValue("@cant", f.Cantidad);
-                            cmdS.Parameters.AddWithValue("@nom", f.ProductoNombre);
+                            SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom", con, tra);
+                            cmdS.Parameters.AddWithValue("@c", insumo.Cantidad);
+                            cmdS.Parameters.AddWithValue("@nom", insumo.Nombre);
                             cmdS.ExecuteNonQuery();
                         }
                     }
                     tra.Commit();
                     MessageBox.Show("Venta Exitosa.");
-                    ProductosEnTicket.Clear();
-                    ActualizarTotal();
+                    ProductosEnTicket.Clear(); ActualizarTotal();
                 }
                 catch (Exception ex) { tra.Rollback(); MessageBox.Show("Error: " + ex.Message); }
             }
         }
 
+        private void ActualizarProgreso() => lblProgresoRamo.Text = $"Seleccionadas: {floresAgregadas} / {capacidadRamo}";
+        private void ActualizarTotal() => txtTotal.Text = $"Total: {ProductosEnTicket.Sum(x => x.Total):C}";
+        private void btnLimpiarTicket_Click(object sender, RoutedEventArgs e) { ProductosEnTicket.Clear(); ActualizarTotal(); }
         private void btnEliminarItem_Click(object sender, RoutedEventArgs e)
         {
-            var item = (sender as Button).DataContext as VentaProxy;
-            if (item != null)
-            {
-                ProductosEnTicket.Remove(item);
-                ActualizarTotal();
-            }
+            var item = (sender as Button).DataContext as ItemTicket;
+            if (item != null) { ProductosEnTicket.Remove(item); ActualizarTotal(); }
         }
 
-        private void btnLimpiarTicket_Click(object sender, RoutedEventArgs e)
-        {
-            if (ProductosEnTicket.Count > 0)
-            {
-                ProductosEnTicket.Clear();
-                ActualizarTotal();
-            }
-        }
-
-        private void ActualizarProgreso() => lblProgresoRamo.Text = $"Flores seleccionadas: {floresAgregadas} / {capacidadRamo}";
-        private void ActualizarTotal() => txtTotal.Text = $"Total: {ProductosEnTicket.Sum(x => x.Total):C}";
-
-        // Clase auxiliar para manejar la lista de flores dentro del ticket
-        public class VentaProxy
+        // CLASES DE APOYO
+        public class ItemTicket
         {
             public string ProductoNombre { get; set; }
             public decimal Total { get; set; }
-            public List<Venta> FloresInternas { get; set; }
+            public string DetalleVisual { get; set; }
+            public List<DetalleInsumo> InsumosADescontar { get; set; }
+        }
+        public class DetalleInsumo
+        {
+            public string Nombre { get; set; }
+            public int Cantidad { get; set; }
         }
     }
 }
