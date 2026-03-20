@@ -16,18 +16,17 @@
             <TabItem Header="Ramos de Mayoreo">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="15">
-                        <TextBlock Text="Configurador de Ramos" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
-
-                        <GroupBox Header="1. Elegir Tamaño" Margin="0,0,0,15">
+                        <TextBlock Text="Ramos de Rosas / Girasoles" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
+                        <GroupBox Header="1. Elegir Tamaño (Precios de Lista)" Margin="0,0,0,15">
                             <WrapPanel Orientation="Horizontal">
                                 <RadioButton Content="6 pz ($300)" Tag="6" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
                                 <RadioButton Content="12 pz ($450)" Tag="12" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
-                                <RadioButton Content="18 pz ($650)" Tag="18" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
                                 <RadioButton Content="24 pz ($850)" Tag="24" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
+                                <RadioButton Content="50 pz ($1,650)" Tag="50" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
                             </WrapPanel>
                         </GroupBox>
 
-                        <GroupBox Header="2. Composición" Padding="10">
+                        <GroupBox Header="2. Composición del Ramo" Padding="10">
                             <StackPanel>
                                 <DockPanel Margin="0,0,0,10">
                                     <ComboBox x:Name="cbInsumosRamos" Width="180" DisplayMemberPath="Nombre" Margin="0,0,10,0"/>
@@ -35,28 +34,50 @@
                                     <Button Content="Añadir" Click="btnAgregarAlRamo_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" Width="100"/>
                                 </DockPanel>
                                 <TextBlock x:Name="lblProgresoRamo" Text="Progreso: 0 / 0" FontSize="14" FontWeight="Bold" Foreground="#E67E22"/>
-                                <Button Content="Finalizar Ramo" Click="btnFinalizarRamo_Click" Background="#27AE60" Foreground="White" Height="40" Margin="0,15,0,0"/>
+                                <Button Content="Finalizar y Agregar al Ticket" Click="btnFinalizarRamo_Click" Background="#27AE60" Foreground="White" Height="45" Margin="0,15,0,0"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="Venta Libre (Insumos)">
+            <TabItem Header="Venta Libre / Insumos">
                 <StackPanel Margin="15">
-                    <TextBlock Text="Venta Individual / Insumos" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
-                    <Border Background="White" Padding="15" CornerRadius="8">
+                    <TextBlock Text="Flor Suelta, Bases y Accesorios" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
+                    <Border Background="White" Padding="20" CornerRadius="10">
                         <StackPanel>
-                            <TextBlock Text="Seleccionar Artículo (Usa precio de Inventario)" Margin="0,0,0,5" Foreground="#7F8C8D"/>
-                            <ComboBox x:Name="cbInsumosLibre" Height="35" DisplayMemberPath="Nombre" Margin="0,0,0,15"/>
+                            <TextBlock Text="Seleccionar Producto" Foreground="#7F8C8D"/>
+                            <ComboBox x:Name="cbInsumosLibre" Height="40" DisplayMemberPath="Nombre" Margin="0,5,0,20"/>
 
-                            <UniformGrid Columns="2">
-                                <StackPanel Margin="0,0,10,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
                                     <TextBlock Text="Cantidad" Foreground="#7F8C8D"/>
-                                    <TextBox x:Name="txtCantLibre" Height="35" VerticalContentAlignment="Center" Text="1"/>
+                                    <TextBox x:Name="txtCantLibre" Height="40" VerticalContentAlignment="Center" Text="1" FontSize="16"/>
                                 </StackPanel>
-                                <Button Content="Agregar al Ticket" Click="btnAgregarVentaLibre_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" VerticalAlignment="Bottom" Height="35"/>
-                            </UniformGrid>
+                                <Button Grid.Column="1" Content="Agregar al Ticket" Click="btnAgregarVentaLibre_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" Height="40" VerticalAlignment="Bottom"/>
+                            </Grid>
+                            <TextBlock Text="*Usa el precio registrado en inventario (Ej: Mariposa $10, Oasis $60)" FontSize="11" Foreground="#95A5A6" Margin="0,15,0,0" FontStyle="Italic"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Arreglos Especiales">
+                <StackPanel Margin="15">
+                    <TextBlock Text="Coronas, Novias y Fúnebres" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
+                    <Border Background="White" Padding="20" CornerRadius="10">
+                        <StackPanel>
+                            <TextBlock Text="Nombre del Servicio / Arreglo (Ej: Corona Fúnebre Yumbo)" Foreground="#7F8C8D"/>
+                            <TextBox x:Name="txtNombreEspecial" Height="40" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
+
+                            <TextBlock Text="Precio Acordado ($)" Foreground="#7F8C8D"/>
+                            <TextBox x:Name="txtPrecioEspecial" Height="40" Margin="0,5,0,20" VerticalContentAlignment="Center" FontSize="18" FontWeight="Bold"/>
+
+                            <Button Content="Agregar Pedido Especial" Click="btnAgregarEspecial_Click" Background="#8E44AD" Foreground="White" FontWeight="Bold" Height="45"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -72,8 +93,8 @@
                 </Grid.RowDefinitions>
 
                 <DockPanel Grid.Row="0" Margin="0,0,0,15">
-                    <TextBlock Text="Ticket Actual" FontSize="20" FontWeight="Bold"/>
-                    <Button Content="Limpiar" Click="btnLimpiarTicket_Click" DockPanel.Dock="Right" Background="Transparent" BorderThickness="0" Foreground="#E74C3C"/>
+                    <TextBlock Text="Resumen de Venta" FontSize="20" FontWeight="Bold"/>
+                    <Button Content="Vaciar" Click="btnLimpiarTicket_Click" DockPanel.Dock="Right" Background="Transparent" BorderThickness="0" Foreground="#E74C3C"/>
                 </DockPanel>
 
                 <ListBox x:Name="lstVenta" Grid.Row="1" BorderThickness="0" HorizontalContentAlignment="Stretch">
@@ -90,7 +111,7 @@
                                         <TextBlock Text="{Binding ProductoNombre}" FontWeight="Bold" TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding DetalleVisual}" FontSize="10" Foreground="#95A5A6"/>
                                     </StackPanel>
-                                    <TextBlock Grid.Column="1" Text="{Binding Total, StringFormat={}{0:C}}" VerticalAlignment="Center" Margin="10,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Total, StringFormat={}{0:C}}" VerticalAlignment="Center" Margin="10,0" FontWeight="SemiBold"/>
                                     <Button Grid.Column="2" Content="✕" Click="btnEliminarItem_Click" Background="#FADBD8" Foreground="#E74C3C" Width="24" Height="24" BorderThickness="0" FontWeight="Bold"/>
                                 </Grid>
                             </Border>
@@ -99,7 +120,7 @@
                 </ListBox>
 
                 <StackPanel Grid.Row="2" Margin="0,15,0,0">
-                    <TextBlock x:Name="txtTotal" Text="Total: $0.00" FontSize="26" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="txtTotal" Text="Total: $0.00" FontSize="28" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Right"/>
                     <Button Content="CONFIRMAR COBRO" Click="btnConfirmarVenta_Click" Height="60" Background="#27AE60" Foreground="White" FontWeight="Bold" Margin="0,10,0,0" BorderThickness="0"/>
                 </StackPanel>
             </Grid>

@@ -17,7 +17,7 @@ namespace PuntoFlower.Views
             InitializeComponent();
             CargarDesdeSQL();
 
-            // Refrescar automáticamente al entrar a la vista (Útil tras vender)
+            // Refrescar automáticamente al entrar a la vista
             this.IsVisibleChanged += (s, e) => {
                 if ((bool)e.NewValue) CargarDesdeSQL();
             };
@@ -64,7 +64,6 @@ namespace PuntoFlower.Views
                         }
                     }
                 }
-                // Limpiamos y asignamos para asegurar el refresco visual en el DataGrid
                 dgInventario.ItemsSource = null;
                 dgInventario.ItemsSource = listaProductos;
             }
@@ -74,7 +73,33 @@ namespace PuntoFlower.Views
             }
         }
 
-        // Lógica para eliminar el producto seleccionado (Botón reubicado arriba)
+        // --- LÓGICA PARA EL BOTÓN NARANJA (SURTIR STOCK) ---
+        private void btnSurtirStock_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. Obtenemos el producto seleccionado en el DataGrid
+            var seleccionado = dgInventario.SelectedItem as Producto;
+
+            if (seleccionado != null)
+            {
+                // 2. Abrimos la ventana de surtido pasándole el nombre del producto
+                // Usamos la ruta completa para evitar errores de referencia
+                PuntoFlower.Views.SurtirStockWindow ventanaSurtir = new PuntoFlower.Views.SurtirStockWindow(seleccionado.Nombre);
+
+                // Centramos la ventana sobre la aplicación principal
+                ventanaSurtir.Owner = Window.GetWindow(this);
+
+                // 3. Si se completó el registro con éxito, refrescamos la tabla
+                if (ventanaSurtir.ShowDialog() == true)
+                {
+                    CargarDesdeSQL();
+                }
+            }
+            else
+            {
+                MessageBox.Show("Por favor, selecciona un producto de la lista para surtir stock.", "Selección necesaria", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         private void btnEliminar_Click(object sender, RoutedEventArgs e)
         {
             var seleccionado = dgInventario.SelectedItem as Producto;

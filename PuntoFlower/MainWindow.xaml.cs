@@ -43,16 +43,18 @@ namespace PuntoFlower
             MainContent.Content = new SalesView();
         }
 
-        // NUEVO: LOGICA PARA LA AGENDA DE PEDIDOS
+        // LOGICA PARA LA AGENDA DE PEDIDOS
         private void btnAgenda_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new AgendaView();
         }
 
-        // METODO PARA NAVEGAR A LOS GASTOS 
+        // METODO ACTUALIZADO: Ahora lleva a la gestión de Proveedores y Surtido
         private void btnGastos_Click(object sender, RoutedEventArgs e)
         {
-            MainContent.Content = new ExpensesView();
+            // Cambiamos ExpensesView por ProveedoresView para que 
+            // desde aquí gestiones tus compras y stock
+            MainContent.Content = new ProveedoresView();
         }
     }
 }

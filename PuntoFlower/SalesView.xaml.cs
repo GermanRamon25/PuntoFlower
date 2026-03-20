@@ -33,7 +33,6 @@ namespace PuntoFlower.Views
             ConexionDB db = new ConexionDB();
             using (SqlConnection con = db.OpenConnection())
             {
-                // Traemos todos los datos para usar el precio en Venta Libre
                 string query = "SELECT Nombre, PrecioVenta FROM Productos";
                 SqlCommand cmd = new SqlCommand(query, con);
                 using (SqlDataReader r = cmd.ExecuteReader())
@@ -49,7 +48,7 @@ namespace PuntoFlower.Views
             cbInsumosLibre.ItemsSource = lista;
         }
 
-        // --- LÓGICA DE RAMOS (MAYOREO) ---
+        // --- 1. RAMOS (PRECIO MAYOREO SEGÚN TU LISTA) ---
         private void Ramo_Checked(object sender, RoutedEventArgs e)
         {
             var rb = sender as RadioButton;
@@ -60,7 +59,7 @@ namespace PuntoFlower.Views
                 case 12: precioRamo = 450; break;
                 case 18: precioRamo = 650; break;
                 case 24: precioRamo = 850; break;
-                    // Puedes añadir 36, 50, etc. según tu tabla
+                case 50: precioRamo = 1650; break;
             }
             ActualizarProgreso();
         }
@@ -81,36 +80,47 @@ namespace PuntoFlower.Views
 
         private void btnFinalizarRamo_Click(object sender, RoutedEventArgs e)
         {
-            if (floresAgregadas != capacidadRamo) { MessageBox.Show("Ramo incompleto."); return; }
+            if (floresAgregadas != capacidadRamo) { MessageBox.Show("Completa las flores del ramo."); return; }
 
             ProductosEnTicket.Add(new ItemTicket
             {
-                ProductoNombre = $"Ramo Personalizado {capacidadRamo} pz",
-                Total = precioRamo, // Precio fijo de mayoreo
+                ProductoNombre = $"Ramo {capacidadRamo} pz",
+                Total = precioRamo,
                 InsumosADescontar = new List<DetalleInsumo>(composicionRamoActual),
                 DetalleVisual = string.Join(", ", composicionRamoActual.Select(x => $"{x.Cantidad} {x.Nombre}"))
             });
-
-            composicionRamoActual.Clear();
-            floresAgregadas = 0; capacidadRamo = 0;
-            ActualizarTotal(); ActualizarProgreso();
+            LimpiarConfiguradorRamo();
         }
 
-        // --- LÓGICA DE VENTA LIBRE ---
+        // --- 2. VENTA LIBRE (USANDO PRECIOS DE TU LISTA: Girasoles, Oasis, Bases) ---
         private void btnAgregarVentaLibre_Click(object sender, RoutedEventArgs e)
         {
             var prod = cbInsumosLibre.SelectedItem as Producto;
-            if (prod == null) return;
-            if (!int.TryParse(txtCantLibre.Text, out int cant) || cant <= 0) return;
+            if (prod == null || !int.TryParse(txtCantLibre.Text, out int cant)) return;
 
-            // Aquí el precio es Cantidad * PrecioVenta del inventario
             ProductosEnTicket.Add(new ItemTicket
             {
-                ProductoNombre = $"{prod.Nombre} (Suelto)",
+                ProductoNombre = prod.Nombre,
                 Total = prod.PrecioVenta * cant,
                 InsumosADescontar = new List<DetalleInsumo> { new DetalleInsumo { Nombre = prod.Nombre, Cantidad = cant } },
-                DetalleVisual = $"{cant} unidades x {prod.PrecioVenta:C} c/u"
+                DetalleVisual = $"{cant} unidad(es) x {prod.PrecioVenta:C}"
             });
+            ActualizarTotal();
+        }
+
+        // --- 3. ARREGLOS ESPECIALES (PRECIO MANUAL: Coronas, Yumbos) ---
+        private void btnAgregarEspecial_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtNombreEspecial.Text) || !decimal.TryParse(txtPrecioEspecial.Text, out decimal precio)) return;
+
+            ProductosEnTicket.Add(new ItemTicket
+            {
+                ProductoNombre = txtNombreEspecial.Text,
+                Total = precio,
+                InsumosADescontar = new List<DetalleInsumo>(), // No descuenta automático porque es manual
+                DetalleVisual = "Arreglo / Servicio Especial"
+            });
+            txtNombreEspecial.Text = ""; txtPrecioEspecial.Text = "";
             ActualizarTotal();
         }
 
@@ -125,13 +135,11 @@ namespace PuntoFlower.Views
                 {
                     foreach (var item in ProductosEnTicket)
                     {
-                        // 1. Guardar Venta
                         SqlCommand cmdV = new SqlCommand("INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago) VALUES (GETDATE(), @n, @t, 1, 'Efectivo')", con, tra);
                         cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
                         cmdV.Parameters.AddWithValue("@t", item.Total);
                         cmdV.ExecuteNonQuery();
 
-                        // 2. Descontar Insumos
                         foreach (var insumo in item.InsumosADescontar)
                         {
                             SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom", con, tra);
@@ -141,11 +149,17 @@ namespace PuntoFlower.Views
                         }
                     }
                     tra.Commit();
-                    MessageBox.Show("Venta Exitosa.");
+                    MessageBox.Show("Venta procesada con éxito.");
                     ProductosEnTicket.Clear(); ActualizarTotal();
                 }
                 catch (Exception ex) { tra.Rollback(); MessageBox.Show("Error: " + ex.Message); }
             }
+        }
+
+        private void LimpiarConfiguradorRamo()
+        {
+            composicionRamoActual.Clear(); floresAgregadas = 0; capacidadRamo = 0;
+            ActualizarTotal(); ActualizarProgreso();
         }
 
         private void ActualizarProgreso() => lblProgresoRamo.Text = $"Seleccionadas: {floresAgregadas} / {capacidadRamo}";
@@ -157,7 +171,6 @@ namespace PuntoFlower.Views
             if (item != null) { ProductosEnTicket.Remove(item); ActualizarTotal(); }
         }
 
-        // CLASES DE APOYO
         public class ItemTicket
         {
             public string ProductoNombre { get; set; }

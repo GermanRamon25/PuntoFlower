@@ -40,6 +40,8 @@
                             FontWeight="Bold" BorderThickness="0" Margin="5,0" Cursor="Hand"/>
 
                     <Button Content="Surtir Stock" Width="120" Height="35" 
+                            x:Name="btnSurtirStock"
+                            Click="btnSurtirStock_Click" 
                             Background="#F39C12" Foreground="White" 
                             FontWeight="Bold" BorderThickness="0" Margin="5,0" Cursor="Hand"/>
                 </StackPanel>

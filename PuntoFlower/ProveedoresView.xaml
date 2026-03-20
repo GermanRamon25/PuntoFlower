@@ -1,0 +1,57 @@
+﻿<UserControl x:Class="PuntoFlower.Views.ProveedoresView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="900">
+    <Grid Background="#F5F5F5">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="350"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="White" Margin="10" CornerRadius="10" Padding="15">
+            <StackPanel>
+                <TextBlock Text="Datos del Proveedor" FontSize="18" FontWeight="Bold" Margin="0,0,0,15" Foreground="#2C3E50"/>
+
+                <TextBlock Text="Nombre / Empresa" Foreground="#5D6D7E" Margin="0,0,0,5"/>
+                <TextBox x:Name="txtNombre" Height="30" Margin="0,0,0,10" VerticalContentAlignment="Center"/>
+
+                <TextBlock Text="Teléfono de Contacto" Foreground="#5D6D7E" Margin="0,0,0,5"/>
+                <TextBox x:Name="txtTelefono" Height="30" Margin="0,0,0,10" VerticalContentAlignment="Center"/>
+
+                <TextBlock Text="Dirección / Bodega" Foreground="#5D6D7E" Margin="0,0,0,5"/>
+                <TextBox x:Name="txtDireccion" Height="30" Margin="0,0,0,10" VerticalContentAlignment="Center"/>
+
+                <TextBlock Text="Categoría Principal" Foreground="#5D6D7E" Margin="0,0,0,5"/>
+                <ComboBox x:Name="cbCategoria" Height="30" Margin="0,0,0,20">
+                    <ComboBoxItem Content="Flores Frescas"/>
+                    <ComboBoxItem Content="Insumos (Oasis/Bases)"/>
+                    <ComboBoxItem Content="Accesorios y Papel"/>
+                </ComboBox>
+
+                <Button Content="GUARDAR PROVEEDOR" Click="btnGuardar_Click" 
+                        Background="#27AE60" Foreground="White" FontWeight="Bold" Height="40" Cursor="Hand"/>
+
+                <Separator Margin="0,20" Background="#EEE"/>
+
+                <Button Content="📦 REGISTRAR COMPRA / SURTIDO" Click="btnNuevaCompra_Click"
+                        Background="#F39C12" Foreground="White" FontWeight="Bold" Height="50" Cursor="Hand"/>
+
+                <TextBlock Text="*Selecciona un proveedor para surtir" FontSize="10" Foreground="Gray" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Background="White" Margin="0,10,10,10" CornerRadius="10" Padding="10">
+            <DataGrid x:Name="dgProveedores" AutoGenerateColumns="False" CanUserAddRows="False" 
+                      IsReadOnly="True" Background="Transparent" BorderThickness="0"
+                      HeadersVisibility="Column" RowHeight="35">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Empresa" Binding="{Binding Nombre}" Width="*"/>
+                    <DataGridTextColumn Header="Contacto" Binding="{Binding Telefono}" Width="120"/>
+                    <DataGridTextColumn Header="Especialidad" Binding="{Binding Categoria}" Width="150"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,26 @@
+﻿<Window x:Class="PuntoFlower.Views.SurtirStockWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Surtir Inventario" Height="350" Width="400"
+        WindowStartupLocation="CenterOwner" Background="#F4F6F7">
+    <Grid Margin="20">
+        <StackPanel>
+            <TextBlock x:Name="lblProducto" Text="Producto: Nombre de Flor" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
+
+            <TextBlock Text="¿Cuántas piezas llegaron?" Foreground="#5D6D7E"/>
+            <TextBox x:Name="txtCantidad" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center" FontSize="16"/>
+
+            <TextBlock Text="Costo por pieza (Precio de Compra)" Foreground="#5D6D7E"/>
+            <TextBox x:Name="txtCosto" Height="35" Margin="0,5,0,20" VerticalContentAlignment="Center" FontSize="16"/>
+
+            <Button Content="REGISTRAR ENTRADA" Click="btnSurtir_Click" 
+                    Background="#F39C12" Foreground="White" FontWeight="Bold" Height="45" BorderThickness="0">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

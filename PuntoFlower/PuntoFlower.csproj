@@ -56,6 +56,12 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ProveedoresView.xaml.cs">
+      <DependentUpon>ProveedoresView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SurtirStockWindow.xaml.cs">
+      <DependentUpon>SurtirStockWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\AgendaView.xaml.cs">
       <DependentUpon>AgendaView.xaml</DependentUpon>
     </Compile>
@@ -84,6 +90,17 @@
     <Compile Include="Views\NuevoPedidoWindow.xaml.cs">
       <DependentUpon>NuevoPedidoWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\RegistrarCompraWindow.xaml.cs">
+      <DependentUpon>RegistrarCompraWindow.xaml</DependentUpon>
+    </Compile>
+    <Page Include="ProveedoresView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SurtirStockWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\AgendaView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -125,6 +142,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\NuevoPedidoWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\RegistrarCompraWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
