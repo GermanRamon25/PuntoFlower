@@ -54,7 +54,12 @@ namespace PuntoFlower
             MainContent.Content = new ReportsView();
         }
 
-        // NUEVO: Manejador para el botón de Configuración
+        // NUEVO: Manejador para mostrar el Corte de Caja
+        private void btnCorteCaja_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new CashCloseOutView();
+        }
+
         private void btnConfiguracion_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new ConfigurationView();

@@ -55,6 +55,12 @@
                         Margin="0,10,0,0"
                         Click="btnReportes_Click"/>
 
+                <Button x:Name="btnCorteCaja" 
+                        Content="Corte de Caja" 
+                        Style="{StaticResource MenuButtonStyle}" 
+                        Margin="0,10,0,0"
+                        Click="btnCorteCaja_Click"/>
+
                 <Button x:Name="btnGastos" 
                         Content="Gastos y Surtido" 
                         Style="{StaticResource MenuButtonStyle}" 
@@ -84,7 +90,7 @@
                                FontWeight="SemiBold" 
                                Foreground="#333"/>
 
-                    <TextBlock Text="17 de Marzo, 2026" 
+                    <TextBlock Text="23 de Marzo, 2026" 
                                DockPanel.Dock="Right" 
                                VerticalAlignment="Center" 
                                Foreground="#777"/>
