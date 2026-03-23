@@ -65,7 +65,8 @@
 
                 <Button x:Name="btnConfiguracion" 
                         Content="Configuración" 
-                        Style="{StaticResource MenuButtonStyle}"/>
+                        Style="{StaticResource MenuButtonStyle}"
+                        Click="btnConfiguracion_Click"/>
             </StackPanel>
         </Border>
 

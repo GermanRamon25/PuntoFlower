@@ -12,7 +12,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using PuntoFlower.Views;
 
 namespace PuntoFlower.Views
 {
@@ -23,10 +22,17 @@ namespace PuntoFlower.Views
             InitializeComponent();
         }
 
+        // Este método se puede dejar vacío o eliminar si el botón 
+        // solo está dentro de esta misma vista y no pretendes navegar a otra sub-vista.
         private void btnConfiguracion_Click(object sender, RoutedEventArgs e)
         {
-            // Cambiamos el contenido del ContentControl de la ventana principal
-            ContentPrincipal.Content = new ConfigurationView();
+            // Nota: En MainWindow.xaml el contenedor se llama "MainContent".
+            // Para cambiar la vista desde aquí (un UserControl), usaríamos:
+            var principal = Window.GetWindow(this) as MainWindow;
+            if (principal != null)
+            {
+                principal.MainContent.Content = new ConfigurationView();
+            }
         }
     }
 }

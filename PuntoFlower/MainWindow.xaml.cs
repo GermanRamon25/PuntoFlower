@@ -49,10 +49,15 @@ namespace PuntoFlower
             MainContent.Content = new ProveedoresView();
         }
 
-        // NUEVO MÉTODO PARA REPORTES
         private void btnReportes_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new ReportsView();
+        }
+
+        // NUEVO: Manejador para el botón de Configuración
+        private void btnConfiguracion_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new ConfigurationView();
         }
     }
 }
