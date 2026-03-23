@@ -21,40 +21,38 @@ namespace PuntoFlower
         public MainWindow()
         {
             InitializeComponent();
-            // Al arrancar, nos aseguramos de que el Dashboard sea lo primero en verse
             MainContent.Content = new DashboardView();
         }
 
-        // LOGICA PARA EL BOTON DE RESUMEN
         private void btnDashboard_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new DashboardView();
         }
 
-        // LOGICA PARA EL BOTON DE INVENTARIO 
         private void btnInventario_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new InventoryView();
         }
 
-        // LOGICA PARA LA VENTA 
         private void btnVentas_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new SalesView();
         }
 
-        // LOGICA PARA LA AGENDA DE PEDIDOS
         private void btnAgenda_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new AgendaView();
         }
 
-        // METODO ACTUALIZADO: Ahora lleva a la gestión de Proveedores y Surtido
         private void btnGastos_Click(object sender, RoutedEventArgs e)
         {
-            // Cambiamos ExpensesView por ProveedoresView para que 
-            // desde aquí gestiones tus compras y stock
             MainContent.Content = new ProveedoresView();
+        }
+
+        // NUEVO MÉTODO PARA REPORTES
+        private void btnReportes_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new ReportsView();
         }
     }
 }

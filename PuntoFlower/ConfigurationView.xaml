@@ -1,0 +1,49 @@
+﻿<UserControl x:Class="PuntoFlower.Views.ConfigurationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#F5F5F5">
+    <Grid Margin="20">
+        <StackPanel>
+            <TextBlock Text="Configuración del Sistema" FontSize="26" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
+
+            <TabControl Background="White" BorderThickness="0" Padding="10">
+                <TabItem Header="Mi Florería">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Nombre de la Florería" Margin="0,10,0,5" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtNombreNegocio" Text="PuntoFlower" Height="30"/>
+
+                        <TextBlock Text="Teléfono de contacto" Margin="0,10,0,5" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtTelefonoNegocio" Height="30"/>
+
+                        <TextBlock Text="Dirección" Margin="0,10,0,5" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtDireccionNegocio" Height="30"/>
+
+                        <Button Content="GUARDAR CAMBIOS" Margin="0,20,0,0" Height="40" 
+                                Background="#3498DB" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                    </StackPanel>
+                </TabItem>
+
+                <TabItem Header="Inventario">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Margen de Ganancia Sugerido (%)" Margin="0,10,0,5" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtMargen" Text="50" Width="100" HorizontalAlignment="Left" Height="30"/>
+                        <TextBlock Text="* Este valor se usará para sugerir precios de venta al surtir." FontSize="10" Foreground="Gray"/>
+
+                        <Button Content="APLICAR AJUSTES" Margin="0,20,0,0" Height="40" 
+                                Background="#27AE60" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                    </StackPanel>
+                </TabItem>
+
+                <TabItem Header="Mantenimiento">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Copia de Seguridad (Backup)" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Es recomendable respaldar tu base de datos semanalmente." Foreground="Gray" Margin="0,0,0,10"/>
+
+                        <Button Content="GENERAR RESPALDO DE PUNTOFLOWERDB" Height="45" 
+                                Background="#F39C12" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
+        </StackPanel>
+    </Grid>
+</UserControl>

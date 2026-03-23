@@ -17,7 +17,7 @@
                         </Border.Effect>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Ventas del Mes" Foreground="#7F8C8D" FontSize="14"/>
-                            <TextBlock Text="$12,450.00" Foreground="#27AE60" FontSize="22" FontWeight="Bold" Margin="0,5"/>
+                            <TextBlock x:Name="txtVentasMes" Text="$0.00" Foreground="#27AE60" FontSize="22" FontWeight="Bold" Margin="0,5"/>
                         </StackPanel>
                     </Border>
 
@@ -26,8 +26,8 @@
                             <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
                         </Border.Effect>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Gastos (Insumos)" Foreground="#7F8C8D" FontSize="14"/>
-                            <TextBlock Text="$4,200.00" Foreground="#E74C3C" FontSize="22" FontWeight="Bold" Margin="0,5"/>
+                            <TextBlock Text="Inversión Stock" Foreground="#7F8C8D" FontSize="14"/>
+                            <TextBlock x:Name="txtGastosSurtido" Text="$0.00" Foreground="#E74C3C" FontSize="22" FontWeight="Bold" Margin="0,5"/>
                         </StackPanel>
                     </Border>
 
@@ -36,8 +36,8 @@
                             <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
                         </Border.Effect>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Stock a Surtir" Foreground="#7F8C8D" FontSize="14"/>
-                            <TextBlock Text="12 Flores" Foreground="#F39C12" FontSize="22" FontWeight="Bold" Margin="0,5"/>
+                            <TextBlock Text="Stock Crítico" Foreground="#7F8C8D" FontSize="14"/>
+                            <TextBlock x:Name="txtStockAlerta" Text="0 Flores" Foreground="#F39C12" FontSize="22" FontWeight="Bold" Margin="0,5"/>
                         </StackPanel>
                     </Border>
 
@@ -46,8 +46,8 @@
                             <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
                         </Border.Effect>
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Mermas" Foreground="#7F8C8D" FontSize="14"/>
-                            <TextBlock Text="5" Foreground="#95A5A6" FontSize="22" FontWeight="Bold" Margin="0,5"/>
+                            <TextBlock Text="Pedidos Hoy" Foreground="#7F8C8D" FontSize="14"/>
+                            <TextBlock x:Name="txtPedidosHoy" Text="0" Foreground="#3498DB" FontSize="22" FontWeight="Bold" Margin="0,5"/>
                         </StackPanel>
                     </Border>
                 </UniformGrid>
@@ -59,7 +59,7 @@
                     <StackPanel Margin="20">
                         <TextBlock Text="Entregas para hoy (Agenda)" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,15"/>
                         <Separator Background="#EEE"/>
-                        <TextBlock Text="No hay entregas pendientes para hoy" Foreground="#BBB" HorizontalAlignment="Center" Margin="40"/>
+                        <TextBlock x:Name="lblMensajeAgenda" Text="No hay entregas pendientes para hoy" Foreground="#BBB" HorizontalAlignment="Center" Margin="40"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
