@@ -20,40 +20,68 @@
                 <Button Content="GENERAR REPORTE" Click="btnGenerarReporte_Click" 
                         Background="#3498DB" Foreground="White" FontWeight="Bold" 
                         Padding="20,8" BorderThickness="0" Cursor="Hand"/>
+
+                <Button Content="EXPORTAR PDF" Click="btnExportarPDF_Click" 
+                        Background="#E74C3C" Foreground="White" FontWeight="Bold" 
+                        Padding="20,8" BorderThickness="0" Cursor="Hand" Margin="10,0,0,0"/>
             </StackPanel>
         </Border>
 
         <UniformGrid Grid.Row="1" Columns="3" Height="100" Margin="0,0,0,20">
-            <Border Background="#EBF5FB" Margin="5" CornerRadius="8" Padding="10">
+            <Border Background="#EAFAF1" Margin="5" CornerRadius="8" Padding="10">
                 <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="(+) Total Ventas" Foreground="#2E86C1" FontSize="12"/>
-                    <TextBlock x:Name="txtRepVentas" Text="$0.00" FontSize="20" FontWeight="Bold"/>
+                    <TextBlock Text="(+) Total Ventas" Foreground="#1D8348" FontSize="12"/>
+                    <TextBlock x:Name="txtRepVentas" Text="$0.00" FontSize="22" FontWeight="Bold"/>
                 </StackPanel>
             </Border>
             <Border Background="#FDEDEC" Margin="5" CornerRadius="8" Padding="10">
                 <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="(-) Salidas (Surtido + Gastos)" Foreground="#CB4335" FontSize="12"/>
-                    <TextBlock x:Name="txtRepGastos" Text="$0.00" FontSize="20" FontWeight="Bold"/>
+                    <TextBlock Text="(-) Total Salidas" Foreground="#CB4335" FontSize="12"/>
+                    <TextBlock x:Name="txtRepGastos" Text="$0.00" FontSize="22" FontWeight="Bold"/>
                 </StackPanel>
             </Border>
-            <Border Background="#EAFAF1" Margin="5" CornerRadius="8" Padding="10">
+            <Border Background="#EBF5FB" Margin="5" CornerRadius="8" Padding="10">
                 <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="(=) Utilidad Real" Foreground="#1D8348" FontSize="12"/>
+                    <TextBlock Text="(=) Utilidad Real" Foreground="#2E86C1" FontSize="12"/>
                     <TextBlock x:Name="txtRepUtilidad" Text="$0.00" FontSize="22" FontWeight="Bold"/>
                 </StackPanel>
             </Border>
         </UniformGrid>
 
-        <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="10">
-            <DataGrid x:Name="dgReporte" AutoGenerateColumns="False" IsReadOnly="True" 
-                      HeadersVisibility="Column" GridLinesVisibility="Horizontal">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="120"/>
-                    <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
-                    <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="100"/>
-                    <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="120"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="INGRESOS (VENTAS)" FontWeight="Bold" Foreground="#1D8348" Margin="0,0,0,10"/>
+                <Border Background="White" CornerRadius="10" Padding="5">
+                    <DataGrid x:Name="dgIngresos" AutoGenerateColumns="False" IsReadOnly="True" 
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="350">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="100"/>
+                            <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
+                            <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="100"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="EGRESOS (GASTOS Y SURTIDO)" FontWeight="Bold" Foreground="#CB4335" Margin="0,0,0,10"/>
+                <Border Background="White" CornerRadius="10" Padding="5">
+                    <DataGrid x:Name="dgEgresos" AutoGenerateColumns="False" IsReadOnly="True" 
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="350">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="100"/>
+                            <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
+                            <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="100"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>
