@@ -24,8 +24,10 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Traemos todos los campos, incluyendo Estado para filtrar y Descripcion/Nota para detalles
-                    string query = "SELECT * FROM Pedidos WHERE Estado != 'Entregado' ORDER BY FechaEntrega ASC";
+                    // CAMBIO: Se traen explícitamente los campos financieros para que el binding en el XAML funcione
+                    string query = "SELECT Id, ClienteNombre, Telefono, FechaEntrega, Descripcion, Direccion, NotaTarjeta, Estado, PrecioTotal, Anticipo, SaldoPendiente " +
+                                   "FROM Pedidos WHERE Estado != 'Entregado' ORDER BY FechaEntrega ASC";
+
                     SqlCommand cmd = new SqlCommand(query, con);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
@@ -40,7 +42,11 @@ namespace PuntoFlower.Views
                                 Descripcion = r["Descripcion"].ToString(),
                                 Direccion = string.IsNullOrEmpty(r["Direccion"].ToString()) ? "Recoge en Tienda" : r["Direccion"].ToString(),
                                 NotaTarjeta = r["NotaTarjeta"].ToString(),
-                                Estado = r["Estado"].ToString()
+                                Estado = r["Estado"].ToString(),
+                                // NUEVOS CAMPOS PARA LA VISTA FINANCIERA
+                                PrecioTotal = r["PrecioTotal"] != DBNull.Value ? Convert.ToDecimal(r["PrecioTotal"]) : 0,
+                                Anticipo = r["Anticipo"] != DBNull.Value ? Convert.ToDecimal(r["Anticipo"]) : 0,
+                                SaldoPendiente = r["SaldoPendiente"] != DBNull.Value ? Convert.ToDecimal(r["SaldoPendiente"]) : 0
                             });
                         }
                     }
@@ -64,21 +70,19 @@ namespace PuntoFlower.Views
             }
         }
 
-        // NUEVO MÉTODO PARA VER DETALLES Y MARCAR ENTREGA
         private void btnVerDetalles_Click(object sender, RoutedEventArgs e)
         {
             var boton = sender as Button;
-            var pedidoSeleccionado = boton.DataContext; // Obtenemos el objeto vinculado a la tarjeta
+            var pedidoSeleccionado = boton.DataContext; // Obtenemos el objeto con todos los datos (incluyendo anticipo y saldo)
 
             if (pedidoSeleccionado != null)
             {
-               
+                // Pasamos el objeto 'dynamic' que ya contiene PrecioTotal, Anticipo y SaldoPendiente
                 DetallesPedidoWindow ventana = new DetallesPedidoWindow(pedidoSeleccionado);
                 ventana.Owner = Window.GetWindow(this);
 
                 if (ventana.ShowDialog() == true)
                 {
-                    
                     CargarPedidos();
                 }
             }

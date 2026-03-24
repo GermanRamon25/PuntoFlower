@@ -2,6 +2,7 @@
 using System;
 using System.Data.SqlClient;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace PuntoFlower.Views
 {
@@ -10,6 +11,21 @@ namespace PuntoFlower.Views
         public NuevoPedidoWindow()
         {
             InitializeComponent();
+        }
+
+        // Lógica para calcular el saldo pendiente mientras se escribe
+        private void CalcularSaldo(object sender, TextChangedEventArgs e)
+        {
+            if (decimal.TryParse(txtPrecioTotal.Text, out decimal total) &&
+                decimal.TryParse(txtAnticipo.Text, out decimal anticipo))
+            {
+                decimal saldo = total - anticipo;
+                lblSaldo.Text = saldo.ToString("C");
+            }
+            else
+            {
+                lblSaldo.Text = "$0.00";
+            }
         }
 
         private void btnGuardar_Click(object sender, RoutedEventArgs e)
@@ -21,14 +37,23 @@ namespace PuntoFlower.Views
                 return;
             }
 
+            // Validar montos numéricos
+            if (!decimal.TryParse(txtPrecioTotal.Text, out decimal total) || !decimal.TryParse(txtAnticipo.Text, out decimal anticipo))
+            {
+                MessageBox.Show("Por favor, ingresa montos válidos en los campos de dinero.", "Error de datos");
+                return;
+            }
+
+            decimal saldoPendiente = total - anticipo;
             ConexionDB db = new ConexionDB();
+
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Se agregó 'Descripcion' a la consulta SQL
-                    string query = "INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, Direccion, NotaTarjeta, Estado, Descripcion) " +
-                                   "VALUES (@nom, @tel, @fec, @dir, @not, 'Pendiente', @des)";
+                    // Consulta actualizada con campos financieros
+                    string query = "INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente) " +
+                                   "VALUES (@nom, @tel, @fec, @dir, @not, 'Pendiente', @des, @total, @ant, @saldo)";
 
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@nom", txtCliente.Text);
@@ -36,7 +61,10 @@ namespace PuntoFlower.Views
                     cmd.Parameters.AddWithValue("@fec", dpFecha.SelectedDate.Value);
                     cmd.Parameters.AddWithValue("@dir", txtDireccion.Text);
                     cmd.Parameters.AddWithValue("@not", txtNota.Text);
-                    cmd.Parameters.AddWithValue("@des", txtDescripcion.Text); // Nuevo parámetro
+                    cmd.Parameters.AddWithValue("@des", txtDescripcion.Text);
+                    cmd.Parameters.AddWithValue("@total", total);
+                    cmd.Parameters.AddWithValue("@ant", anticipo);
+                    cmd.Parameters.AddWithValue("@saldo", saldoPendiente);
 
                     cmd.ExecuteNonQuery();
 
