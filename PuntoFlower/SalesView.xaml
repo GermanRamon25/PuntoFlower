@@ -19,10 +19,10 @@
                         <TextBlock Text="Ramos de Rosas / Girasoles" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
                         <GroupBox Header="1. Elegir Tamaño (Precios de Lista)" Margin="0,0,0,15">
                             <WrapPanel Orientation="Horizontal">
-                                <RadioButton Content="6 pz ($300)" Tag="6" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
-                                <RadioButton Content="12 pz ($450)" Tag="12" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
-                                <RadioButton Content="24 pz ($850)" Tag="24" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
-                                <RadioButton Content="50 pz ($1,650)" Tag="50" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
+                                <RadioButton x:Name="rbRamo6" Content="6 pz" Tag="6" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
+                                <RadioButton x:Name="rbRamo12" Content="12 pz" Tag="12" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
+                                <RadioButton x:Name="rbRamo24" Content="24 pz" Tag="24" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
+                                <RadioButton x:Name="rbRamo50" Content="50 pz" Tag="50" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="100" Height="40"/>
                             </WrapPanel>
                         </GroupBox>
 
@@ -33,7 +33,7 @@
                                     <TextBox x:Name="txtCantFlorRamo" Width="60" VerticalContentAlignment="Center" Text="0" Margin="0,0,10,0"/>
                                     <Button Content="Añadir" Click="btnAgregarAlRamo_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" Width="100"/>
                                 </DockPanel>
-                                <TextBlock x:Name="lblProgresoRamo" Text="Progreso: 0 / 0" FontSize="14" FontWeight="Bold" Foreground="#E67E22"/>
+                                <TextBlock x:Name="lblProgresoRamo" Text="Seleccionadas: 0 / 0" FontSize="14" FontWeight="Bold" Foreground="#E67E22"/>
                                 <Button Content="Finalizar y Agregar al Ticket" Click="btnFinalizarRamo_Click" Background="#27AE60" Foreground="White" Height="45" Margin="0,15,0,0"/>
                             </StackPanel>
                         </GroupBox>
@@ -60,7 +60,6 @@
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="Agregar al Ticket" Click="btnAgregarVentaLibre_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" Height="40" VerticalAlignment="Bottom"/>
                             </Grid>
-                            <TextBlock Text="*Usa el precio registrado en inventario (Ej: Mariposa $10, Oasis $60)" FontSize="11" Foreground="#95A5A6" Margin="0,15,0,0" FontStyle="Italic"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -71,12 +70,10 @@
                     <TextBlock Text="Coronas, Novias y Fúnebres" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
                     <Border Background="White" Padding="20" CornerRadius="10">
                         <StackPanel>
-                            <TextBlock Text="Nombre del Servicio / Arreglo (Ej: Corona Fúnebre Yumbo)" Foreground="#7F8C8D"/>
+                            <TextBlock Text="Nombre del Servicio / Arreglo" Foreground="#7F8C8D"/>
                             <TextBox x:Name="txtNombreEspecial" Height="40" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
-
                             <TextBlock Text="Precio Acordado ($)" Foreground="#7F8C8D"/>
                             <TextBox x:Name="txtPrecioEspecial" Height="40" Margin="0,5,0,20" VerticalContentAlignment="Center" FontSize="18" FontWeight="Bold"/>
-
                             <Button Content="Agregar Pedido Especial" Click="btnAgregarEspecial_Click" Background="#8E44AD" Foreground="White" FontWeight="Bold" Height="45"/>
                         </StackPanel>
                     </Border>

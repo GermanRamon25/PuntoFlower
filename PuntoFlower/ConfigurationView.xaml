@@ -7,41 +7,39 @@
             <TextBlock Text="Configuración del Sistema" FontSize="26" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
 
             <TabControl Background="White" BorderThickness="0" Padding="10">
-                <TabItem Header="Mi Florería">
-                    <StackPanel Margin="10">
-                        <TextBlock Text="Nombre de la Florería" Margin="0,10,0,5" FontWeight="SemiBold"/>
-                        <TextBox x:Name="txtNombreNegocio" Text="PuntoFlower" Height="30"/>
-
-                        <TextBlock Text="Teléfono de contacto" Margin="0,10,0,5" FontWeight="SemiBold"/>
-                        <TextBox x:Name="txtTelefonoNegocio" Height="30"/>
-
-                        <TextBlock Text="Dirección" Margin="0,10,0,5" FontWeight="SemiBold"/>
-                        <TextBox x:Name="txtDireccionNegocio" Height="30"/>
-
-                        <Button Content="GUARDAR CAMBIOS" Margin="0,20,0,0" Height="40" 
-                                Background="#3498DB" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
-                    </StackPanel>
-                </TabItem>
-
                 <TabItem Header="Inventario">
-                    <StackPanel Margin="10">
-                        <TextBlock Text="Margen de Ganancia Sugerido (%)" Margin="0,10,0,5" FontWeight="SemiBold"/>
-                        <TextBox x:Name="txtMargen" Text="50" Width="100" HorizontalAlignment="Left" Height="30"/>
-                        <TextBlock Text="* Este valor se usará para sugerir precios de venta al surtir." FontSize="10" Foreground="Gray"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="10">
+                            <TextBlock Text="Margen de Ganancia Sugerido (%)" Margin="0,10,0,5" FontWeight="SemiBold"/>
+                            <TextBox x:Name="txtMargen" Text="50" Width="100" HorizontalAlignment="Left" Height="30"/>
 
-                        <Button Content="APLICAR AJUSTES" Margin="0,20,0,0" Height="40" 
-                                Background="#27AE60" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
-                    </StackPanel>
-                </TabItem>
+                            <GroupBox Header="Precios de Ramos de Mayoreo (Lista)" Margin="0,10,0,10">
+                                <UniformGrid Columns="2" Margin="10">
+                                    <StackPanel Margin="5">
+                                        <TextBlock Text="Ramo 6 pz ($)"/>
+                                        <TextBox x:Name="txtPrecio6" Height="30" VerticalContentAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="5">
+                                        <TextBlock Text="Ramo 12 pz ($)"/>
+                                        <TextBox x:Name="txtPrecio12" Height="30" VerticalContentAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="5">
+                                        <TextBlock Text="Ramo 24 pz ($)"/>
+                                        <TextBox x:Name="txtPrecio24" Height="30" VerticalContentAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="5">
+                                        <TextBlock Text="Ramo 50 pz ($)"/>
+                                        <TextBox x:Name="txtPrecio50" Height="30" VerticalContentAlignment="Center"/>
+                                    </StackPanel>
+                                </UniformGrid>
+                            </GroupBox>
 
-                <TabItem Header="Mantenimiento">
-                    <StackPanel Margin="10">
-                        <TextBlock Text="Copia de Seguridad (Backup)" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <TextBlock Text="Es recomendable respaldar tu base de datos semanalmente." Foreground="Gray" Margin="0,0,0,10"/>
-
-                        <Button Content="GENERAR RESPALDO DE PUNTOFLOWERDB" Height="45" 
-                                Background="#F39C12" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
-                    </StackPanel>
+                            <Button Content="APLICAR AJUSTES DE INVENTARIO" 
+                                    Click="btnAplicarAjustes_Click" 
+                                    Margin="0,10,0,0" Height="45" 
+                                    Background="#27AE60" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
             </TabControl>
         </StackPanel>

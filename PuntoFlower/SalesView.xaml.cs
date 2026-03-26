@@ -18,14 +18,65 @@ namespace PuntoFlower.Views
         private decimal precioRamo = 0;
         private int floresAgregadas = 0;
 
+        // Diccionario para almacenar los precios configurados en la DB
+        private Dictionary<int, decimal> preciosDinamicos = new Dictionary<int, decimal>();
+
         public SalesView()
         {
             InitializeComponent();
             ProductosEnTicket = new ObservableCollection<ItemTicket>();
             lstVenta.ItemsSource = ProductosEnTicket;
+            CargarPreciosDesdeDB();
         }
 
-        private void UserControl_Loaded(object sender, RoutedEventArgs e) => CargarInsumos();
+        private void CargarPreciosDesdeDB()
+        {
+            preciosDinamicos.Clear();
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    string query = "SELECT Capacidad, Precio FROM PreciosRamos";
+                    SqlCommand cmd = new SqlCommand(query, con);
+                    using (SqlDataReader r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            int cap = (int)r["Capacidad"];
+                            decimal precio = Convert.ToDecimal(r["Precio"]);
+                            preciosDinamicos.Add(cap, precio);
+
+                            // ACTUALIZACIÓN VISUAL DE LOS BOTONES
+                            ActualizarTextoBoton(cap, precio);
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Si falla, se usarán los valores por defecto en Ramo_Checked
+            }
+        }
+
+        // Método auxiliar para escribir el precio sobre el botón en la interfaz
+        private void ActualizarTextoBoton(int capacidad, decimal precio)
+        {
+            string texto = $"{capacidad} pz ({precio:C0})";
+            switch (capacidad)
+            {
+                case 6: rbRamo6.Content = texto; break;
+                case 12: rbRamo12.Content = texto; break;
+                case 24: rbRamo24.Content = texto; break;
+                case 50: rbRamo50.Content = texto; break;
+            }
+        }
+
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            CargarInsumos();
+            CargarPreciosDesdeDB(); // Refrescar precios cada vez que se entra a la pestaña
+        }
 
         private void CargarInsumos()
         {
@@ -48,7 +99,6 @@ namespace PuntoFlower.Views
             cbInsumosLibre.ItemsSource = lista;
         }
 
-        // CÁLCULO DE CAMBIO EN TIEMPO REAL
         private void txtPagoCon_TextChanged(object sender, TextChangedEventArgs e)
         {
             decimal total = ProductosEnTicket.Sum(x => x.Total);
@@ -66,14 +116,26 @@ namespace PuntoFlower.Views
         private void Ramo_Checked(object sender, RoutedEventArgs e)
         {
             var rb = sender as RadioButton;
+            if (rb == null || rb.Tag == null) return;
+
             capacidadRamo = int.Parse(rb.Tag.ToString());
-            switch (capacidadRamo)
+
+            if (preciosDinamicos.ContainsKey(capacidadRamo))
             {
-                case 6: precioRamo = 300; break;
-                case 12: precioRamo = 450; break;
-                case 18: precioRamo = 650; break;
-                case 24: precioRamo = 850; break;
-                case 50: precioRamo = 1650; break;
+                precioRamo = preciosDinamicos[capacidadRamo];
+            }
+            else
+            {
+                // Backup por si la DB está vacía
+                switch (capacidadRamo)
+                {
+                    case 6: precioRamo = 300; break;
+                    case 12: precioRamo = 450; break;
+                    case 18: precioRamo = 650; break;
+                    case 24: precioRamo = 850; break;
+                    case 50: precioRamo = 1650; break;
+                    default: precioRamo = 0; break;
+                }
             }
             ActualizarProgreso();
         }
@@ -83,9 +145,7 @@ namespace PuntoFlower.Views
             var flor = cbInsumosRamos.SelectedItem as Producto;
             if (flor == null || capacidadRamo == 0) return;
             if (!int.TryParse(txtCantFlorRamo.Text, out int cant) || cant <= 0) return;
-
             if (floresAgregadas + cant > capacidadRamo) { MessageBox.Show("Capacidad excedida."); return; }
-
             composicionRamoActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
             floresAgregadas += cant;
             ActualizarProgreso();
@@ -95,7 +155,6 @@ namespace PuntoFlower.Views
         private void btnFinalizarRamo_Click(object sender, RoutedEventArgs e)
         {
             if (floresAgregadas != capacidadRamo) { MessageBox.Show("Completa las flores del ramo."); return; }
-
             ProductosEnTicket.Add(new ItemTicket
             {
                 ProductoNombre = $"Ramo {capacidadRamo} pz",
@@ -110,7 +169,6 @@ namespace PuntoFlower.Views
         {
             var prod = cbInsumosLibre.SelectedItem as Producto;
             if (prod == null || !int.TryParse(txtCantLibre.Text, out int cant)) return;
-
             ProductosEnTicket.Add(new ItemTicket
             {
                 ProductoNombre = prod.Nombre,
@@ -124,7 +182,6 @@ namespace PuntoFlower.Views
         private void btnAgregarEspecial_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(txtNombreEspecial.Text) || !decimal.TryParse(txtPrecioEspecial.Text, out decimal precio)) return;
-
             ProductosEnTicket.Add(new ItemTicket
             {
                 ProductoNombre = txtNombreEspecial.Text,
@@ -140,15 +197,12 @@ namespace PuntoFlower.Views
         {
             decimal total = ProductosEnTicket.Sum(x => x.Total);
             if (total <= 0) return;
-
             if (!decimal.TryParse(txtPagoCon.Text, out decimal pagoRecibido) || pagoRecibido < total)
             {
-                MessageBox.Show("Monto recibido insuficiente o inválido.", "Cobro", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Monto recibido insuficiente.", "Cobro", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
             decimal cambioFinal = pagoRecibido - total;
-
             ConexionDB db = new ConexionDB();
             using (SqlConnection con = db.OpenConnection())
             {
@@ -157,10 +211,8 @@ namespace PuntoFlower.Views
                 {
                     foreach (var item in ProductosEnTicket)
                     {
-                        // Se agregaron los campos MontoRecibido y MontoCambio para auditoría
                         string q = "INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio) " +
                                    "VALUES (GETDATE(), @n, @t, 1, 'Efectivo', @rec, @cam)";
-
                         SqlCommand cmdV = new SqlCommand(q, con, tra);
                         cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
                         cmdV.Parameters.AddWithValue("@t", item.Total);
@@ -177,8 +229,7 @@ namespace PuntoFlower.Views
                         }
                     }
                     tra.Commit();
-                    MessageBox.Show($"¡Venta completada!\nTotal: {total:C}\nRecibido: {pagoRecibido:C}\nCambio: {cambioFinal:C}", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
-
+                    MessageBox.Show($"¡Venta completada!\nCambio: {cambioFinal:C}");
                     ProductosEnTicket.Clear();
                     txtPagoCon.Clear();
                     txtCambio.Text = "$0.00";
@@ -197,7 +248,6 @@ namespace PuntoFlower.Views
         private void ActualizarProgreso() => lblProgresoRamo.Text = $"Seleccionadas: {floresAgregadas} / {capacidadRamo}";
         private void ActualizarTotal() => txtTotal.Text = $"Total: {ProductosEnTicket.Sum(x => x.Total):C}";
         private void btnLimpiarTicket_Click(object sender, RoutedEventArgs e) { ProductosEnTicket.Clear(); ActualizarTotal(); }
-
         private void btnEliminarItem_Click(object sender, RoutedEventArgs e)
         {
             var item = (sender as Button).DataContext as ItemTicket;
