@@ -35,6 +35,7 @@ namespace PuntoFlower.Views
             decimal totalVentas = 0, totalGastos = 0;
             List<object> listaIngresos = new List<object>();
             List<object> listaEgresos = new List<object>();
+            List<object> listaTop = new List<object>();
 
             ConexionDB db = new ConexionDB();
 
@@ -84,6 +85,27 @@ namespace PuntoFlower.Views
                         listaEgresos.Add(new { Fecha = r["Fecha"], Concepto = r["Descripcion"].ToString(), Monto = m });
                     }
                 }
+
+                // 4. NUEVO: Obtener el TOP 5 de productos más vendidos
+                string qTop = @"SELECT TOP 5 ProductoNombre, SUM(Cantidad) as CantidadTotal 
+                               FROM Ventas 
+                               WHERE Fecha BETWEEN @i AND @f 
+                               GROUP BY ProductoNombre 
+                               ORDER BY CantidadTotal DESC";
+                SqlCommand cmdTop = new SqlCommand(qTop, con);
+                cmdTop.Parameters.AddWithValue("@i", inicio);
+                cmdTop.Parameters.AddWithValue("@f", fin.AddDays(1));
+                using (SqlDataReader r = cmdTop.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        listaTop.Add(new
+                        {
+                            ProductoNombre = r["ProductoNombre"].ToString(),
+                            CantidadTotal = r["CantidadTotal"].ToString() + " vendidos"
+                        });
+                    }
+                }
             }
 
             txtRepVentas.Text = totalVentas.ToString("C");
@@ -92,6 +114,7 @@ namespace PuntoFlower.Views
 
             dgIngresos.ItemsSource = listaIngresos;
             dgEgresos.ItemsSource = listaEgresos;
+            dgTopVentas.ItemsSource = listaTop;
         }
 
         private void btnExportarPDF_Click(object sender, RoutedEventArgs e)
@@ -110,7 +133,6 @@ namespace PuntoFlower.Views
             {
                 try
                 {
-                    // Usamos los alias definidos arriba (iTextDocument, iTextParagraph, etc.)
                     iTextDocument doc = new iTextDocument(PageSize.A4, 25, 25, 30, 30);
                     PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
                     doc.Open();
@@ -128,13 +150,13 @@ namespace PuntoFlower.Views
 
                     PdfPTable tablaResumen = new PdfPTable(3);
                     tablaResumen.WidthPercentage = 100;
-
                     tablaResumen.AddCell(new PdfPCell(new Phrase("(+) VENTAS: " + txtRepVentas.Text, fontCuerpo)) { BackgroundColor = new BaseColor(234, 250, 241) });
                     tablaResumen.AddCell(new PdfPCell(new Phrase("(-) SALIDAS: " + txtRepGastos.Text, fontCuerpo)) { BackgroundColor = new BaseColor(253, 237, 236) });
                     tablaResumen.AddCell(new PdfPCell(new Phrase("(=) UTILIDAD: " + txtRepUtilidad.Text, fontCuerpo)) { BackgroundColor = new BaseColor(235, 245, 251) });
                     doc.Add(tablaResumen);
                     doc.Add(new iTextParagraph(" "));
 
+                    // Detalles
                     PdfPTable tablaDetalles = new PdfPTable(4);
                     tablaDetalles.WidthPercentage = 100;
                     tablaDetalles.SetWidths(new float[] { 15f, 50f, 15f, 20f });
@@ -142,11 +164,7 @@ namespace PuntoFlower.Views
                     string[] headers = { "Fecha", "Concepto", "Tipo", "Monto" };
                     foreach (string h in headers)
                     {
-                        PdfPCell headerCell = new PdfPCell(new Phrase(h, fontTablaHead))
-                        {
-                            BackgroundColor = new BaseColor(44, 62, 80),
-                            HorizontalAlignment = Element.ALIGN_CENTER
-                        };
+                        PdfPCell headerCell = new PdfPCell(new Phrase(h, fontTablaHead)) { BackgroundColor = new BaseColor(44, 62, 80), HorizontalAlignment = Element.ALIGN_CENTER };
                         tablaDetalles.AddCell(headerCell);
                     }
 

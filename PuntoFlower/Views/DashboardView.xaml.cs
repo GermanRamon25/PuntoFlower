@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using PuntoFlower.Data;
 
 namespace PuntoFlower.Views
@@ -17,6 +19,8 @@ namespace PuntoFlower.Views
         private void CargarEstadisticasReales()
         {
             ConexionDB db = new ConexionDB();
+            List<object> entregasDeHoy = new List<object>();
+
             try
             {
                 using (SqlConnection con = db.OpenConnection())
@@ -42,18 +46,56 @@ namespace PuntoFlower.Views
                     int alertas = (int)cmdStock.ExecuteScalar();
                     txtStockAlerta.Text = $"{alertas} Flores";
 
-                    // 4. PEDIDOS PARA HOY
-                    string qPedidos = "SELECT COUNT(*) FROM Pedidos WHERE CAST(FechaEntrega AS DATE) = CAST(GETDATE() AS DATE)";
-                    SqlCommand cmdPedidos = new SqlCommand(qPedidos, con);
-                    int pedidosHoy = (int)cmdPedidos.ExecuteScalar();
-                    txtPedidosHoy.Text = pedidosHoy.ToString();
+                    // 4. CARGAR LISTA DE ENTREGAS PARA HOY
+                    string qPedidosHoy = @"SELECT ClienteNombre, Descripcion, FechaEntrega, Estado 
+                                         FROM Pedidos 
+                                         WHERE CAST(FechaEntrega AS DATE) = CAST(GETDATE() AS DATE) 
+                                         AND Estado != 'Entregado'
+                                         ORDER BY FechaEntrega ASC";
 
-                    if (pedidosHoy > 0) lblMensajeAgenda.Text = $"Tienes {pedidosHoy} entregas para hoy.";
+                    SqlCommand cmdPedidos = new SqlCommand(qPedidosHoy, con);
+                    using (SqlDataReader r = cmdPedidos.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            string estado = r["Estado"].ToString();
+
+                            // Asignamos el color dinámicamente según el estado para que se vea en el banner
+                            string colorHex = "#3498DB"; // Azul por defecto (Pendiente)
+                            if (estado == "En Preparación") colorHex = "#F39C12"; // Naranja
+                            else if (estado == "Listo para Entregar") colorHex = "#27AE60"; // Verde
+
+                            entregasDeHoy.Add(new
+                            {
+                                ClienteNombre = r["ClienteNombre"].ToString(),
+                                Descripcion = r["Descripcion"].ToString(),
+                                FechaEntrega = Convert.ToDateTime(r["FechaEntrega"]),
+                                Estado = estado,
+                                ColorEstado = colorHex
+                            });
+                        }
+                    }
+                }
+
+                // Actualizar interfaz
+                txtPedidosHoy.Text = entregasDeHoy.Count.ToString();
+                lblContadorHoy.Text = $"{entregasDeHoy.Count} pendientes";
+                icEntregasHoy.ItemsSource = entregasDeHoy;
+
+                // Controlar visibilidad del mensaje de "No hay entregas"
+                if (entregasDeHoy.Count == 0)
+                {
+                    lblMensajeAgenda.Visibility = Visibility.Visible;
+                    icEntregasHoy.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    lblMensajeAgenda.Visibility = Visibility.Collapsed;
+                    icEntregasHoy.Visibility = Visibility.Visible;
                 }
             }
             catch (Exception ex)
             {
-                // Solo muestra error si hay algo grave en la conexión
                 Console.WriteLine("Error Dashboard: " + ex.Message);
             }
         }

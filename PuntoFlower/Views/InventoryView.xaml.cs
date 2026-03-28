@@ -17,7 +17,6 @@ namespace PuntoFlower.Views
             InitializeComponent();
             CargarDesdeSQL();
 
-            // Refrescar automáticamente al entrar a la vista
             this.IsVisibleChanged += (s, e) => {
                 if ((bool)e.NewValue) CargarDesdeSQL();
             };
@@ -33,18 +32,12 @@ namespace PuntoFlower.Views
                 using (SqlConnection conexion = db.OpenConnection())
                 {
                     string query = "SELECT * FROM Productos";
-
                     if (!string.IsNullOrEmpty(filtro))
-                    {
                         query += " WHERE Nombre LIKE @buscar OR Categoria LIKE @buscar";
-                    }
 
                     SqlCommand comando = new SqlCommand(query, conexion);
-
                     if (!string.IsNullOrEmpty(filtro))
-                    {
                         comando.Parameters.AddWithValue("@buscar", "%" + filtro + "%");
-                    }
 
                     using (SqlDataReader reader = comando.ExecuteReader())
                     {
@@ -73,46 +66,81 @@ namespace PuntoFlower.Views
             }
         }
 
-        // --- LÓGICA PARA EL BOTÓN NARANJA (SURTIR STOCK) ---
-        private void btnSurtirStock_Click(object sender, RoutedEventArgs e)
+        // --- NUEVA LÓGICA: REGISTRAR MERMA ---
+        private void btnMerma_Click(object sender, RoutedEventArgs e)
         {
-            // 1. Obtenemos el producto seleccionado en el DataGrid
             var seleccionado = dgInventario.SelectedItem as Producto;
-
-            if (seleccionado != null)
+            if (seleccionado == null)
             {
-                // 2. Abrimos la ventana de surtido pasándole el nombre del producto
-                // Usamos la ruta completa para evitar errores de referencia
-                PuntoFlower.Views.SurtirStockWindow ventanaSurtir = new PuntoFlower.Views.SurtirStockWindow(seleccionado.Nombre);
+                MessageBox.Show("Selecciona un producto para registrar la pérdida.", "Atención");
+                return;
+            }
 
-                // Centramos la ventana sobre la aplicación principal
-                ventanaSurtir.Owner = Window.GetWindow(this);
+            // Pedimos la cantidad (Puedes crear una ventanita pequeña o usar este InputBox rápido)
+            string cantidadStr = Microsoft.VisualBasic.Interaction.InputBox(
+                $"¿Cuántas unidades de '{seleccionado.Nombre}' vas a retirar por merma?", "Registrar Pérdida", "1");
 
-                // 3. Si se completó el registro con éxito, refrescamos la tabla
-                if (ventanaSurtir.ShowDialog() == true)
+            if (string.IsNullOrEmpty(cantidadStr)) return;
+
+            if (int.TryParse(cantidadStr, out int cantBaja) && cantBaja > 0)
+            {
+                if (cantBaja > seleccionado.StockActual)
                 {
+                    MessageBox.Show("No puedes retirar más de lo que hay en stock.", "Error");
+                    return;
+                }
+
+                string motivo = Microsoft.VisualBasic.Interaction.InputBox(
+                    "Motivo de la merma (Ej: Marchita, Daño, Caducidad):", "Motivo", "Marchita");
+
+                ConexionDB db = new ConexionDB();
+                try
+                {
+                    using (SqlConnection con = db.OpenConnection())
+                    {
+                        // 1. Descontar del inventario
+                        string qUpdate = "UPDATE Productos SET StockActual = StockActual - @cant WHERE Id = @id";
+                        SqlCommand cmdUp = new SqlCommand(qUpdate, con);
+                        cmdUp.Parameters.AddWithValue("@cant", cantBaja);
+                        cmdUp.Parameters.AddWithValue("@id", seleccionado.Id);
+                        cmdUp.ExecuteNonQuery();
+
+                        // 2. Registrar en la tabla de Mermas para reportes
+                        string qInsert = "INSERT INTO Mermas (ProductoNombre, Cantidad, Motivo, Fecha) VALUES (@nom, @cant, @mot, GETDATE())";
+                        SqlCommand cmdIn = new SqlCommand(qInsert, con);
+                        cmdIn.Parameters.AddWithValue("@nom", seleccionado.Nombre);
+                        cmdIn.Parameters.AddWithValue("@cant", cantBaja);
+                        cmdIn.Parameters.AddWithValue("@mot", motivo);
+                        cmdIn.ExecuteNonQuery();
+                    }
+                    MessageBox.Show("Merma registrada y stock actualizado.");
                     CargarDesdeSQL();
                 }
+                catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+            }
+        }
+
+        private void btnSurtirStock_Click(object sender, RoutedEventArgs e)
+        {
+            var seleccionado = dgInventario.SelectedItem as Producto;
+            if (seleccionado != null)
+            {
+                PuntoFlower.Views.SurtirStockWindow ventanaSurtir = new PuntoFlower.Views.SurtirStockWindow(seleccionado.Nombre);
+                ventanaSurtir.Owner = Window.GetWindow(this);
+                if (ventanaSurtir.ShowDialog() == true) CargarDesdeSQL();
             }
             else
             {
-                MessageBox.Show("Por favor, selecciona un producto de la lista para surtir stock.", "Selección necesaria", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Selecciona un producto para surtir stock.", "Atención");
             }
         }
 
         private void btnEliminar_Click(object sender, RoutedEventArgs e)
         {
             var seleccionado = dgInventario.SelectedItem as Producto;
+            if (seleccionado == null) return;
 
-            if (seleccionado == null)
-            {
-                MessageBox.Show("Por favor, selecciona un producto de la tabla para eliminarlo.", "Atención", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var result = MessageBox.Show($"¿Deseas eliminar '{seleccionado.Nombre}' permanentemente?",
-                                         "Confirmar", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-
+            var result = MessageBox.Show($"¿Deseas eliminar '{seleccionado.Nombre}' permanentemente?", "Confirmar", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result == MessageBoxResult.Yes)
             {
                 ConexionDB db = new ConexionDB();
@@ -125,46 +153,20 @@ namespace PuntoFlower.Views
                         cmd.Parameters.AddWithValue("@id", seleccionado.Id);
                         cmd.ExecuteNonQuery();
                     }
-                    MessageBox.Show("Producto eliminado correctamente.");
                     CargarDesdeSQL();
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Error al eliminar: " + ex.Message);
-                }
+                catch (Exception ex) { MessageBox.Show("Error al eliminar: " + ex.Message); }
             }
         }
 
-        private void btnBuscar_Click(object sender, RoutedEventArgs e)
-        {
-            CargarDesdeSQL(txtSearch.Text);
-        }
-
-        private void txtSearch_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                CargarDesdeSQL(txtSearch.Text);
-            }
-        }
-
-        private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (string.IsNullOrEmpty(txtSearch.Text))
-            {
-                CargarDesdeSQL();
-            }
-        }
-
+        private void btnBuscar_Click(object sender, RoutedEventArgs e) => CargarDesdeSQL(txtSearch.Text);
+        private void txtSearch_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) CargarDesdeSQL(txtSearch.Text); }
+        private void txtSearch_TextChanged(object sender, TextChangedEventArgs e) { if (string.IsNullOrEmpty(txtSearch.Text)) CargarDesdeSQL(); }
         private void btnNuevaFlor_Click(object sender, RoutedEventArgs e)
         {
             NuevoProductoWindow ventana = new NuevoProductoWindow();
             ventana.Owner = Window.GetWindow(this);
-
-            if (ventana.ShowDialog() == true)
-            {
-                CargarDesdeSQL();
-            }
+            if (ventana.ShowDialog() == true) CargarDesdeSQL();
         }
     }
 }

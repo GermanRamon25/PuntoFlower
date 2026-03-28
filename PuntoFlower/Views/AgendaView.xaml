@@ -39,13 +39,13 @@
 
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Width="310" Background="White" Margin="10" CornerRadius="12" Padding="15">
+                        <Border x:Name="CardBorder" Width="310" Background="White" Margin="10" CornerRadius="12" Padding="15" BorderThickness="4,0,0,0" BorderBrush="#3498DB">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="12" ShadowDepth="3" Color="#D0D0D0"/>
                             </Border.Effect>
                             <StackPanel>
                                 <DockPanel>
-                                    <TextBlock Text="{Binding Estado}" Foreground="#E67E22" FontWeight="Bold" FontSize="12"/>
+                                    <TextBlock Text="{Binding Estado}" x:Name="txtEstado" Foreground="#3498DB" FontWeight="Bold" FontSize="12"/>
                                     <TextBlock Text="{Binding FechaEntrega, StringFormat={}{0:dd/MM HH:mm}}" DockPanel.Dock="Right" Foreground="#7F8C8D" FontWeight="SemiBold"/>
                                 </DockPanel>
 
@@ -77,7 +77,7 @@
                                     <TextBlock Text="{Binding Direccion}" TextWrapping="Wrap" Height="35" FontSize="13" Foreground="#2C3E50" Margin="0,2,0,0"/>
                                 </StackPanel>
 
-                                <Button Content="Ver Detalles / Entregar" 
+                                <Button Content="Ver Detalles / Avanzar" 
                                         Click="btnVerDetalles_Click" 
                                         Background="#3498DB" Foreground="White" BorderThickness="0" Height="35" FontWeight="SemiBold" Cursor="Hand">
                                     <Button.Resources>
@@ -88,6 +88,17 @@
                                 </Button>
                             </StackPanel>
                         </Border>
+
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Estado}" Value="En Preparación">
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#F39C12"/>
+                                <Setter TargetName="txtEstado" Property="Foreground" Value="#F39C12"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Estado}" Value="Listo para Entregar">
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#27AE60"/>
+                                <Setter TargetName="txtEstado" Property="Foreground" Value="#27AE60"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Data.SqlClient;
+using System.Windows.Media.Imaging; // Necesario para BitmapImage
 
 namespace PuntoFlower.Views
 {
@@ -17,8 +18,6 @@ namespace PuntoFlower.Views
         private int capacidadRamo = 0;
         private decimal precioRamo = 0;
         private int floresAgregadas = 0;
-
-        // Diccionario para almacenar los precios configurados en la DB
         private Dictionary<int, decimal> preciosDinamicos = new Dictionary<int, decimal>();
 
         public SalesView()
@@ -46,20 +45,14 @@ namespace PuntoFlower.Views
                             int cap = (int)r["Capacidad"];
                             decimal precio = Convert.ToDecimal(r["Precio"]);
                             preciosDinamicos.Add(cap, precio);
-
-                            // ACTUALIZACIÓN VISUAL DE LOS BOTONES
                             ActualizarTextoBoton(cap, precio);
                         }
                     }
                 }
             }
-            catch (Exception)
-            {
-                // Si falla, se usarán los valores por defecto en Ramo_Checked
-            }
+            catch (Exception) { }
         }
 
-        // Método auxiliar para escribir el precio sobre el botón en la interfaz
         private void ActualizarTextoBoton(int capacidad, decimal precio)
         {
             string texto = $"{capacidad} pz ({precio:C0})";
@@ -75,7 +68,7 @@ namespace PuntoFlower.Views
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             CargarInsumos();
-            CargarPreciosDesdeDB(); // Refrescar precios cada vez que se entra a la pestaña
+            CargarPreciosDesdeDB();
         }
 
         private void CargarInsumos()
@@ -99,45 +92,33 @@ namespace PuntoFlower.Views
             cbInsumosLibre.ItemsSource = lista;
         }
 
-        private void txtPagoCon_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            decimal total = ProductosEnTicket.Sum(x => x.Total);
-            if (decimal.TryParse(txtPagoCon.Text, out decimal pago))
-            {
-                decimal cambio = pago - total;
-                txtCambio.Text = (cambio >= 0) ? cambio.ToString("C") : "$0.00";
-            }
-            else
-            {
-                txtCambio.Text = "$0.00";
-            }
-        }
-
         private void Ramo_Checked(object sender, RoutedEventArgs e)
         {
             var rb = sender as RadioButton;
             if (rb == null || rb.Tag == null) return;
 
             capacidadRamo = int.Parse(rb.Tag.ToString());
+            precioRamo = preciosDinamicos.ContainsKey(capacidadRamo) ? preciosDinamicos[capacidadRamo] : 0;
 
-            if (preciosDinamicos.ContainsKey(capacidadRamo))
-            {
-                precioRamo = preciosDinamicos[capacidadRamo];
-            }
-            else
-            {
-                // Backup por si la DB está vacía
-                switch (capacidadRamo)
-                {
-                    case 6: precioRamo = 300; break;
-                    case 12: precioRamo = 450; break;
-                    case 18: precioRamo = 650; break;
-                    case 24: precioRamo = 850; break;
-                    case 50: precioRamo = 1650; break;
-                    default: precioRamo = 0; break;
-                }
-            }
             ActualizarProgreso();
+            ActualizarImagenReferencia(capacidadRamo);
+        }
+
+        // MÉTODO ACTUALIZADO: Ahora busca archivos .jpeg en la carpeta Resources
+        private void ActualizarImagenReferencia(int piezas)
+        {
+            try
+            {
+                // Se cambió la extensión de .jpg a .jpeg para que coincida con tus archivos
+                string path = $"pack://application:,,,/Resources/ramo{piezas}.jpeg";
+                imgReferencia.Source = new BitmapImage(new Uri(path, UriKind.RelativeOrAbsolute));
+                txtPlaceholder.Visibility = Visibility.Collapsed;
+            }
+            catch
+            {
+                imgReferencia.Source = null;
+                txtPlaceholder.Visibility = Visibility.Visible;
+            }
         }
 
         private void btnAgregarAlRamo_Click(object sender, RoutedEventArgs e)
@@ -146,6 +127,7 @@ namespace PuntoFlower.Views
             if (flor == null || capacidadRamo == 0) return;
             if (!int.TryParse(txtCantFlorRamo.Text, out int cant) || cant <= 0) return;
             if (floresAgregadas + cant > capacidadRamo) { MessageBox.Show("Capacidad excedida."); return; }
+
             composicionRamoActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
             floresAgregadas += cant;
             ActualizarProgreso();
@@ -199,7 +181,7 @@ namespace PuntoFlower.Views
             if (total <= 0) return;
             if (!decimal.TryParse(txtPagoCon.Text, out decimal pagoRecibido) || pagoRecibido < total)
             {
-                MessageBox.Show("Monto recibido insuficiente.", "Cobro", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Monto recibido insuficiente.");
                 return;
             }
             decimal cambioFinal = pagoRecibido - total;
@@ -211,8 +193,7 @@ namespace PuntoFlower.Views
                 {
                     foreach (var item in ProductosEnTicket)
                     {
-                        string q = "INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio) " +
-                                   "VALUES (GETDATE(), @n, @t, 1, 'Efectivo', @rec, @cam)";
+                        string q = "INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio) VALUES (GETDATE(), @n, @t, 1, 'Efectivo', @rec, @cam)";
                         SqlCommand cmdV = new SqlCommand(q, con, tra);
                         cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
                         cmdV.Parameters.AddWithValue("@t", item.Total);
@@ -229,19 +210,28 @@ namespace PuntoFlower.Views
                         }
                     }
                     tra.Commit();
-                    MessageBox.Show($"¡Venta completada!\nCambio: {cambioFinal:C}");
-                    ProductosEnTicket.Clear();
-                    txtPagoCon.Clear();
-                    txtCambio.Text = "$0.00";
-                    ActualizarTotal();
+                    MessageBox.Show("Venta completada.");
+                    ProductosEnTicket.Clear(); txtPagoCon.Clear(); txtCambio.Text = "$0.00"; ActualizarTotal();
                 }
                 catch (Exception ex) { tra.Rollback(); MessageBox.Show("Error: " + ex.Message); }
             }
         }
 
+        private void txtPagoCon_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            decimal total = ProductosEnTicket.Sum(x => x.Total);
+            if (decimal.TryParse(txtPagoCon.Text, out decimal pago))
+            {
+                decimal cambio = pago - total;
+                txtCambio.Text = (cambio >= 0) ? cambio.ToString("C") : "$0.00";
+            }
+            else { txtCambio.Text = "$0.00"; }
+        }
+
         private void LimpiarConfiguradorRamo()
         {
             composicionRamoActual.Clear(); floresAgregadas = 0; capacidadRamo = 0;
+            imgReferencia.Source = null; txtPlaceholder.Visibility = Visibility.Visible;
             ActualizarTotal(); ActualizarProgreso();
         }
 
@@ -254,17 +244,7 @@ namespace PuntoFlower.Views
             if (item != null) { ProductosEnTicket.Remove(item); ActualizarTotal(); }
         }
 
-        public class ItemTicket
-        {
-            public string ProductoNombre { get; set; }
-            public decimal Total { get; set; }
-            public string DetalleVisual { get; set; }
-            public List<DetalleInsumo> InsumosADescontar { get; set; }
-        }
-        public class DetalleInsumo
-        {
-            public string Nombre { get; set; }
-            public int Cantidad { get; set; }
-        }
+        public class ItemTicket { public string ProductoNombre { get; set; } public decimal Total { get; set; } public string DetalleVisual { get; set; } public List<DetalleInsumo> InsumosADescontar { get; set; } }
+        public class DetalleInsumo { public string Nombre { get; set; } public int Cantidad { get; set; } }
     }
 }

@@ -27,26 +27,47 @@
             </StackPanel>
         </Border>
 
-        <UniformGrid Grid.Row="1" Columns="3" Height="100" Margin="0,0,0,20">
-            <Border Background="#EAFAF1" Margin="5" CornerRadius="8" Padding="10">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="(+) Total Ventas" Foreground="#1D8348" FontSize="12"/>
-                    <TextBlock x:Name="txtRepVentas" Text="$0.00" FontSize="22" FontWeight="Bold"/>
+        <Grid Grid.Row="1" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <UniformGrid Columns="3" Height="100">
+                <Border Background="#EAFAF1" Margin="5" CornerRadius="8" Padding="10">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="(+) Total Ventas" Foreground="#1D8348" FontSize="12"/>
+                        <TextBlock x:Name="txtRepVentas" Text="$0.00" FontSize="22" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#FDEDEC" Margin="5" CornerRadius="8" Padding="10">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="(-) Total Salidas" Foreground="#CB4335" FontSize="12"/>
+                        <TextBlock x:Name="txtRepGastos" Text="$0.00" FontSize="22" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#EBF5FB" Margin="5" CornerRadius="8" Padding="10">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="(=) Utilidad Real" Foreground="#2E86C1" FontSize="12"/>
+                        <TextBlock x:Name="txtRepUtilidad" Text="$0.00" FontSize="22" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <Border Grid.Column="1" Background="White" Margin="5" CornerRadius="8" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="🏆 TOP 5 MÁS VENDIDOS" FontWeight="Bold" FontSize="12" Foreground="#2C3E50" Margin="0,0,0,5"/>
+                    <DataGrid x:Name="dgTopVentas" AutoGenerateColumns="False" IsReadOnly="True" 
+                              HeadersVisibility="None" GridLinesVisibility="None" Background="Transparent" 
+                              BorderThickness="0" FontSize="11" Height="70">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Binding="{Binding ProductoNombre}" Width="*"/>
+                            <DataGridTextColumn Binding="{Binding CantidadTotal}" Width="Auto" FontWeight="Bold"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </StackPanel>
             </Border>
-            <Border Background="#FDEDEC" Margin="5" CornerRadius="8" Padding="10">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="(-) Total Salidas" Foreground="#CB4335" FontSize="12"/>
-                    <TextBlock x:Name="txtRepGastos" Text="$0.00" FontSize="22" FontWeight="Bold"/>
-                </StackPanel>
-            </Border>
-            <Border Background="#EBF5FB" Margin="5" CornerRadius="8" Padding="10">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="(=) Utilidad Real" Foreground="#2E86C1" FontSize="12"/>
-                    <TextBlock x:Name="txtRepUtilidad" Text="$0.00" FontSize="22" FontWeight="Bold"/>
-                </StackPanel>
-            </Border>
-        </UniformGrid>
+        </Grid>
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
@@ -59,7 +80,7 @@
                 <TextBlock Text="INGRESOS (VENTAS)" FontWeight="Bold" Foreground="#1D8348" Margin="0,0,0,10"/>
                 <Border Background="White" CornerRadius="10" Padding="5">
                     <DataGrid x:Name="dgIngresos" AutoGenerateColumns="False" IsReadOnly="True" 
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="350">
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="300">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="100"/>
                             <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
@@ -73,7 +94,7 @@
                 <TextBlock Text="EGRESOS (GASTOS Y SURTIDO)" FontWeight="Bold" Foreground="#CB4335" Margin="0,0,0,10"/>
                 <Border Background="White" CornerRadius="10" Padding="5">
                     <DataGrid x:Name="dgEgresos" AutoGenerateColumns="False" IsReadOnly="True" 
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="350">
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="300">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="100"/>
                             <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>

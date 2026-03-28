@@ -18,7 +18,7 @@
             </Border.Effect>
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal">
-                    <TextBox x:Name="txtSearch" Width="250" Height="35" 
+                    <TextBox x:Name="txtSearch" Width="200" Height="35" 
                              VerticalContentAlignment="Center" Margin="0,0,10,0"
                              TextChanged="txtSearch_TextChanged"
                              KeyDown="txtSearch_KeyDown"/>
@@ -29,20 +29,25 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                    <Button Content="Eliminar Seleccionado" x:Name="btnEliminar" 
-                            Click="btnEliminar_Click" Width="150" Height="35" 
-                            Background="#E74C3C" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Margin="5,0" Cursor="Hand"/>
 
                     <Button Content="+ Nueva Flor" x:Name="btnNuevaFlor" 
-                            Click="btnNuevaFlor_Click" Width="120" Height="35" 
+                            Click="btnNuevaFlor_Click" Width="110" Height="35" 
                             Background="#27AE60" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Margin="5,0" Cursor="Hand"/>
+                            FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
 
-                    <Button Content="Surtir Stock" Width="120" Height="35" 
+                    <Button Content="Eliminar" x:Name="btnEliminar" 
+                            Click="btnEliminar_Click" Width="100" Height="35" 
+                            Background="#E74C3C" Foreground="White" 
+                            FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="Surtir Stock" Width="110" Height="35" 
                             x:Name="btnSurtirStock"
                             Click="btnSurtirStock_Click" 
                             Background="#F39C12" Foreground="White" 
+                            FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+
+                    <Button Content="Registrar Merma" x:Name="btnMerma" 
+                            Click="btnMerma_Click" Width="120" Height="35" 
+                            Background="#922B21" Foreground="White" 
                             FontWeight="Bold" BorderThickness="0" Margin="5,0" Cursor="Hand"/>
                 </StackPanel>
             </DockPanel>

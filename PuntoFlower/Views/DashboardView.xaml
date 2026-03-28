@@ -52,14 +52,50 @@
                     </Border>
                 </UniformGrid>
 
-                <Border Background="White" CornerRadius="10" Margin="5,20,5,0">
+                <Border Background="White" CornerRadius="10" Margin="5,20,5,20">
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
                     </Border.Effect>
                     <StackPanel Margin="20">
-                        <TextBlock Text="Entregas para hoy (Agenda)" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,15"/>
-                        <Separator Background="#EEE"/>
-                        <TextBlock x:Name="lblMensajeAgenda" Text="No hay entregas pendientes para hoy" Foreground="#BBB" HorizontalAlignment="Center" Margin="40"/>
+                        <DockPanel LastChildFill="False" Margin="0,0,0,15">
+                            <TextBlock Text="Próximas Entregas (Hoy)" FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            <TextBlock x:Name="lblContadorHoy" Text="0 pendientes" DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="#7F8C8D"/>
+                        </DockPanel>
+
+                        <Separator Background="#EEE" Margin="0,0,0,10"/>
+
+                        <TextBlock x:Name="lblMensajeAgenda" Text="No hay entregas pendientes para hoy" 
+                                   Foreground="#BBB" HorizontalAlignment="Center" Margin="30" Visibility="Collapsed"/>
+
+                        <ItemsControl x:Name="icEntregasHoy">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#F8F9FA" Margin="0,0,0,8" Padding="12" CornerRadius="8" BorderThickness="4,0,0,0" BorderBrush="{Binding ColorEstado}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="85"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding FechaEntrega, StringFormat=t}" FontWeight="Bold" FontSize="16" Foreground="#2C3E50"/>
+                                                <TextBlock Text="Hora" FontSize="10" Foreground="#95A5A6"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Margin="15,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ClienteNombre}" FontWeight="Bold" FontSize="15" Foreground="#2C3E50"/>
+                                                <TextBlock Text="{Binding Descripcion}" Foreground="#5D6D7E" FontSize="12" FontStyle="Italic"/>
+                                            </StackPanel>
+
+                                            <Border Grid.Column="2" Background="White" CornerRadius="5" Padding="10,5" VerticalAlignment="Center" BorderThickness="1" BorderBrush="#DDD">
+                                                <TextBlock Text="{Binding Estado}" FontWeight="Bold" FontSize="10" Foreground="{Binding ColorEstado}"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
             </StackPanel>

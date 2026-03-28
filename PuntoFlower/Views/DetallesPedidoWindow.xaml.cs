@@ -25,19 +25,63 @@ namespace PuntoFlower.Views
             lblSaldo.Text = string.Format("{0:C}", pedido.SaldoPendiente);
         }
 
+        // NUEVO: Método para poner el pedido en preparación (Naranja en Agenda)
+        private void btnPreparar_Click(object sender, RoutedEventArgs e)
+        {
+            ActualizarEstado("En Preparación");
+            MessageBox.Show("El pedido ahora aparece 'En Preparación'.", "Estatus Actualizado");
+            this.DialogResult = true;
+        }
+
+        // NUEVO: Método para poner el pedido como listo (Verde en Agenda)
+        private void btnListo_Click(object sender, RoutedEventArgs e)
+        {
+            ActualizarEstado("Listo para Entregar");
+            MessageBox.Show("El pedido ahora aparece como 'Listo'.", "Estatus Actualizado");
+            this.DialogResult = true;
+        }
+
+        // Método genérico para ahorrar código al actualizar estados
+        private void ActualizarEstado(string nuevoEstado)
+        {
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    string query = "UPDATE Pedidos SET Estado = @estado WHERE Id = @id";
+                    SqlCommand cmd = new SqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@estado", nuevoEstado);
+                    cmd.Parameters.AddWithValue("@id", _pedidoId);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al actualizar estado: " + ex.Message);
+            }
+        }
+
         private void btnEntregar_Click(object sender, RoutedEventArgs e)
         {
             ConexionDB db = new ConexionDB();
-            using (SqlConnection con = db.OpenConnection())
+            try
             {
-                // Al entregar, el estado cambia y el saldo pendiente se vuelve 0
-                string query = "UPDATE Pedidos SET Estado = 'Entregado', SaldoPendiente = 0 WHERE Id = @id";
-                SqlCommand cmd = new SqlCommand(query, con);
-                cmd.Parameters.AddWithValue("@id", _pedidoId);
-                cmd.ExecuteNonQuery();
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    // Al entregar, el estado cambia y el saldo pendiente se vuelve 0 (Liquidado)
+                    string query = "UPDATE Pedidos SET Estado = 'Entregado', SaldoPendiente = 0 WHERE Id = @id";
+                    SqlCommand cmd = new SqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@id", _pedidoId);
+                    cmd.ExecuteNonQuery();
+                }
+                MessageBox.Show("Pedido entregado. El saldo ha sido liquidado en el sistema.", "Venta Finalizada");
+                this.DialogResult = true;
             }
-            MessageBox.Show("Pedido entregado. El saldo ha sido liquidado en el sistema.");
-            this.DialogResult = true;
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al procesar entrega: " + ex.Message);
+            }
         }
     }
 }
