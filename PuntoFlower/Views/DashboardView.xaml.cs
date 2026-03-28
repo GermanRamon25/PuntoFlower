@@ -46,12 +46,13 @@ namespace PuntoFlower.Views
                     int alertas = (int)cmdStock.ExecuteScalar();
                     txtStockAlerta.Text = $"{alertas} Flores";
 
-                    // 4. CARGAR LISTA DE ENTREGAS PARA HOY (Ordenado por Hora)
-                    string qPedidosHoy = @"SELECT ClienteNombre, Descripcion, FechaEntrega, Estado 
+                    // 4. CARGAR LISTA DE ENTREGAS PARA HOY
+                    // Se agregó FechaRegistro a la consulta para obtener la hora real de la reserva
+                    string qPedidosHoy = @"SELECT ClienteNombre, Descripcion, FechaEntrega, FechaRegistro, Estado 
                                          FROM Pedidos 
                                          WHERE CAST(FechaEntrega AS DATE) = CAST(GETDATE() AS DATE) 
                                          AND Estado != 'Entregado'
-                                         ORDER BY FechaEntrega ASC"; // PRIORIDAD POR HORA
+                                         ORDER BY FechaEntrega ASC";
 
                     SqlCommand cmdPedidos = new SqlCommand(qPedidosHoy, con);
                     using (SqlDataReader r = cmdPedidos.ExecuteReader())
@@ -59,7 +60,12 @@ namespace PuntoFlower.Views
                         while (r.Read())
                         {
                             string estado = r["Estado"].ToString();
-                            DateTime fecha = Convert.ToDateTime(r["FechaEntrega"]);
+
+                            // Lógica para obtener la hora de reserva en formato 12h (AM/PM)
+                            // Si por alguna razón el registro es nulo, usamos la fecha de entrega como respaldo
+                            DateTime horaReal = r["FechaRegistro"] != DBNull.Value
+                                ? Convert.ToDateTime(r["FechaRegistro"])
+                                : Convert.ToDateTime(r["FechaEntrega"]);
 
                             // Asignamos el color dinámicamente según el estado
                             string colorHex = "#3498DB"; // Azul (Pendiente)
@@ -70,7 +76,8 @@ namespace PuntoFlower.Views
                             {
                                 ClienteNombre = r["ClienteNombre"].ToString(),
                                 Descripcion = r["Descripcion"].ToString(),
-                                FechaEntrega = fecha,
+                                // Enviamos la hora formateada como h:mm tt (Ej: 4:30 PM)
+                                FechaEntrega = horaReal.ToString("h:mm tt"),
                                 Estado = estado,
                                 ColorEstado = colorHex
                             });
