@@ -36,6 +36,7 @@ namespace PuntoFlower.Views
             List<object> listaIngresos = new List<object>();
             List<object> listaEgresos = new List<object>();
             List<object> listaTop = new List<object>();
+            List<object> listaMermas = new List<object>();
 
             ConexionDB db = new ConexionDB();
 
@@ -82,11 +83,11 @@ namespace PuntoFlower.Views
                     {
                         decimal m = (decimal)r["Monto"];
                         totalGastos += m;
-                        listaEgresos.Add(new { Fecha = r["Fecha"], Concepto = r["Descripcion"].ToString(), Monto = m });
+                        listaEgresos.Add(new { Fecha = r["Fecha"], Concepto = r["Description"].ToString(), Monto = m });
                     }
                 }
 
-                // 4. NUEVO: Obtener el TOP 5 de productos más vendidos
+                // 4. Obtener el TOP 5 de productos más vendidos
                 string qTop = @"SELECT TOP 5 ProductoNombre, SUM(Cantidad) as CantidadTotal 
                                FROM Ventas 
                                WHERE Fecha BETWEEN @i AND @f 
@@ -99,10 +100,25 @@ namespace PuntoFlower.Views
                 {
                     while (r.Read())
                     {
-                        listaTop.Add(new
+                        listaTop.Add(new { ProductoNombre = r["ProductoNombre"].ToString(), CantidadTotal = r["CantidadTotal"].ToString() + " vendidos" });
+                    }
+                }
+
+                // 5. NUEVO: Obtener Mermas
+                string qMermas = "SELECT Fecha, ProductoNombre, Cantidad, Motivo FROM Mermas WHERE Fecha BETWEEN @i AND @f ORDER BY Fecha DESC";
+                SqlCommand cmdM = new SqlCommand(qMermas, con);
+                cmdM.Parameters.AddWithValue("@i", inicio);
+                cmdM.Parameters.AddWithValue("@f", fin.AddDays(1));
+                using (SqlDataReader r = cmdM.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        listaMermas.Add(new
                         {
+                            Fecha = r["Fecha"],
                             ProductoNombre = r["ProductoNombre"].ToString(),
-                            CantidadTotal = r["CantidadTotal"].ToString() + " vendidos"
+                            Cantidad = r["Cantidad"].ToString(),
+                            Motivo = r["Motivo"].ToString()
                         });
                     }
                 }
@@ -115,6 +131,7 @@ namespace PuntoFlower.Views
             dgIngresos.ItemsSource = listaIngresos;
             dgEgresos.ItemsSource = listaEgresos;
             dgTopVentas.ItemsSource = listaTop;
+            dgMermas.ItemsSource = listaMermas;
         }
 
         private void btnExportarPDF_Click(object sender, RoutedEventArgs e)
@@ -143,9 +160,8 @@ namespace PuntoFlower.Views
                     iTextFont fontTablaHead = new iTextFont(bf, 10, iTextFont.BOLD, BaseColor.WHITE);
                     iTextFont fontCuerpo = new iTextFont(bf, 9);
 
-                    doc.Add(new iTextParagraph("PUNTO FLOWER - REPORTE DE ESTADO DE CUENTA", fontTitulo));
+                    doc.Add(new iTextParagraph("PUNTO FLOWER - REPORTE FINANCIERO E INVENTARIO", fontTitulo));
                     doc.Add(new iTextParagraph($"Rango: {dpInicio.SelectedDate.Value:dd/MM/yyyy} al {dpFin.SelectedDate.Value:dd/MM/yyyy}", fontSub));
-                    doc.Add(new iTextParagraph($"Generado el: {DateTime.Now:g}", fontCuerpo));
                     doc.Add(new iTextParagraph(" "));
 
                     PdfPTable tablaResumen = new PdfPTable(3);
@@ -156,7 +172,7 @@ namespace PuntoFlower.Views
                     doc.Add(tablaResumen);
                     doc.Add(new iTextParagraph(" "));
 
-                    // Detalles
+                    // Tabla de Movimientos Generales
                     PdfPTable tablaDetalles = new PdfPTable(4);
                     tablaDetalles.WidthPercentage = 100;
                     tablaDetalles.SetWidths(new float[] { 15f, 50f, 15f, 20f });
@@ -183,10 +199,31 @@ namespace PuntoFlower.Views
                         tablaDetalles.AddCell(new Phrase("EGRESO", fontCuerpo));
                         tablaDetalles.AddCell(new Phrase(item.Monto.ToString("C"), fontCuerpo));
                     }
-
                     doc.Add(tablaDetalles);
-                    doc.Close();
 
+                    // NUEVA SECCIÓN: MERMAS EN PDF
+                    doc.Add(new iTextParagraph(" "));
+                    doc.Add(new iTextParagraph("HISTORIAL DE MERMAS (PRODUCTO DAÑADO)", fontSub));
+                    doc.Add(new iTextParagraph(" "));
+
+                    PdfPTable tablaMermasPdf = new PdfPTable(4);
+                    tablaMermasPdf.WidthPercentage = 100;
+                    string[] headersM = { "Fecha", "Producto", "Cant.", "Motivo" };
+                    foreach (string h in headersM)
+                    {
+                        tablaMermasPdf.AddCell(new PdfPCell(new Phrase(h, fontTablaHead)) { BackgroundColor = new BaseColor(146, 43, 33) });
+                    }
+
+                    foreach (dynamic m in dgMermas.ItemsSource)
+                    {
+                        tablaMermasPdf.AddCell(new Phrase(m.Fecha.ToString("d"), fontCuerpo));
+                        tablaMermasPdf.AddCell(new Phrase(m.ProductoNombre, fontCuerpo));
+                        tablaMermasPdf.AddCell(new Phrase(m.Cantidad, fontCuerpo));
+                        tablaMermasPdf.AddCell(new Phrase(m.Motivo, fontCuerpo));
+                    }
+                    doc.Add(tablaMermasPdf);
+
+                    doc.Close();
                     MessageBox.Show("Reporte exportado correctamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)

@@ -46,12 +46,12 @@ namespace PuntoFlower.Views
                     int alertas = (int)cmdStock.ExecuteScalar();
                     txtStockAlerta.Text = $"{alertas} Flores";
 
-                    // 4. CARGAR LISTA DE ENTREGAS PARA HOY
+                    // 4. CARGAR LISTA DE ENTREGAS PARA HOY (Ordenado por Hora)
                     string qPedidosHoy = @"SELECT ClienteNombre, Descripcion, FechaEntrega, Estado 
                                          FROM Pedidos 
                                          WHERE CAST(FechaEntrega AS DATE) = CAST(GETDATE() AS DATE) 
                                          AND Estado != 'Entregado'
-                                         ORDER BY FechaEntrega ASC";
+                                         ORDER BY FechaEntrega ASC"; // PRIORIDAD POR HORA
 
                     SqlCommand cmdPedidos = new SqlCommand(qPedidosHoy, con);
                     using (SqlDataReader r = cmdPedidos.ExecuteReader())
@@ -59,9 +59,10 @@ namespace PuntoFlower.Views
                         while (r.Read())
                         {
                             string estado = r["Estado"].ToString();
+                            DateTime fecha = Convert.ToDateTime(r["FechaEntrega"]);
 
-                            // Asignamos el color dinámicamente según el estado para que se vea en el banner
-                            string colorHex = "#3498DB"; // Azul por defecto (Pendiente)
+                            // Asignamos el color dinámicamente según el estado
+                            string colorHex = "#3498DB"; // Azul (Pendiente)
                             if (estado == "En Preparación") colorHex = "#F39C12"; // Naranja
                             else if (estado == "Listo para Entregar") colorHex = "#27AE60"; // Verde
 
@@ -69,7 +70,7 @@ namespace PuntoFlower.Views
                             {
                                 ClienteNombre = r["ClienteNombre"].ToString(),
                                 Descripcion = r["Descripcion"].ToString(),
-                                FechaEntrega = Convert.ToDateTime(r["FechaEntrega"]),
+                                FechaEntrega = fecha,
                                 Estado = estado,
                                 ColorEstado = colorHex
                             });
@@ -79,7 +80,7 @@ namespace PuntoFlower.Views
 
                 // Actualizar interfaz
                 txtPedidosHoy.Text = entregasDeHoy.Count.ToString();
-                lblContadorHoy.Text = $"{entregasDeHoy.Count} pendientes";
+                lblContadorHoy.Text = $"{entregasDeHoy.Count} pendientes para hoy";
                 icEntregasHoy.ItemsSource = entregasDeHoy;
 
                 // Controlar visibilidad del mensaje de "No hay entregas"

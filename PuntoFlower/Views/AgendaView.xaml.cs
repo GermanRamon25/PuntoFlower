@@ -24,26 +24,34 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // CAMBIO: Se traen explícitamente los campos financieros para que el binding en el XAML funcione
-                    string query = "SELECT Id, ClienteNombre, Telefono, FechaEntrega, Descripcion, Direccion, NotaTarjeta, Estado, PrecioTotal, Anticipo, SaldoPendiente " +
-                                   "FROM Pedidos WHERE Estado != 'Entregado' ORDER BY FechaEntrega ASC";
+                    // Traemos FechaRegistro para la hora automática
+                    string query = @"SELECT Id, ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Descripcion, Direccion, 
+                                    NotaTarjeta, Estado, PrecioTotal, Anticipo, SaldoPendiente 
+                                    FROM Pedidos 
+                                    WHERE Estado != 'Entregado' 
+                                    ORDER BY FechaEntrega ASC";
 
                     SqlCommand cmd = new SqlCommand(query, con);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
                         {
+                            // CAMBIO AQUÍ: Formato "h:mm tt" para mostrar 4:30 PM
+                            string horaReserva = r["FechaRegistro"] != DBNull.Value
+                                ? Convert.ToDateTime(r["FechaRegistro"]).ToString("h:mm tt")
+                                : "12:00 AM";
+
                             listaPedidos.Add(new
                             {
                                 Id = r["Id"],
                                 ClienteNombre = r["ClienteNombre"].ToString(),
                                 Telefono = r["Telefono"].ToString(),
                                 FechaEntrega = Convert.ToDateTime(r["FechaEntrega"]),
+                                HoraRegistro = horaReserva,
                                 Descripcion = r["Descripcion"].ToString(),
                                 Direccion = string.IsNullOrEmpty(r["Direccion"].ToString()) ? "Recoge en Tienda" : r["Direccion"].ToString(),
                                 NotaTarjeta = r["NotaTarjeta"].ToString(),
                                 Estado = r["Estado"].ToString(),
-                                // NUEVOS CAMPOS PARA LA VISTA FINANCIERA
                                 PrecioTotal = r["PrecioTotal"] != DBNull.Value ? Convert.ToDecimal(r["PrecioTotal"]) : 0,
                                 Anticipo = r["Anticipo"] != DBNull.Value ? Convert.ToDecimal(r["Anticipo"]) : 0,
                                 SaldoPendiente = r["SaldoPendiente"] != DBNull.Value ? Convert.ToDecimal(r["SaldoPendiente"]) : 0
@@ -73,11 +81,10 @@ namespace PuntoFlower.Views
         private void btnVerDetalles_Click(object sender, RoutedEventArgs e)
         {
             var boton = sender as Button;
-            var pedidoSeleccionado = boton.DataContext; // Obtenemos el objeto con todos los datos (incluyendo anticipo y saldo)
+            var pedidoSeleccionado = boton.DataContext;
 
             if (pedidoSeleccionado != null)
             {
-                // Pasamos el objeto 'dynamic' que ya contiene PrecioTotal, Anticipo y SaldoPendiente
                 DetallesPedidoWindow ventana = new DetallesPedidoWindow(pedidoSeleccionado);
                 ventana.Owner = Window.GetWindow(this);
 

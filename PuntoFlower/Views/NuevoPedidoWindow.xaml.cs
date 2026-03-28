@@ -44,6 +44,9 @@ namespace PuntoFlower.Views
                 return;
             }
 
+            // CAPTURA AUTOMÁTICA DE LA HORA DE RESERVA
+            DateTime fechaRegistro = DateTime.Now;
+
             decimal saldoPendiente = total - anticipo;
             ConexionDB db = new ConexionDB();
 
@@ -51,14 +54,15 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Consulta actualizada con campos financieros
-                    string query = "INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente) " +
-                                   "VALUES (@nom, @tel, @fec, @dir, @not, 'Pendiente', @des, @total, @ant, @saldo)";
+                    // Consulta actualizada incluyendo el nuevo campo FechaRegistro
+                    string query = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente) 
+                                   VALUES (@nom, @tel, @fec, @fecReg, @dir, @not, 'Pendiente', @des, @total, @ant, @saldo)";
 
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@nom", txtCliente.Text);
                     cmd.Parameters.AddWithValue("@tel", txtTelefono.Text);
-                    cmd.Parameters.AddWithValue("@fec", dpFecha.SelectedDate.Value);
+                    cmd.Parameters.AddWithValue("@fec", dpFecha.SelectedDate.Value); // Solo fecha elegida para entrega
+                    cmd.Parameters.AddWithValue("@fecReg", fechaRegistro);           // Sello de tiempo automático (RESERVA)
                     cmd.Parameters.AddWithValue("@dir", txtDireccion.Text);
                     cmd.Parameters.AddWithValue("@not", txtNota.Text);
                     cmd.Parameters.AddWithValue("@des", txtDescripcion.Text);

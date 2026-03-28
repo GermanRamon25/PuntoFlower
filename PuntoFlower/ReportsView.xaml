@@ -7,6 +7,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="15" Margin="0,0,0,20">
@@ -80,7 +81,7 @@
                 <TextBlock Text="INGRESOS (VENTAS)" FontWeight="Bold" Foreground="#1D8348" Margin="0,0,0,10"/>
                 <Border Background="White" CornerRadius="10" Padding="5">
                     <DataGrid x:Name="dgIngresos" AutoGenerateColumns="False" IsReadOnly="True" 
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="300">
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="250">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="100"/>
                             <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
@@ -94,7 +95,7 @@
                 <TextBlock Text="EGRESOS (GASTOS Y SURTIDO)" FontWeight="Bold" Foreground="#CB4335" Margin="0,0,0,10"/>
                 <Border Background="White" CornerRadius="10" Padding="5">
                     <DataGrid x:Name="dgEgresos" AutoGenerateColumns="False" IsReadOnly="True" 
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="300">
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="250">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="100"/>
                             <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
@@ -104,5 +105,20 @@
                 </Border>
             </StackPanel>
         </Grid>
+
+        <StackPanel Grid.Row="3" Margin="0,20,0,0">
+            <TextBlock Text="REPORTE DE MERMAS (PRODUCTO DAÑADO / PÉRDIDAS)" FontWeight="Bold" Foreground="#922B21" Margin="0,0,0,10"/>
+            <Border Background="White" CornerRadius="10" Padding="5">
+                <DataGrid x:Name="dgMermas" AutoGenerateColumns="False" IsReadOnly="True" 
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="150">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="120"/>
+                        <DataGridTextColumn Header="Producto" Binding="{Binding ProductoNombre}" Width="*"/>
+                        <DataGridTextColumn Header="Cantidad" Binding="{Binding Cantidad}" Width="100"/>
+                        <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </StackPanel>
     </Grid>
 </UserControl>

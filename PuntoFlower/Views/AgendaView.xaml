@@ -45,8 +45,12 @@
                             </Border.Effect>
                             <StackPanel>
                                 <DockPanel>
-                                    <TextBlock Text="{Binding Estado}" x:Name="txtEstado" Foreground="#3498DB" FontWeight="Bold" FontSize="12"/>
-                                    <TextBlock Text="{Binding FechaEntrega, StringFormat={}{0:dd/MM HH:mm}}" DockPanel.Dock="Right" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Estado}" x:Name="txtEstado" Foreground="#3498DB" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding HoraRegistro}" Foreground="#95A5A6" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center" FontStyle="Italic"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding FechaEntrega, StringFormat={}{0:dd/MM}}" DockPanel.Dock="Right" Foreground="#7F8C8D" FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </DockPanel>
 
                                 <TextBlock Text="{Binding ClienteNombre}" FontSize="18" FontWeight="Bold" Margin="0,10,0,2" TextTrimming="CharacterEllipsis" Foreground="#2C3E50"/>
