@@ -7,97 +7,125 @@
         xmlns:views="clr-namespace:PuntoFlower.Views" 
         mc:Ignorable="d"
         Title="PuntoFlower - Gestión de Florería" 
-        Height="650" Width="1100" 
+        Height="700" Width="1200" 
         WindowStartupLocation="CenterScreen"
-        Background="#F5F5F5">
+        Background="#FFFDF5">
+    <Window.Resources>
+        <Style x:Key="MenuButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Height" Value="50"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="0,25,25,0" Margin="0,2,15,2">
+                            <ContentPresenter VerticalAlignment="Center" Margin="20,0"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FADBD8"/>
+                    <Setter Property="Foreground" Value="#CF8282"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="250"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" Background="#2C3E50">
-            <StackPanel Margin="10,20,10,10">
-                <TextBlock Text="PuntoFlower" 
-                           Foreground="White" 
-                           FontSize="24" 
-                           FontWeight="Bold" 
-                           HorizontalAlignment="Center" 
-                           Margin="0,0,0,30"/>
+        <Border Grid.Column="0" Background="#CF8282">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="20" ShadowDepth="2" Color="#40000000" Opacity="0.2"/>
+            </Border.Effect>
 
-                <Button x:Name="btnDashboard" 
-                        Content="Resumen General" 
-                        Style="{StaticResource MenuButtonStyle}" 
-                        Click="btnDashboard_Click"/>
+            <StackPanel Margin="0,20,0,10">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,40">
+                    <TextBlock Text="🌸" FontSize="28" Margin="0,0,10,0" Foreground="#FADBD8" VerticalAlignment="Center"/>
+                    <TextBlock Text="PuntoFlower" Foreground="White" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
 
-                <Button x:Name="btnInventario" 
-                        Content="Inventario / Flores" 
-                        Style="{StaticResource MenuButtonStyle}" 
-                        Margin="0,10,0,0" 
-                        Click="btnInventario_Click"/>
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnDashboard_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Resumen General" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </Button>
 
-                <Button x:Name="btnVentas" 
-                        Content="Punto de Venta" 
-                        Style="{StaticResource MenuButtonStyle}" 
-                        Margin="0,10,0,0" 
-                        Click="btnVentas_Click"/>
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnInventario_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Inventario / Flores" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </Button>
 
-                <Button x:Name="btnAgenda" 
-                        Content="Agenda de Pedidos" 
-                        Style="{StaticResource MenuButtonStyle}" 
-                        Margin="0,10,0,0"
-                        Click="btnAgenda_Click"/>
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnVentas_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Punto de Venta" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </Button>
 
-                <Button x:Name="btnReportes" 
-                        Content="Reportes e Ingresos" 
-                        Style="{StaticResource MenuButtonStyle}" 
-                        Margin="0,10,0,0"
-                        Click="btnReportes_Click"/>
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnAgenda_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Agenda de Pedidos" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </Button>
 
-                <Button x:Name="btnCorteCaja" 
-                        Content="Corte de Caja" 
-                        Style="{StaticResource MenuButtonStyle}" 
-                        Margin="0,10,0,0"
-                        Click="btnCorteCaja_Click"/>
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnReportes_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Reportes e Ingresos" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </Button>
 
-                <Button x:Name="btnGastos" 
-                        Content="Gastos y Surtido" 
-                        Style="{StaticResource MenuButtonStyle}" 
-                        Margin="0,10,0,0" 
-                        Click="btnGastos_Click"/>
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnGastos_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Gastos y Surtido" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </Button>
 
-                <Separator Background="Gray" Margin="0,30,0,10"/>
+                <Separator Background="White" Margin="20,30,20,10" Opacity="0.3"/>
 
-                <Button x:Name="btnConfiguracion" 
-                        Content="Configuración" 
-                        Style="{StaticResource MenuButtonStyle}"
-                        Click="btnConfiguracion_Click"/>
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnConfiguracion_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Configuración" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Border>
 
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
-                <RowDefinition Height="60"/>
+                <RowDefinition Height="70"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Background="White" Padding="20,0">
+            <Border Grid.Row="0" Background="White" Padding="30,0" Margin="15,10,15,5" CornerRadius="15">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="15" ShadowDepth="1" Color="#D5DBDB" Opacity="0.5"/>
+                </Border.Effect>
                 <DockPanel LastChildFill="False">
-                    <TextBlock Text="Bienvenido al Sistema" 
-                               VerticalAlignment="Center" 
-                               FontSize="16" 
-                               FontWeight="SemiBold" 
-                               Foreground="#333"/>
-
-                    <TextBlock Text="23 de Marzo, 2026" 
-                               DockPanel.Dock="Right" 
-                               VerticalAlignment="Center" 
-                               Foreground="#777"/>
+                    <TextBlock Text="Bienvenido al Sistema" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#BDC3C7" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="23 de Marzo, 2026" Foreground="#7F8C8D" FontSize="14" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </DockPanel>
             </Border>
 
-            <ContentControl x:Name="MainContent" Grid.Row="1">
+            <ContentControl x:Name="MainContent" Grid.Row="1" Margin="15">
                 <views:DashboardView />
             </ContentControl>
         </Grid>

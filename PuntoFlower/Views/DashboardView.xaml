@@ -4,92 +4,116 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="800">
-    <Grid Background="#F5F5F5">
+             d:DesignHeight="600" d:DesignWidth="1000">
+    <Grid Background="Transparent">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="20">
-                <TextBlock Text="Resumen General" FontSize="26" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
+                <TextBlock Text="Resumen General" FontSize="28" FontWeight="Bold" Foreground="#1E312F" Margin="10,0,0,25"/>
 
-                <UniformGrid Columns="4" Height="120">
-                    <Border Background="White" CornerRadius="10" Margin="5" Padding="15">
+                <UniformGrid Columns="4" Height="140">
+
+                    <Border Background="White" CornerRadius="15" Margin="8" Padding="15">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                            <DropShadowEffect BlurRadius="15" ShadowDepth="2" Color="#D5DBDB" Opacity="0.4"/>
                         </Border.Effect>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Ventas del Mes" Foreground="#7F8C8D" FontSize="14"/>
-                            <TextBlock x:Name="txtVentasMes" Text="$0.00" Foreground="#27AE60" FontSize="22" FontWeight="Bold" Margin="0,5"/>
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <Ellipse Width="40" Height="40" Fill="#EAFAF1" HorizontalAlignment="Left"/>
+                                <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#27AE60" FontSize="18" HorizontalAlignment="Left" Margin="11,10,0,0"/>
+                            </Grid>
+                            <TextBlock Text="Ventas del Mes" Foreground="#7F8C8D" FontSize="13"/>
+                            <TextBlock x:Name="txtVentasMes" Text="$0.00" Foreground="#27AE60" FontSize="24" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
 
-                    <Border Background="White" CornerRadius="10" Margin="5" Padding="15">
+                    <Border Background="White" CornerRadius="15" Margin="8" Padding="15">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                            <DropShadowEffect BlurRadius="15" ShadowDepth="2" Color="#D5DBDB" Opacity="0.4"/>
                         </Border.Effect>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Inversión Stock" Foreground="#7F8C8D" FontSize="14"/>
-                            <TextBlock x:Name="txtGastosSurtido" Text="$0.00" Foreground="#E74C3C" FontSize="22" FontWeight="Bold" Margin="0,5"/>
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <Ellipse Width="40" Height="40" Fill="#FDEDEC" HorizontalAlignment="Left"/>
+                                <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#E74C3C" FontSize="18" HorizontalAlignment="Left" Margin="11,10,0,0"/>
+                            </Grid>
+                            <TextBlock Text="Gastos (Insumos)" Foreground="#7F8C8D" FontSize="13"/>
+                            <TextBlock x:Name="txtGastosSurtido" Text="$0.00" Foreground="#E74C3C" FontSize="24" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
 
-                    <Border Background="White" CornerRadius="10" Margin="5" Padding="15">
+                    <Border Background="White" CornerRadius="15" Margin="8" Padding="15">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                            <DropShadowEffect BlurRadius="15" ShadowDepth="2" Color="#D5DBDB" Opacity="0.4"/>
                         </Border.Effect>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Stock Crítico" Foreground="#7F8C8D" FontSize="14"/>
-                            <TextBlock x:Name="txtStockAlerta" Text="0 Flores" Foreground="#F39C12" FontSize="22" FontWeight="Bold" Margin="0,5"/>
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <Ellipse Width="40" Height="40" Fill="#FEF9E7" HorizontalAlignment="Left"/>
+                                <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#F39C12" FontSize="18" HorizontalAlignment="Left" Margin="11,10,0,0"/>
+                            </Grid>
+                            <TextBlock Text="Stock a Surtir" Foreground="#7F8C8D" FontSize="13"/>
+                            <TextBlock x:Name="txtStockAlerta" Text="0 Flores" Foreground="#F39C12" FontSize="24" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
 
-                    <Border Background="White" CornerRadius="10" Margin="5" Padding="15">
+                    <Border Background="White" CornerRadius="15" Margin="8" Padding="15">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                            <DropShadowEffect BlurRadius="15" ShadowDepth="2" Color="#D5DBDB" Opacity="0.4"/>
                         </Border.Effect>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Pedidos Hoy" Foreground="#7F8C8D" FontSize="14"/>
-                            <TextBlock x:Name="txtPedidosHoy" Text="0" Foreground="#3498DB" FontSize="22" FontWeight="Bold" Margin="0,5"/>
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <Ellipse Width="40" Height="40" Fill="#EBF5FB" HorizontalAlignment="Left"/>
+                                <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#3498DB" FontSize="18" HorizontalAlignment="Left" Margin="11,10,0,0"/>
+                            </Grid>
+                            <TextBlock Text="Mermas" Foreground="#7F8C8D" FontSize="13"/>
+                            <TextBlock x:Name="txtPedidosHoy" Text="0" Foreground="#3498DB" FontSize="24" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
+
                 </UniformGrid>
 
-                <Border Background="White" CornerRadius="10" Margin="5,20,5,20">
+                <Border Background="White" CornerRadius="15" Margin="8,20,8,20">
                     <Border.Effect>
-                        <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                        <DropShadowEffect BlurRadius="20" ShadowDepth="3" Color="#D5DBDB" Opacity="0.3"/>
                     </Border.Effect>
-                    <StackPanel Margin="20">
-                        <DockPanel LastChildFill="False" Margin="0,0,0,15">
-                            <TextBlock Text="Próximas Entregas (Hoy)" FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"/>
-                            <TextBlock x:Name="lblContadorHoy" Text="0 pendientes" DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="#7F8C8D"/>
+                    <StackPanel Margin="25">
+                        <DockPanel LastChildFill="False" Margin="0,0,0,20">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📅" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Entregas para hoy (Agenda)" FontSize="20" FontWeight="SemiBold" Foreground="#1E312F" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="lblContadorHoy" Text="0 pendientes" DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="#95A5A6" FontSize="14"/>
                         </DockPanel>
 
-                        <Separator Background="#EEE" Margin="0,0,0,10"/>
+                        <Separator Background="#F2F4F4" Margin="0,0,0,15"/>
 
                         <TextBlock x:Name="lblMensajeAgenda" Text="No hay entregas pendientes para hoy" 
-                                   Foreground="#BBB" HorizontalAlignment="Center" Margin="30" Visibility="Collapsed"/>
+                                   Foreground="#BDC3C7" HorizontalAlignment="Center" Margin="40" FontSize="16" Visibility="Collapsed"/>
 
                         <ItemsControl x:Name="icEntregasHoy">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#F8F9FA" Margin="0,0,0,8" Padding="12" CornerRadius="8" BorderThickness="4,0,0,0" BorderBrush="{Binding ColorEstado}">
+                                    <Border Background="White" Margin="0,0,0,10" Padding="15" CornerRadius="12" BorderThickness="4,0,0,0" BorderBrush="{Binding ColorEstado}">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="8" ShadowDepth="1" Color="#F2F4F4"/>
+                                        </Border.Effect>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="85"/>
+                                                <ColumnDefinition Width="100"/>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
 
                                             <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding FechaEntrega, StringFormat=t}" FontWeight="Bold" FontSize="16" Foreground="#2C3E50"/>
-                                                <TextBlock Text="Hora" FontSize="10" Foreground="#95A5A6"/>
+                                                <TextBlock Text="{Binding FechaEntrega}" FontWeight="Bold" FontSize="16" Foreground="#1E312F"/>
+                                                <TextBlock Text="Hora" FontSize="11" Foreground="#95A5A6" FontWeight="SemiBold"/>
                                             </StackPanel>
 
-                                            <StackPanel Grid.Column="1" Margin="15,0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding ClienteNombre}" FontWeight="Bold" FontSize="15" Foreground="#2C3E50"/>
-                                                <TextBlock Text="{Binding Descripcion}" Foreground="#5D6D7E" FontSize="12" FontStyle="Italic"/>
+                                            <StackPanel Grid.Column="1" Margin="20,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ClienteNombre}" FontWeight="Bold" FontSize="16" Foreground="#2C3E50"/>
+                                                <TextBlock Text="{Binding Descripcion}" Foreground="#7F8C8D" FontSize="13" Margin="0,2,0,0"/>
                                             </StackPanel>
 
-                                            <Border Grid.Column="2" Background="White" CornerRadius="5" Padding="10,5" VerticalAlignment="Center" BorderThickness="1" BorderBrush="#DDD">
-                                                <TextBlock Text="{Binding Estado}" FontWeight="Bold" FontSize="10" Foreground="{Binding ColorEstado}"/>
+                                            <Border Grid.Column="2" CornerRadius="8" Padding="12,6" VerticalAlignment="Center" Background="#FBFCFC" BorderThickness="1" BorderBrush="#F2F3F4">
+                                                <TextBlock Text="{Binding Estado}" FontWeight="Bold" FontSize="11" Foreground="{Binding ColorEstado}"/>
                                             </Border>
                                         </Grid>
                                     </Border>
