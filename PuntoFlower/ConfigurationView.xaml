@@ -1,47 +1,131 @@
 ﻿<UserControl x:Class="PuntoFlower.Views.ConfigurationView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="#F5F5F5">
-    <Grid Margin="20">
-        <StackPanel>
-            <TextBlock Text="Configuración del Sistema" FontSize="26" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" d:DesignHeight="750" d:DesignWidth="1100">
 
-            <TabControl Background="White" BorderThickness="0" Padding="10">
-                <TabItem Header="Inventario">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <UserControl.Resources>
+        <Style x:Key="SubTabItemStyle" TargetType="TabItem">
+            <Setter Property="HeaderTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock x:Name="TabText" Text="{Binding}" Foreground="#5D6D7E" FontWeight="SemiBold" FontSize="14"/>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
+                                <Setter TargetName="TabText" Property="Foreground" Value="#CF8282"/>
+                                <Setter TargetName="TabText" Property="FontWeight" Value="Bold"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" Margin="0,0,8,0" Padding="20,12" CornerRadius="10" Background="#F2F4F4" BorderThickness="0" Cursor="Hand">
+                            <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Center" ContentSource="Header"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#FADBD8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="Transparent">
+        <StackPanel Margin="20">
+            <TextBlock Text="Configuración del Sistema" FontSize="28" FontWeight="Bold" Foreground="#1E312F" Margin="10,0,0,25"/>
+
+            <Border Background="White" CornerRadius="15" Padding="15">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="15" ShadowDepth="2" Color="#D5DBDB" Opacity="0.3"/>
+                </Border.Effect>
+
+                <TabControl Background="Transparent" BorderThickness="0">
+                    <TabItem Header="Ajuste de Ramos" Style="{StaticResource SubTabItemStyle}">
                         <StackPanel Margin="10">
-                            <TextBlock Text="Margen de Ganancia Sugerido (%)" Margin="0,10,0,5" FontWeight="SemiBold"/>
-                            <TextBox x:Name="txtMargen" Text="50" Width="100" HorizontalAlignment="Left" Height="30"/>
-
-                            <GroupBox Header="Precios de Ramos de Mayoreo (Lista)" Margin="0,10,0,10">
-                                <UniformGrid Columns="2" Margin="10">
-                                    <StackPanel Margin="5">
-                                        <TextBlock Text="Ramo 6 pz ($)"/>
-                                        <TextBox x:Name="txtPrecio6" Height="30" VerticalContentAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="5">
-                                        <TextBlock Text="Ramo 12 pz ($)"/>
-                                        <TextBox x:Name="txtPrecio12" Height="30" VerticalContentAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="5">
-                                        <TextBlock Text="Ramo 24 pz ($)"/>
-                                        <TextBox x:Name="txtPrecio24" Height="30" VerticalContentAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="5">
-                                        <TextBlock Text="Ramo 50 pz ($)"/>
-                                        <TextBox x:Name="txtPrecio50" Height="30" VerticalContentAlignment="Center"/>
-                                    </StackPanel>
-                                </UniformGrid>
-                            </GroupBox>
-
-                            <Button Content="APLICAR AJUSTES DE INVENTARIO" 
-                                    Click="btnAplicarAjustes_Click" 
-                                    Margin="0,10,0,0" Height="45" 
-                                    Background="#27AE60" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                            <TextBlock Text="Precios de Ramos de Mayoreo" FontSize="18" FontWeight="Bold" Foreground="#CF8282" Margin="0,10"/>
+                            <UniformGrid Columns="2">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="Ramo 6 pz ($)" Foreground="#7F8C8D"/>
+                                    <TextBox x:Name="txtPrecio6" Height="35" VerticalContentAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="Ramo 12 pz ($)" Foreground="#7F8C8D"/>
+                                    <TextBox x:Name="txtPrecio12" Height="35" VerticalContentAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="Ramo 24 pz ($)" Foreground="#7F8C8D"/>
+                                    <TextBox x:Name="txtPrecio24" Height="35" VerticalContentAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="Ramo 50 pz ($)" Foreground="#7F8C8D"/>
+                                    <TextBox x:Name="txtPrecio50" Height="35" VerticalContentAlignment="Center"/>
+                                </StackPanel>
+                            </UniformGrid>
+                            <Button Content="GUARDAR PRECIOS DE RAMOS" Click="btnAplicarAjustesRamos_Click" Height="50" Background="#27AE60" Foreground="White" FontWeight="Bold" Margin="10,20" BorderThickness="0">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="10"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
                         </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-            </TabControl>
+                    </TabItem>
+
+                    <TabItem Header="Costos por Flor" Style="{StaticResource SubTabItemStyle}">
+                        <Grid Margin="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="320"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                                <DockPanel Margin="0,0,0,10">
+                                    <TextBlock Text="Inventario de Flores" FontSize="18" FontWeight="Bold" Foreground="#CF8282"/>
+                                    <TextBox x:Name="txtBuscarFlor" Width="180" HorizontalAlignment="Right" Height="25" VerticalContentAlignment="Center" TextChanged="txtBuscarFlor_TextChanged"/>
+                                </DockPanel>
+                                <DataGrid x:Name="dgPreciosFlores" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" Height="400" SelectionChanged="dgPreciosFlores_SelectionChanged" Background="White" RowHeight="35" SelectionMode="Single">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Flor" Binding="{Binding Nombre}" Width="*"/>
+                                        <DataGridTextColumn Header="Costo ($)" Binding="{Binding PrecioCompra, StringFormat=C2}" Width="100"/>
+                                        <DataGridTextColumn Header="Venta ($)" Binding="{Binding PrecioVenta, StringFormat=C2}" Width="100"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Background="#FDFEFE" CornerRadius="12" BorderBrush="#F2F4F4" BorderThickness="1" Padding="20">
+                                <StackPanel>
+                                    <TextBlock Text="Editar Flor" FontSize="20" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,15"/>
+                                    <TextBlock Text="Margen de Ganancia (%):" Foreground="#CF8282" FontWeight="SemiBold"/>
+                                    <TextBox x:Name="txtMargen" Text="50" Height="35" FontSize="16" FontWeight="Bold" VerticalContentAlignment="Center" Margin="0,5,0,15" TextChanged="txtEditCosto_TextChanged"/>
+                                    <TextBlock Text="Nombre:" Foreground="#7F8C8D"/>
+                                    <TextBox x:Name="txtEditNombre" IsReadOnly="True" Background="#F9F9F9" Height="35" VerticalContentAlignment="Center" Margin="0,5,0,15"/>
+                                    <TextBlock Text="Costo Proveedor ($):" Foreground="#7F8C8D"/>
+                                    <TextBox x:Name="txtEditCosto" Height="35" VerticalContentAlignment="Center" Margin="0,5,0,15" TextChanged="txtEditCosto_TextChanged"/>
+                                    <TextBlock Text="Precio Venta ($):" Foreground="#7F8C8D"/>
+                                    <TextBox x:Name="txtEditVenta" Height="35" VerticalContentAlignment="Center" Margin="0,5,0,20" FontWeight="Bold" Foreground="#27AE60"/>
+                                    <Button x:Name="btnGuardarFlor" Content="ACTUALIZAR PRECIO" Click="btnAplicarAjustesFlores_Click" IsEnabled="False" Height="50" Background="#3498DB" Foreground="White" FontWeight="Bold" BorderThickness="0">
+                                        <Button.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="10"/>
+                                            </Style>
+                                        </Button.Resources>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
+            </Border>
         </StackPanel>
     </Grid>
 </UserControl>
