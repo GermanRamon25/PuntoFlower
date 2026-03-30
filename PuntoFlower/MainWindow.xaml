@@ -120,7 +120,7 @@
                     <TextBlock Text="Bienvenido al Sistema" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"/>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#BDC3C7" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="23 de Marzo, 2026" Foreground="#7F8C8D" FontSize="14" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtFechaActual" Text="Cargando fecha..." Foreground="#7F8C8D" FontSize="14" VerticalAlignment="Center"/>
                     </StackPanel>
                 </DockPanel>
             </Border>

@@ -12,7 +12,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using PuntoFlower.Views; // Referencia necesaria para ver las carpetas de vistas
+using PuntoFlower.Views;
+using System.Globalization; // Necesario para el formato de fecha
 
 namespace PuntoFlower
 {
@@ -21,6 +22,12 @@ namespace PuntoFlower
         public MainWindow()
         {
             InitializeComponent();
+
+            // ASIGNAR FECHA ACTUAL AL CARGAR EL SISTEMA
+            // Formato: "dddd dd 'de' MMMM, yyyy" -> Domingo 29 de Marzo, 2026
+            txtFechaActual.Text = DateTime.Now.ToString("dddd dd 'de' MMMM, yyyy", new CultureInfo("es-MX"));
+
+            // Iniciar con el Dashboard
             MainContent.Content = new DashboardView();
         }
 
@@ -54,7 +61,6 @@ namespace PuntoFlower
             MainContent.Content = new ReportsView();
         }
 
-        // NUEVO: Manejador para mostrar el Corte de Caja
         private void btnCorteCaja_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new CashCloseOutView();
