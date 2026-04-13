@@ -95,6 +95,13 @@
                     </StackPanel>
                 </Button>
 
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnCorteCaja_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Corte de Caja" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </Button>
+
                 <Separator Background="White" Margin="20,30,20,10" Opacity="0.3"/>
 
                 <Button Style="{StaticResource MenuButtonStyle}" Click="btnConfiguracion_Click">

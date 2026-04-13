@@ -1,38 +1,49 @@
 ﻿<Window x:Class="PuntoFlower.Views.RegistrarCompraWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Registrar Surtido de Mercancía" Height="400" Width="400"
+        Title="Registrar Surtido de Mercancía" Height="520" Width="420"
         WindowStartupLocation="CenterOwner" Background="#FBFCFC">
-    <Grid Margin="20">
-        <StackPanel>
-            <TextBlock x:Name="lblProveedor" Text="Proveedor: Florería Gya" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="20">
+            <StackPanel>
+                <TextBlock x:Name="lblProveedor" Text="Proveedor: Nombre" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
 
-            <TextBlock Text="1. ¿Qué producto llegó?" Foreground="#5D6D7E"/>
-            <ComboBox x:Name="cbProductos" Height="35" Margin="0,5,0,15" DisplayMemberPath="Nombre" VerticalContentAlignment="Center"/>
+                <TextBlock Text="1. ¿Qué producto llegó?" Foreground="#5D6D7E"/>
+                <ComboBox x:Name="cbProductos" Height="35" Margin="0,5,0,15" DisplayMemberPath="Nombre" VerticalContentAlignment="Center"/>
 
-            <UniformGrid Columns="2">
-                <StackPanel Margin="0,0,5,0">
-                    <TextBlock Text="Cantidad (Pz/Mazo)" Foreground="#5D6D7E"/>
-                    <TextBox x:Name="txtCantidad" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
-                </StackPanel>
-                <StackPanel Margin="5,0,0,0">
-                    <TextBlock Text="Costo Unitario ($)" Foreground="#5D6D7E"/>
-                    <TextBox x:Name="txtCosto" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
-                </StackPanel>
-            </UniformGrid>
+                <UniformGrid Columns="2">
+                    <StackPanel Margin="0,0,5,0">
+                        <TextBlock Text="Cantidad" Foreground="#5D6D7E"/>
+                        <TextBox x:Name="txtCantidad" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center" TextChanged="ActualizarResumenTotal"/>
+                    </StackPanel>
+                    <StackPanel Margin="5,0,0,0">
+                        <TextBlock Text="Formato de Entrada" Foreground="#5D6D7E"/>
+                        <ComboBox x:Name="cbFormatoSurtido" Height="35" Margin="0,5" SelectedIndex="0" SelectionChanged="ActualizarResumenTotal">
+                            <ComboBoxItem Content="Por Docenas"/>
+                            <ComboBoxItem Content="Por Piezas"/>
+                        </ComboBox>
+                    </StackPanel>
+                </UniformGrid>
 
-            <Border Background="#FEF9E7" Padding="10" CornerRadius="5" Margin="0,10">
-                <TextBlock x:Name="lblTotal" Text="Total de esta entrada: $0.00" FontWeight="Bold" HorizontalAlignment="Center" Foreground="#B7950B"/>
-            </Border>
+                <TextBlock Text="Costo Total Pagado ($)" Foreground="#5D6D7E" Margin="0,5,0,0"/>
+                <TextBox x:Name="txtCosto" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center" TextChanged="ActualizarResumenTotal"/>
 
-            <Button Content="FINALIZAR Y SURTIR STOCK" Click="btnGuardarSurtido_Click" 
-                    Height="50" Background="#F39C12" Foreground="White" FontWeight="Bold" BorderThickness="0">
-                <Button.Resources>
-                    <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="10"/>
-                    </Style>
-                </Button.Resources>
-            </Button>
-        </StackPanel>
-    </Grid>
+                <Border Background="#FEF9E7" Padding="15" CornerRadius="5" Margin="0,10">
+                    <StackPanel>
+                        <TextBlock x:Name="lblTotal" Text="Total de la Compra: $0.00" FontWeight="Bold" HorizontalAlignment="Center" Foreground="#B7950B" FontSize="14"/>
+                        <TextBlock x:Name="lblDetalleCalculo" Text="Costo calculado: $0.00 por pieza" FontSize="11" HorizontalAlignment="Center" Foreground="#7D6608" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Button Content="FINALIZAR Y SURTIR STOCK" Click="btnGuardarSurtido_Click" 
+                        Height="55" Background="#F39C12" Foreground="White" FontWeight="Bold" BorderThickness="0" Margin="0,10,0,10">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="10"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </Window>
