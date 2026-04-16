@@ -2,7 +2,6 @@
 using PuntoFlower.Models;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.SqlClient;
 using System.Windows;
 using System.Windows.Controls;
@@ -31,6 +30,7 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection conexion = db.OpenConnection())
                 {
+                    // Traemos todos los campos, incluyendo RutaImagen para el futuro catálogo
                     string query = "SELECT * FROM Productos";
                     if (!string.IsNullOrEmpty(filtro))
                         query += " WHERE Nombre LIKE @buscar OR Categoria LIKE @buscar";
@@ -52,7 +52,9 @@ namespace PuntoFlower.Views
                                 StockActual = Convert.ToInt32(reader["StockActual"]),
                                 StockMinimo = Convert.ToInt32(reader["StockMinimo"]),
                                 PrecioCompra = Convert.ToDecimal(reader["PrecioCompra"]),
-                                PrecioVenta = Convert.ToDecimal(reader["PrecioVenta"])
+                                PrecioVenta = Convert.ToDecimal(reader["PrecioVenta"]),
+                                // Cargamos la ruta de la imagen aunque no se vea en la tabla
+                                RutaImagen = reader["RutaImagen"] != DBNull.Value ? reader["RutaImagen"].ToString() : ""
                             });
                         }
                     }
@@ -62,23 +64,22 @@ namespace PuntoFlower.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al cargar inventario: " + ex.Message);
+                MessageBox.Show("Error al sincronizar inventario: " + ex.Message);
             }
         }
 
-        // --- NUEVA LÓGICA: REGISTRAR MERMA ---
+        // Registro de Mermas (Pérdidas)
         private void btnMerma_Click(object sender, RoutedEventArgs e)
         {
             var seleccionado = dgInventario.SelectedItem as Producto;
             if (seleccionado == null)
             {
-                MessageBox.Show("Selecciona un producto para registrar la pérdida.", "Atención");
+                MessageBox.Show("Por favor, selecciona una flor de la lista para registrar la merma.", "Atención");
                 return;
             }
 
-            // Pedimos la cantidad (Puedes crear una ventanita pequeña o usar este InputBox rápido)
             string cantidadStr = Microsoft.VisualBasic.Interaction.InputBox(
-                $"¿Cuántas unidades de '{seleccionado.Nombre}' vas a retirar por merma?", "Registrar Pérdida", "1");
+                $"¿Cuántas unidades de '{seleccionado.Nombre}' se perdieron?", "Registro de Merma", "1");
 
             if (string.IsNullOrEmpty(cantidadStr)) return;
 
@@ -86,26 +87,24 @@ namespace PuntoFlower.Views
             {
                 if (cantBaja > seleccionado.StockActual)
                 {
-                    MessageBox.Show("No puedes retirar más de lo que hay en stock.", "Error");
+                    MessageBox.Show("La cantidad de merma no puede superar el stock actual.", "Error");
                     return;
                 }
 
                 string motivo = Microsoft.VisualBasic.Interaction.InputBox(
-                    "Motivo de la merma (Ej: Marchita, Daño, Caducidad):", "Motivo", "Marchita");
+                    "Motivo (Marchita, Tallo Roto, etc.):", "Motivo", "Marchita");
 
                 ConexionDB db = new ConexionDB();
                 try
                 {
                     using (SqlConnection con = db.OpenConnection())
                     {
-                        // 1. Descontar del inventario
                         string qUpdate = "UPDATE Productos SET StockActual = StockActual - @cant WHERE Id = @id";
                         SqlCommand cmdUp = new SqlCommand(qUpdate, con);
                         cmdUp.Parameters.AddWithValue("@cant", cantBaja);
                         cmdUp.Parameters.AddWithValue("@id", seleccionado.Id);
                         cmdUp.ExecuteNonQuery();
 
-                        // 2. Registrar en la tabla de Mermas para reportes
                         string qInsert = "INSERT INTO Mermas (ProductoNombre, Cantidad, Motivo, Fecha) VALUES (@nom, @cant, @mot, GETDATE())";
                         SqlCommand cmdIn = new SqlCommand(qInsert, con);
                         cmdIn.Parameters.AddWithValue("@nom", seleccionado.Nombre);
@@ -113,7 +112,7 @@ namespace PuntoFlower.Views
                         cmdIn.Parameters.AddWithValue("@mot", motivo);
                         cmdIn.ExecuteNonQuery();
                     }
-                    MessageBox.Show("Merma registrada y stock actualizado.");
+                    MessageBox.Show("Inventario actualizado. Merma registrada en el historial.");
                     CargarDesdeSQL();
                 }
                 catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
@@ -125,13 +124,14 @@ namespace PuntoFlower.Views
             var seleccionado = dgInventario.SelectedItem as Producto;
             if (seleccionado != null)
             {
+                // Abrir ventana de surtido enviando el nombre de la flor
                 PuntoFlower.Views.SurtirStockWindow ventanaSurtir = new PuntoFlower.Views.SurtirStockWindow(seleccionado.Nombre);
                 ventanaSurtir.Owner = Window.GetWindow(this);
                 if (ventanaSurtir.ShowDialog() == true) CargarDesdeSQL();
             }
             else
             {
-                MessageBox.Show("Selecciona un producto para surtir stock.", "Atención");
+                MessageBox.Show("Selecciona una flor para registrar la entrada de mercancía.", "Atención");
             }
         }
 
@@ -140,7 +140,7 @@ namespace PuntoFlower.Views
             var seleccionado = dgInventario.SelectedItem as Producto;
             if (seleccionado == null) return;
 
-            var result = MessageBox.Show($"¿Deseas eliminar '{seleccionado.Nombre}' permanentemente?", "Confirmar", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            var result = MessageBox.Show($"¿Deseas eliminar '{seleccionado.Nombre}' del catálogo permanentemente?", "Confirmar Eliminación", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result == MessageBoxResult.Yes)
             {
                 ConexionDB db = new ConexionDB();
@@ -155,13 +155,14 @@ namespace PuntoFlower.Views
                     }
                     CargarDesdeSQL();
                 }
-                catch (Exception ex) { MessageBox.Show("Error al eliminar: " + ex.Message); }
+                catch (Exception ex) { MessageBox.Show("No se puede eliminar porque tiene historial de ventas o compras vinculadas."); }
             }
         }
 
         private void btnBuscar_Click(object sender, RoutedEventArgs e) => CargarDesdeSQL(txtSearch.Text);
         private void txtSearch_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) CargarDesdeSQL(txtSearch.Text); }
         private void txtSearch_TextChanged(object sender, TextChangedEventArgs e) { if (string.IsNullOrEmpty(txtSearch.Text)) CargarDesdeSQL(); }
+
         private void btnNuevaFlor_Click(object sender, RoutedEventArgs e)
         {
             NuevoProductoWindow ventana = new NuevoProductoWindow();

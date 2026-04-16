@@ -23,6 +23,9 @@ namespace PuntoFlower.Models
         public int StockMinimo { get; set; }
         public DateTime FechaIngreso { get; set; }
 
+        // PROPIEDAD NUEVA: Almacena el nombre del archivo de imagen en la carpeta FotosCatalogo
+        public string RutaImagen { get; set; }
+
         // Lógica para avisar si hay que surtir
         public bool NecesitaSurtir => StockActual <= StockMinimo;
     }

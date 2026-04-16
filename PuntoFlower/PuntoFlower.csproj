@@ -66,9 +66,13 @@
     <Compile Include="CashCloseOutView.xaml.cs">
       <DependentUpon>CashCloseOutView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="CatalogView.xaml.cs">
+      <DependentUpon>CatalogView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ConfigurationView.xaml.cs">
       <DependentUpon>ConfigurationView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Models\RutaAImagenConverter.cs" />
     <Compile Include="ProveedoresView.xaml.cs">
       <DependentUpon>ProveedoresView.xaml</DependentUpon>
     </Compile>
@@ -110,6 +114,10 @@
       <DependentUpon>RegistrarCompraWindow.xaml</DependentUpon>
     </Compile>
     <Page Include="CashCloseOutView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CatalogView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

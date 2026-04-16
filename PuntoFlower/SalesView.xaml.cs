@@ -7,7 +7,8 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Data.SqlClient;
-using System.Windows.Media.Imaging; // Necesario para BitmapImage
+using System.Windows.Media.Imaging;
+using System.IO;
 
 namespace PuntoFlower.Views
 {
@@ -28,6 +29,12 @@ namespace PuntoFlower.Views
             CargarPreciosDesdeDB();
         }
 
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            CargarInsumos();
+            CargarPreciosDesdeDB();
+        }
+
         private void CargarPreciosDesdeDB()
         {
             preciosDinamicos.Clear();
@@ -36,8 +43,7 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = "SELECT Capacidad, Precio FROM PreciosRamos";
-                    SqlCommand cmd = new SqlCommand(query, con);
+                    SqlCommand cmd = new SqlCommand("SELECT Capacidad, Precio FROM PreciosRamos", con);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -50,7 +56,7 @@ namespace PuntoFlower.Views
                     }
                 }
             }
-            catch (Exception) { }
+            catch { /* Manejo silencioso */ }
         }
 
         private void ActualizarTextoBoton(int capacidad, decimal precio)
@@ -61,35 +67,39 @@ namespace PuntoFlower.Views
                 case 6: rbRamo6.Content = texto; break;
                 case 12: rbRamo12.Content = texto; break;
                 case 24: rbRamo24.Content = texto; break;
+                case 36: rbRamo36.Content = texto; break;
                 case 50: rbRamo50.Content = texto; break;
+                case 72: rbRamo72.Content = texto; break;
+                case 100: rbRamo100.Content = texto; break;
+                case 150: rbRamo150.Content = texto; break;
+                case 200: rbRamo200.Content = texto; break;
+                case 250: rbRamo250.Content = texto; break;
             }
-        }
-
-        private void UserControl_Loaded(object sender, RoutedEventArgs e)
-        {
-            CargarInsumos();
-            CargarPreciosDesdeDB();
         }
 
         private void CargarInsumos()
         {
             List<Producto> lista = new List<Producto>();
             ConexionDB db = new ConexionDB();
-            using (SqlConnection con = db.OpenConnection())
+            try
             {
-                string query = "SELECT Nombre, PrecioVenta FROM Productos";
-                SqlCommand cmd = new SqlCommand(query, con);
-                using (SqlDataReader r = cmd.ExecuteReader())
+                using (SqlConnection con = db.OpenConnection())
                 {
-                    while (r.Read()) lista.Add(new Producto
+                    SqlCommand cmd = new SqlCommand("SELECT Nombre, PrecioVenta, RutaImagen FROM Productos WHERE StockActual > 0", con);
+                    using (SqlDataReader r = cmd.ExecuteReader())
                     {
-                        Nombre = r["Nombre"].ToString(),
-                        PrecioVenta = Convert.ToDecimal(r["PrecioVenta"])
-                    });
+                        while (r.Read()) lista.Add(new Producto
+                        {
+                            Nombre = r["Nombre"].ToString(),
+                            PrecioVenta = Convert.ToDecimal(r["PrecioVenta"]),
+                            RutaImagen = r["RutaImagen"]?.ToString()
+                        });
+                    }
                 }
+                cbInsumosRamos.ItemsSource = lista;
+                cbInsumosLibre.ItemsSource = lista;
             }
-            cbInsumosRamos.ItemsSource = lista;
-            cbInsumosLibre.ItemsSource = lista;
+            catch { }
         }
 
         private void Ramo_Checked(object sender, RoutedEventArgs e)
@@ -101,18 +111,32 @@ namespace PuntoFlower.Views
             precioRamo = preciosDinamicos.ContainsKey(capacidadRamo) ? preciosDinamicos[capacidadRamo] : 0;
 
             ActualizarProgreso();
-            ActualizarImagenReferencia(capacidadRamo);
+            BuscarImagenPorCapacidad(capacidadRamo);
         }
 
-        // MÉTODO ACTUALIZADO: Ahora busca archivos .jpeg en la carpeta Resources
-        private void ActualizarImagenReferencia(int piezas)
+        private void BuscarImagenPorCapacidad(int piezas)
         {
             try
             {
-                // Se cambió la extensión de .jpg a .jpeg para que coincida con tus archivos
-                string path = $"pack://application:,,,/Resources/ramo{piezas}.jpeg";
-                imgReferencia.Source = new BitmapImage(new Uri(path, UriKind.RelativeOrAbsolute));
-                txtPlaceholder.Visibility = Visibility.Collapsed;
+                string folderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FotosCatalogo");
+                string fileName = $"ramo{piezas}.jpeg";
+                string fullPath = Path.Combine(folderPath, fileName);
+
+                if (File.Exists(fullPath))
+                {
+                    BitmapImage bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(fullPath);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    imgReferencia.Source = bitmap;
+                    txtPlaceholder.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    imgReferencia.Source = null;
+                    txtPlaceholder.Visibility = Visibility.Visible;
+                }
             }
             catch
             {
@@ -126,7 +150,7 @@ namespace PuntoFlower.Views
             var flor = cbInsumosRamos.SelectedItem as Producto;
             if (flor == null || capacidadRamo == 0) return;
             if (!int.TryParse(txtCantFlorRamo.Text, out int cant) || cant <= 0) return;
-            if (floresAgregadas + cant > capacidadRamo) { MessageBox.Show("Capacidad excedida."); return; }
+            if (floresAgregadas + cant > capacidadRamo) { MessageBox.Show("Superas la capacidad del ramo."); return; }
 
             composicionRamoActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
             floresAgregadas += cant;
@@ -136,10 +160,11 @@ namespace PuntoFlower.Views
 
         private void btnFinalizarRamo_Click(object sender, RoutedEventArgs e)
         {
-            if (floresAgregadas != capacidadRamo) { MessageBox.Show("Completa las flores del ramo."); return; }
+            if (floresAgregadas != capacidadRamo) { MessageBox.Show("Debes completar la cantidad de flores seleccionada."); return; }
+
             ProductosEnTicket.Add(new ItemTicket
             {
-                ProductoNombre = $"Ramo {capacidadRamo} pz",
+                ProductoNombre = $"Ramo de {capacidadRamo} pz",
                 Total = precioRamo,
                 InsumosADescontar = new List<DetalleInsumo>(composicionRamoActual),
                 DetalleVisual = string.Join(", ", composicionRamoActual.Select(x => $"{x.Cantidad} {x.Nombre}"))
@@ -151,6 +176,7 @@ namespace PuntoFlower.Views
         {
             var prod = cbInsumosLibre.SelectedItem as Producto;
             if (prod == null || !int.TryParse(txtCantLibre.Text, out int cant)) return;
+
             ProductosEnTicket.Add(new ItemTicket
             {
                 ProductoNombre = prod.Nombre,
@@ -164,14 +190,15 @@ namespace PuntoFlower.Views
         private void btnAgregarEspecial_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(txtNombreEspecial.Text) || !decimal.TryParse(txtPrecioEspecial.Text, out decimal precio)) return;
+
             ProductosEnTicket.Add(new ItemTicket
             {
                 ProductoNombre = txtNombreEspecial.Text,
                 Total = precio,
                 InsumosADescontar = new List<DetalleInsumo>(),
-                DetalleVisual = "Arreglo / Servicio Especial"
+                DetalleVisual = "Arreglo Personalizado / Servicio Especial"
             });
-            txtNombreEspecial.Text = ""; txtPrecioEspecial.Text = "";
+            txtNombreEspecial.Clear(); txtPrecioEspecial.Clear();
             ActualizarTotal();
         }
 
@@ -179,13 +206,16 @@ namespace PuntoFlower.Views
         {
             decimal total = ProductosEnTicket.Sum(x => x.Total);
             if (total <= 0) return;
+
             if (!decimal.TryParse(txtPagoCon.Text, out decimal pagoRecibido) || pagoRecibido < total)
             {
                 MessageBox.Show("Monto recibido insuficiente.");
                 return;
             }
+
             decimal cambioFinal = pagoRecibido - total;
             ConexionDB db = new ConexionDB();
+
             using (SqlConnection con = db.OpenConnection())
             {
                 SqlTransaction tra = con.BeginTransaction();
@@ -193,7 +223,8 @@ namespace PuntoFlower.Views
                 {
                     foreach (var item in ProductosEnTicket)
                     {
-                        string q = "INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio) VALUES (GETDATE(), @n, @t, 1, 'Efectivo', @rec, @cam)";
+                        string q = "INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio) " +
+                                   "VALUES (GETDATE(), @n, @t, 1, 'Efectivo', @rec, @cam)";
                         SqlCommand cmdV = new SqlCommand(q, con, tra);
                         cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
                         cmdV.Parameters.AddWithValue("@t", item.Total);
@@ -210,10 +241,17 @@ namespace PuntoFlower.Views
                         }
                     }
                     tra.Commit();
-                    MessageBox.Show("Venta completada.");
-                    ProductosEnTicket.Clear(); txtPagoCon.Clear(); txtCambio.Text = "$0.00"; ActualizarTotal();
+                    MessageBox.Show("Venta registrada con éxito.");
+                    ProductosEnTicket.Clear();
+                    txtPagoCon.Clear();
+                    txtCambio.Text = "$0.00";
+                    ActualizarTotal();
                 }
-                catch (Exception ex) { tra.Rollback(); MessageBox.Show("Error: " + ex.Message); }
+                catch (Exception ex)
+                {
+                    tra.Rollback();
+                    MessageBox.Show("Error al procesar la venta: " + ex.Message);
+                }
             }
         }
 
@@ -232,12 +270,15 @@ namespace PuntoFlower.Views
         {
             composicionRamoActual.Clear(); floresAgregadas = 0; capacidadRamo = 0;
             imgReferencia.Source = null; txtPlaceholder.Visibility = Visibility.Visible;
+            rbRamo6.IsChecked = rbRamo12.IsChecked = rbRamo24.IsChecked = rbRamo36.IsChecked = rbRamo50.IsChecked =
+            rbRamo72.IsChecked = rbRamo100.IsChecked = rbRamo150.IsChecked = rbRamo200.IsChecked = rbRamo250.IsChecked = false;
             ActualizarTotal(); ActualizarProgreso();
         }
 
         private void ActualizarProgreso() => lblProgresoRamo.Text = $"Seleccionadas: {floresAgregadas} / {capacidadRamo}";
         private void ActualizarTotal() => txtTotal.Text = $"Total: {ProductosEnTicket.Sum(x => x.Total):C}";
         private void btnLimpiarTicket_Click(object sender, RoutedEventArgs e) { ProductosEnTicket.Clear(); ActualizarTotal(); }
+
         private void btnEliminarItem_Click(object sender, RoutedEventArgs e)
         {
             var item = (sender as Button).DataContext as ItemTicket;

@@ -37,7 +37,13 @@ namespace PuntoFlower.Views
                             if (cap == 6) txtPrecio6.Text = p;
                             else if (cap == 12) txtPrecio12.Text = p;
                             else if (cap == 24) txtPrecio24.Text = p;
+                            else if (cap == 36) txtPrecio36.Text = p;
                             else if (cap == 50) txtPrecio50.Text = p;
+                            else if (cap == 72) txtPrecio72.Text = p;
+                            else if (cap == 100) txtPrecio100.Text = p;
+                            else if (cap == 150) txtPrecio150.Text = p;
+                            else if (cap == 200) txtPrecio200.Text = p;
+                            else if (cap == 250) txtPrecio250.Text = p;
                         }
                     }
                 }
@@ -73,7 +79,6 @@ namespace PuntoFlower.Views
             catch (Exception ex) { MessageBox.Show("Error al cargar tabla: " + ex.Message); }
         }
 
-        // --- LÓGICA DE SELECCIÓN ---
         private void dgPreciosFlores_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             florSeleccionada = dgPreciosFlores.SelectedItem as FlorPrecio;
@@ -88,7 +93,6 @@ namespace PuntoFlower.Views
 
         private void txtEditCosto_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // Esta línea es CRITICA: evita el error al cargar la pantalla
             if (txtEditCosto == null || txtMargen == null || txtEditVenta == null) return;
 
             if (decimal.TryParse(txtEditCosto.Text, out decimal costo) &&
@@ -99,7 +103,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // --- GUARDADO DE FLORES INDIVIDUALES ---
         private void btnAplicarAjustesFlores_Click(object sender, RoutedEventArgs e)
         {
             if (florSeleccionada == null) return;
@@ -125,7 +128,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // --- GUARDADO DE RAMOS (LISTA) ---
         private void btnAplicarAjustesRamos_Click(object sender, RoutedEventArgs e)
         {
             ConexionDB db = new ConexionDB();
@@ -136,15 +138,23 @@ namespace PuntoFlower.Views
                     GuardarPrecioRamo(con, 6, txtPrecio6.Text);
                     GuardarPrecioRamo(con, 12, txtPrecio12.Text);
                     GuardarPrecioRamo(con, 24, txtPrecio24.Text);
+                    GuardarPrecioRamo(con, 36, txtPrecio36.Text);
                     GuardarPrecioRamo(con, 50, txtPrecio50.Text);
+                    GuardarPrecioRamo(con, 72, txtPrecio72.Text);
+                    GuardarPrecioRamo(con, 100, txtPrecio100.Text);
+                    GuardarPrecioRamo(con, 150, txtPrecio150.Text);
+                    GuardarPrecioRamo(con, 200, txtPrecio200.Text);
+                    GuardarPrecioRamo(con, 250, txtPrecio250.Text);
                 }
-                MessageBox.Show("Precios de ramos actualizados correctamente.", "PuntoFlower");
+                MessageBox.Show("Todos los precios de ramos han sido actualizados.", "PuntoFlower");
             }
             catch (Exception ex) { MessageBox.Show("Error al guardar ramos: " + ex.Message); }
         }
 
         private void GuardarPrecioRamo(SqlConnection con, int cap, string precioTxt)
         {
+            if (string.IsNullOrEmpty(precioTxt)) return;
+
             if (decimal.TryParse(precioTxt, out decimal p))
             {
                 string sql = "IF EXISTS(SELECT 1 FROM PreciosRamos WHERE Capacidad=@c) " +
@@ -157,7 +167,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // --- BÚSQUEDA ---
         private void txtBuscarFlor_TextChanged(object sender, TextChangedEventArgs e)
         {
             string filtro = txtBuscarFlor.Text.ToLower();

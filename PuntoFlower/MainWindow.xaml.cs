@@ -15,6 +15,7 @@ using System.Windows.Shapes;
 using PuntoFlower.Views;
 using System.Globalization; // Necesario para el formato de fecha
 
+
 namespace PuntoFlower
 {
     public partial class MainWindow : Window
@@ -39,6 +40,12 @@ namespace PuntoFlower
         private void btnInventario_Click(object sender, RoutedEventArgs e)
         {
             MainContent.Content = new InventoryView();
+        }
+
+        // --- NUEVO MÉTODO PARA EL CATÁLOGO VISUAL ---
+        private void btnCatalogo_Click(object sender, RoutedEventArgs e)
+        {
+            MainContent.Content = new CatalogView();
         }
 
         private void btnVentas_Click(object sender, RoutedEventArgs e)

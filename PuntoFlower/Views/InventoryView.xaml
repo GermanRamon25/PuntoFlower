@@ -21,7 +21,8 @@
                     <TextBox x:Name="txtSearch" Width="200" Height="35" 
                              VerticalContentAlignment="Center" Margin="0,0,10,0"
                              TextChanged="txtSearch_TextChanged"
-                             KeyDown="txtSearch_KeyDown"/>
+                             KeyDown="txtSearch_KeyDown"
+                             Tag="Buscar flor..."/>
 
                     <Button Content="Buscar" Width="80" Background="#3498DB" 
                             Foreground="White" BorderThickness="0" 
@@ -29,7 +30,6 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-
                     <Button Content="+ Nueva Flor" x:Name="btnNuevaFlor" 
                             Click="btnNuevaFlor_Click" Width="110" Height="35" 
                             Background="#27AE60" Foreground="White" 
@@ -38,7 +38,8 @@
                     <Button Content="Eliminar" x:Name="btnEliminar" 
                             Click="btnEliminar_Click" Width="100" Height="35" 
                             Background="#E74C3C" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                            FontWeight="Bold" BorderThickness="0" Cursor="Hand" Margin="5,0"/>
+
                     <Button Content="Surtir Stock" Width="110" Height="35" 
                             x:Name="btnSurtirStock"
                             Click="btnSurtirStock_Click" 
@@ -59,7 +60,7 @@
             </Border.Effect>
             <Grid Margin="10">
                 <DataGrid x:Name="dgInventario" AutoGenerateColumns="False" Background="Transparent" 
-                          BorderThickness="0" CanUserAddRows="False" RowHeight="35" 
+                          BorderThickness="0" CanUserAddRows="False" RowHeight="40" 
                           HeadersVisibility="Column" GridLinesVisibility="Horizontal" 
                           HorizontalGridLinesBrush="#EEE" IsReadOnly="True"
                           SelectionMode="Single">
@@ -76,20 +77,28 @@
                     </DataGrid.ColumnHeaderStyle>
 
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Nombre" Width="*" Binding="{Binding Nombre}"/>
+                        <DataGridTextColumn Header="Nombre de la Flor" Width="*" Binding="{Binding Nombre}"/>
                         <DataGridTextColumn Header="Categoría" Width="150" Binding="{Binding Categoria}"/>
-                        <DataGridTextColumn Header="Existencia" Width="100" Binding="{Binding StockActual}"/>
-                        <DataGridTextColumn Header="Precio Compra" Width="120" Binding="{Binding PrecioCompra, StringFormat={}{0:C}}"/>
+                        <DataGridTextColumn Header="Existencia" Width="100" Binding="{Binding StockActual}">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
                         <DataGridTextColumn Header="Precio Venta" Width="120" Binding="{Binding PrecioVenta, StringFormat={}{0:C}}"/>
 
-                        <DataGridTemplateColumn Header="Estado" Width="120">
+                        <DataGridTemplateColumn Header="Estado Stock" Width="130">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border x:Name="StatusBorder" CornerRadius="10" Padding="8,2" HorizontalAlignment="Center">
-                                        <TextBlock x:Name="StatusText" Text="Óptimo" Foreground="#27AE60" FontWeight="SemiBold"/>
+                                    <Border x:Name="StatusBorder" CornerRadius="12" Padding="10,2" HorizontalAlignment="Center" Background="#E8F6F3">
+                                        <TextBlock x:Name="StatusText" Text="Disponible" Foreground="#27AE60" FontWeight="SemiBold" FontSize="11"/>
                                     </Border>
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding NecesitaSurtir}" Value="True">
+                                            <Setter TargetName="StatusBorder" Property="Background" Value="#FDEDEC"/>
                                             <Setter TargetName="StatusText" Property="Text" Value="Reabastecer"/>
                                             <Setter TargetName="StatusText" Property="Foreground" Value="#E74C3C"/>
                                         </DataTrigger>
