@@ -5,10 +5,23 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:PuntoFlower"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="800">
+             d:DesignHeight="650" d:DesignWidth="900">
 
     <UserControl.Resources>
         <local:RutaAImagenConverter x:Key="RutaAImagenConverter"/>
+
+        <Style x:Key="BaseCardBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="BorderBrush" Value="#EBEDEF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="10"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="1" Color="#D5DBDB" Opacity="0.5"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid Background="#FDFEFE">
@@ -18,35 +31,63 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="#A93226" Padding="20,15">
-            <TextBlock Text="Catálogo Visual de Ramos" FontSize="24" FontWeight="Bold" Foreground="White"/>
+            <TextBlock Text="Gestión de Catálogo Visual" FontSize="24" FontWeight="Bold" Foreground="White"/>
         </Border>
 
-        <ScrollViewer Grid.Row="1" Margin="10">
-            <ItemsControl x:Name="icProductos">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Width="200" Height="280" Margin="10" Background="White" CornerRadius="10" BorderBrush="#EEE" BorderThickness="1">
-                            <StackPanel>
-                                <Border Height="150" Background="#F2F3F4" CornerRadius="10,10,0,0">
-                                    <Image Source="{Binding RutaImagen, Converter={StaticResource RutaAImagenConverter}}" Stretch="UniformToFill"/>
-                                </Border>
-                                <TextBlock Text="{Binding Nombre}" FontWeight="Bold" Margin="10,5" HorizontalAlignment="Center"/>
-                                <TextBlock Text="{Binding PrecioVenta, StringFormat={}{0:C}}" Foreground="Green" HorizontalAlignment="Center"/>
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="10">
 
-                                <Button Content="Subir Foto" 
-                                        Click="btnSubirFoto_Click" 
-                                        Tag="{Binding}" 
-                                        Margin="10" Background="#A93226" Foreground="White"/>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+            <TabItem Header="Flores e Insumos">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <ItemsControl x:Name="icProductos">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource BaseCardBorderStyle}" Width="180" Height="280">
+                                    <StackPanel>
+                                        <Border Height="140" Background="#F2F3F4" CornerRadius="10,10,0,0">
+                                            <Image Source="{Binding RutaImagen, Converter={StaticResource RutaAImagenConverter}}" 
+                                                   Stretch="Uniform" 
+                                                   HorizontalAlignment="Center" 
+                                                   VerticalAlignment="Center"/>
+                                        </Border>
+
+                                        <TextBlock Text="{Binding Nombre}" FontWeight="Bold" Margin="10,8,10,0" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="#2C3E50"/>
+                                        <TextBlock Text="{Binding PrecioVenta, StringFormat={}{0:C}}" Foreground="#27AE60" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,5"/>
+
+                                        <DockPanel Margin="10,0,10,10">
+                                            <Button Content="🗑" Click="btnEliminarFoto_Click" Tag="{Binding}" Width="35" Height="30" Background="#E74C3C" Foreground="White" FontWeight="Bold" Margin="0,0,5,0" ToolTip="Eliminar Foto" BorderThickness="0">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="5"/>
+                                                    </Style>
+                                                </Button.Resources>
+                                            </Button>
+                                            <Button Content="Cambiar Foto" Click="btnSubirFoto_Click" Tag="{Binding}" Height="30" Background="#A93226" Foreground="White" FontWeight="SemiBold" Cursor="Hand" BorderThickness="0">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="5"/>
+                                                    </Style>
+                                                </Button.Resources>
+                                            </Button>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Fotos de Ramos (Mayoreo)">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <WrapPanel x:Name="wpRamosMayoreo" HorizontalAlignment="Center">
+                    </WrapPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
     </Grid>
 </UserControl>
