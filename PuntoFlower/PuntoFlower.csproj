@@ -34,6 +34,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>icono.PuntoFlower.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="BouncyCastle.Cryptography, Version=2.0.0.0, Culture=neutral, PublicKeyToken=072edcf4a5328938, processorArchitecture=MSIL">
       <HintPath>..\packages\BouncyCastle.Cryptography.2.6.2\lib\net461\BouncyCastle.Cryptography.dll</HintPath>
@@ -72,9 +75,15 @@
     <Compile Include="ConfigurationView.xaml.cs">
       <DependentUpon>ConfigurationView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="LoginWindow.xaml.cs">
+      <DependentUpon>LoginWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Models\RutaAImagenConverter.cs" />
     <Compile Include="ProveedoresView.xaml.cs">
       <DependentUpon>ProveedoresView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="RegistroWindow.xaml.cs">
+      <DependentUpon>RegistroWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="ReportsView.xaml.cs">
       <DependentUpon>ReportsView.xaml</DependentUpon>
@@ -125,7 +134,15 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="LoginWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="ProveedoresView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="RegistroWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -221,6 +238,15 @@
     <Resource Include="Resources\ramo24.jpeg" />
     <Resource Include="Resources\ramo50.jpeg" />
     <Resource Include="Resources\ramo6.jpeg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\icono.PuntoFlower.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\icono.PuntoFlower.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="icono.PuntoFlower.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

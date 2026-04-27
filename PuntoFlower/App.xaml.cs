@@ -13,5 +13,13 @@ namespace PuntoFlower
     /// </summary>
     public partial class App : Application
     {
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            base.OnStartup(e);
+
+            // Al iniciar la aplicación, mostramos primero la pantalla de Login
+            LoginWindow login = new LoginWindow();
+            login.Show();
+        }
     }
 }
