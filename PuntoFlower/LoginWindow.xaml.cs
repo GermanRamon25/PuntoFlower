@@ -2,20 +2,22 @@
 using System;
 using System.Data.SqlClient;
 using System.Windows;
-using PuntoFlower.Views; // Asegúrate de importar el namespace donde está RegistroWindow
 
 namespace PuntoFlower
 {
-    public partial class RegistroWindow : Window
+    public partial class LoginWindow : Window
     {
-        public RegistroWindow() => InitializeComponent();
-
-        private void BtnGuardar_Click(object sender, RoutedEventArgs e)
+        public LoginWindow()
         {
-            // Validamos que los campos no estén vacíos
-            if (string.IsNullOrEmpty(txtNewUser.Text) || string.IsNullOrEmpty(txtNewPass.Password))
+            InitializeComponent();
+        }
+
+        // Evento para el botón de Iniciar Sesión
+        private void BtnLogin_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtUsername.Text) || string.IsNullOrEmpty(txtPassword.Password))
             {
-                MessageBox.Show("Por favor, completa todos los campos.");
+                MessageBox.Show("Por favor, introduce tu usuario y contraseña.");
                 return;
             }
 
@@ -24,24 +26,52 @@ namespace PuntoFlower
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // CAMBIO AQUÍ: Incluimos la columna 'Estado' y le asignamos 'Pendiente'
-                    string query = "INSERT INTO Usuarios (Username, PasswordHash, Estado) VALUES (@u, @p, @est)";
-
+                    // Buscamos el usuario, contraseña y su estado de activación
+                    string query = "SELECT Estado FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
                     SqlCommand cmd = new SqlCommand(query, con);
-                    cmd.Parameters.AddWithValue("@u", txtNewUser.Text);
-                    cmd.Parameters.AddWithValue("@p", txtNewPass.Password);
-                    cmd.Parameters.AddWithValue("@est", "Pendiente"); // Marcamos como pendiente por seguridad
+                    cmd.Parameters.AddWithValue("@u", txtUsername.Text);
+                    cmd.Parameters.AddWithValue("@p", txtPassword.Password);
 
-                    cmd.ExecuteNonQuery();
+                    object resultado = cmd.ExecuteScalar();
 
-                    MessageBox.Show("Registro exitoso. Tu cuenta está pendiente de activación por un administrador.");
-                    this.Close();
+                    if (resultado != null)
+                    {
+                        string estado = resultado.ToString();
+                        if (estado == "Activo")
+                        {
+                            // Login exitoso
+                            MainWindow main = new MainWindow();
+                            main.Show();
+                            this.Close();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Tu cuenta está pendiente de activación por un administrador.");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("Usuario o contraseña incorrectos.");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al registrar: " + ex.Message);
+                MessageBox.Show("Error al conectar: " + ex.Message);
             }
+        }
+
+        // Evento para abrir la ventana de registro
+        private void BtnAbrirRegistro_Click(object sender, RoutedEventArgs e)
+        {
+            RegistroWindow registro = new RegistroWindow();
+            registro.ShowDialog();
+        }
+
+        // Evento para cerrar la ventana
+        private void BtnClose_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
         }
     }
 }
