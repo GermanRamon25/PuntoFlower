@@ -56,7 +56,7 @@ namespace PuntoFlower.Views
                     }
                 }
             }
-            catch { /* Manejo silencioso */ }
+            catch { }
         }
 
         private void ActualizarTextoBoton(int capacidad, decimal precio)
@@ -85,7 +85,6 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Solo cargamos productos con existencia para evitar errores en venta
                     SqlCommand cmd = new SqlCommand("SELECT Nombre, PrecioVenta, RutaImagen FROM Productos WHERE StockActual > 0", con);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
@@ -112,43 +111,6 @@ namespace PuntoFlower.Views
             precioRamo = preciosDinamicos.ContainsKey(capacidadRamo) ? preciosDinamicos[capacidadRamo] : 0;
 
             ActualizarProgreso();
-
-            // Lógica para mostrar la foto que se subió desde el Catálogo
-            BuscarImagenPorCapacidad(capacidadRamo);
-        }
-
-        private void BuscarImagenPorCapacidad(int piezas)
-        {
-            try
-            {
-                // Buscamos el archivo con el nombre estándar: ramoXX.jpeg en la carpeta FotosCatalogo
-                string folderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FotosCatalogo");
-                string fileName = $"ramo{piezas}.jpeg";
-                string fullPath = Path.Combine(folderPath, fileName);
-
-                if (File.Exists(fullPath))
-                {
-                    BitmapImage bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(fullPath);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad; // Permite que el archivo no se bloquee
-                    bitmap.EndInit();
-
-                    imgReferencia.Source = bitmap;
-                    txtPlaceholder.Visibility = Visibility.Collapsed;
-                }
-                else
-                {
-                    // Si no existe la foto en el catálogo, limpiamos el recuadro
-                    imgReferencia.Source = null;
-                    txtPlaceholder.Visibility = Visibility.Visible;
-                }
-            }
-            catch
-            {
-                imgReferencia.Source = null;
-                txtPlaceholder.Visibility = Visibility.Visible;
-            }
         }
 
         private void btnAgregarAlRamo_Click(object sender, RoutedEventArgs e)
@@ -229,7 +191,6 @@ namespace PuntoFlower.Views
                 {
                     foreach (var item in ProductosEnTicket)
                     {
-                        // Registro de la venta
                         string q = "INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio) " +
                                    "VALUES (GETDATE(), @n, @t, 1, 'Efectivo', @rec, @cam)";
                         SqlCommand cmdV = new SqlCommand(q, con, tra);
@@ -239,7 +200,6 @@ namespace PuntoFlower.Views
                         cmdV.Parameters.AddWithValue("@cam", cambioFinal);
                         cmdV.ExecuteNonQuery();
 
-                        // Descuento de stock para cada flor/insumo utilizado
                         foreach (var insumo in item.InsumosADescontar)
                         {
                             SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom", con, tra);
@@ -277,9 +237,9 @@ namespace PuntoFlower.Views
         private void LimpiarConfiguradorRamo()
         {
             composicionRamoActual.Clear(); floresAgregadas = 0; capacidadRamo = 0;
-            imgReferencia.Source = null; txtPlaceholder.Visibility = Visibility.Visible;
 
-            // Desmarcamos todos los botones de tamaño
+            // Ya no es necesario acceder a imgReferencia o txtPlaceholder
+
             rbRamo6.IsChecked = rbRamo12.IsChecked = rbRamo24.IsChecked = rbRamo36.IsChecked = rbRamo50.IsChecked =
             rbRamo72.IsChecked = rbRamo100.IsChecked = rbRamo150.IsChecked = rbRamo200.IsChecked = rbRamo250.IsChecked = false;
 

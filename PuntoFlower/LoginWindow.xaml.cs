@@ -12,7 +12,6 @@ namespace PuntoFlower
             InitializeComponent();
         }
 
-        // Evento para el botón de Iniciar Sesión
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(txtUsername.Text) || string.IsNullOrEmpty(txtPassword.Password))
@@ -26,32 +25,38 @@ namespace PuntoFlower
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Buscamos el usuario, contraseña y su estado de activación
-                    string query = "SELECT Estado FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
+                    // MODIFICACIÓN: Seleccionamos también el Rol
+                    string query = "SELECT Estado, Rol FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@u", txtUsername.Text);
                     cmd.Parameters.AddWithValue("@p", txtPassword.Password);
 
-                    object resultado = cmd.ExecuteScalar();
-
-                    if (resultado != null)
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        string estado = resultado.ToString();
-                        if (estado == "Activo")
+                        if (reader.Read())
                         {
-                            // Login exitoso
-                            MainWindow main = new MainWindow();
-                            main.Show();
-                            this.Close();
+                            string estado = reader["Estado"].ToString();
+                            string rol = reader["Rol"].ToString();
+
+                            if (estado == "Activo")
+                            {
+                                // GUARDAMOS LA SESIÓN
+                                Session.UsuarioActual = txtUsername.Text;
+                                Session.RolActual = rol;
+
+                                MainWindow main = new MainWindow();
+                                main.Show();
+                                this.Close();
+                            }
+                            else
+                            {
+                                MessageBox.Show("Tu cuenta está pendiente de activación por un administrador.");
+                            }
                         }
                         else
                         {
-                            MessageBox.Show("Tu cuenta está pendiente de activación por un administrador.");
+                            MessageBox.Show("Usuario o contraseña incorrectos.");
                         }
-                    }
-                    else
-                    {
-                        MessageBox.Show("Usuario o contraseña incorrectos.");
                     }
                 }
             }
@@ -61,14 +66,12 @@ namespace PuntoFlower
             }
         }
 
-        // Evento para abrir la ventana de registro
         private void BtnAbrirRegistro_Click(object sender, RoutedEventArgs e)
         {
             RegistroWindow registro = new RegistroWindow();
             registro.ShowDialog();
         }
 
-        // Evento para cerrar la ventana
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             this.Close();

@@ -10,6 +10,7 @@
         Height="700" Width="1200" 
         WindowStartupLocation="CenterScreen"
         Background="#FFFDF5">
+
     <Window.Resources>
         <Style x:Key="MenuButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -43,10 +44,6 @@
         </Grid.ColumnDefinitions>
 
         <Border Grid.Column="0" Background="#CF8282">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="20" ShadowDepth="2" Color="#40000000" Opacity="0.2"/>
-            </Border.Effect>
-
             <StackPanel Margin="0,20,0,10">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,40">
                     <TextBlock Text="🌸" FontSize="28" Margin="0,0,10,0" Foreground="#FADBD8" VerticalAlignment="Center"/>
@@ -59,62 +56,61 @@
                         <TextBlock Text="Resumen General" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-
                 <Button Style="{StaticResource MenuButtonStyle}" Click="btnInventario_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Inventario / Flores" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-
                 <Button Style="{StaticResource MenuButtonStyle}" Click="btnCatalogo_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Catálogo de Fotos" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-
                 <Button Style="{StaticResource MenuButtonStyle}" Click="btnVentas_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Punto de Venta" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-
                 <Button Style="{StaticResource MenuButtonStyle}" Click="btnAgenda_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Agenda de Pedidos" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-
                 <Button Style="{StaticResource MenuButtonStyle}" Click="btnReportes_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Reportes e Ingresos" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-
                 <Button Style="{StaticResource MenuButtonStyle}" Click="btnGastos_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Gastos y Surtido" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-
                 <Button Style="{StaticResource MenuButtonStyle}" Click="btnCorteCaja_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Corte de Caja" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-
-                <Separator Background="White" Margin="20,30,20,10" Opacity="0.3"/>
-
                 <Button Style="{StaticResource MenuButtonStyle}" Click="btnConfiguracion_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Configuración" VerticalAlignment="Center" FontSize="14"/>
+                    </StackPanel>
+                </Button>
+
+                <Separator Background="White" Margin="20,30,20,10" Opacity="0.3"/>
+
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnCerrarSesion_Click" Background="#A93226" Margin="0,10">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Cerrar Sesión" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
             </StackPanel>
@@ -127,12 +123,10 @@
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0" Background="White" Padding="30,0" Margin="15,10,15,5" CornerRadius="15">
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="15" ShadowDepth="1" Color="#D5DBDB" Opacity="0.5"/>
-                </Border.Effect>
                 <DockPanel LastChildFill="False">
                     <TextBlock Text="Bienvenido al Sistema" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"/>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="txtUsuarioLogueado" Text="Empleado: -" Foreground="#27AE60" FontWeight="Bold" Margin="0,0,20,0" VerticalAlignment="Center"/>
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#BDC3C7" Margin="0,0,10,0" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtFechaActual" Text="Cargando fecha..." Foreground="#7F8C8D" FontSize="14" VerticalAlignment="Center"/>
                     </StackPanel>

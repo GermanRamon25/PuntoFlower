@@ -6,6 +6,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000"
              Background="#F5F5F5">
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -14,7 +15,10 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock Text="Corte de Caja Diario" FontSize="26" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+            <StackPanel>
+                <TextBlock Text="Corte de Caja Diario" FontSize="26" FontWeight="Bold" Foreground="#2C3E50"/>
+                <TextBlock x:Name="txtEmpleadoEnTurno" Text="Empleado en turno: -" FontSize="14" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+            </StackPanel>
 
             <Button x:Name="btnFinalizarCorte" Content="CERRAR TURNO E IMPRIMIR PDF" 
                     Click="btnFinalizarCorte_Click" DockPanel.Dock="Right"

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Windows;
 using System.Windows.Controls;
-using PuntoFlower.Data;
+using PuntoFlower.Data; // Asegúrate de tener esta referencia para usar Session
 using System.IO;
 using Microsoft.Win32;
 
@@ -21,6 +21,8 @@ namespace PuntoFlower.Views
         public CashCloseOutView()
         {
             InitializeComponent();
+            // Mostrar nombre del empleado que hace el corte en la interfaz
+            txtEmpleadoEnTurno.Text = $"Empleado en turno: {Session.UsuarioActual}";
             RealizarCorteDelDia();
         }
 
@@ -102,9 +104,10 @@ namespace PuntoFlower.Views
                     iTextFont fCuerpo = new iTextFont(bf, 10);
                     iTextFont fBold = new iTextFont(bf, 10, iTextFont.BOLD);
 
-                    // 1. Encabezado
+                    // 1. Encabezado con información del empleado
                     doc.Add(new iTextParagraph("PUNTO FLOWER - COMPROBANTE DE CORTE DE CAJA", fTitulo));
                     doc.Add(new iTextParagraph($"Fecha de Corte: {DateTime.Now:g}", fCuerpo));
+                    doc.Add(new iTextParagraph($"Realizado por: {Session.UsuarioActual}", fCuerpo)); // Firma en PDF
                     doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
                     doc.Add(new iTextParagraph(" "));
 
@@ -147,7 +150,7 @@ namespace PuntoFlower.Views
                     doc.Add(tablaVentas);
                     doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph(" "));
-                    doc.Add(new iTextParagraph("Firma del Cajero: ___________________________", fCuerpo));
+                    doc.Add(new iTextParagraph($"Firma del Cajero ({Session.UsuarioActual}): ___________________________", fCuerpo));
 
                     doc.Close();
                     MessageBox.Show("Corte de caja exportado y guardado correctamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);

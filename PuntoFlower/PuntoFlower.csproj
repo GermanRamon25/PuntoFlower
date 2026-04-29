@@ -107,6 +107,7 @@
       <DependentUpon>LoginWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Models\RutaAImagenConverter.cs" />
+    <Compile Include="Models\Session.cs" />
     <Compile Include="ProveedoresView.xaml.cs">
       <DependentUpon>ProveedoresView.xaml</DependentUpon>
     </Compile>
