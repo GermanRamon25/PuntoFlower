@@ -10,15 +10,50 @@
     <UserControl.Resources>
         <local:RutaAImagenConverter x:Key="RutaAImagenConverter"/>
 
+        <!-- ESTILO DE LAS TARJETAS (CARDS) -->
         <Style x:Key="BaseCardBorderStyle" TargetType="Border">
             <Setter Property="Background" Value="White"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="BorderBrush" Value="#EBEDEF"/>
+            <Setter Property="CornerRadius" Value="15"/>
+            <Setter Property="BorderBrush" Value="#F2F4F4"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Margin" Value="10"/>
+            <Setter Property="Margin" Value="12"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="8" ShadowDepth="1" Color="#D5DBDB" Opacity="0.5"/>
+                    <DropShadowEffect BlurRadius="12" ShadowDepth="2" Color="#D5DBDB" Opacity="0.4"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ESTILO DE LAS PESTAÑAS (TIPO CONFIGURACIÓN) -->
+        <Style TargetType="TabItem">
+            <Setter Property="HeaderTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock x:Name="TabText" Text="{Binding}" FontSize="14" FontWeight="SemiBold" Margin="12,2"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" Margin="5,0" Padding="15,8" CornerRadius="15" Background="#F2F3F4" BorderThickness="0">
+                            <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Center" ContentSource="Header"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="White"/>
+                                <Setter Property="Foreground" Value="#CF8282"/>
+                                <Setter TargetName="Border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="5" ShadowDepth="1" Color="#D5DBDB" Opacity="0.3"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#FADBD8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
@@ -30,7 +65,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#A93226" Padding="20,15">
+        <Border Grid.Row="0" Background="#CF8282" Padding="20,15">
             <TextBlock Text="Gestión de Catálogo Visual" FontSize="24" FontWeight="Bold" Foreground="White"/>
         </Border>
 
@@ -46,34 +81,44 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Style="{StaticResource BaseCardBorderStyle}" Width="180" Height="280">
+                                <Border Style="{StaticResource BaseCardBorderStyle}" Width="190" Height="300">
                                     <StackPanel>
-                                        <Border Height="140" Background="#F2F3F4" CornerRadius="10,10,0,0">
+                                        <Border Height="150" Background="#FBFCFC" CornerRadius="15,15,0,0">
                                             <Image Source="{Binding RutaImagen, Converter={StaticResource RutaAImagenConverter}}" 
-                                                   Stretch="Uniform" 
-                                                   HorizontalAlignment="Center" 
-                                                   VerticalAlignment="Center"/>
+                                                   Stretch="Uniform" Margin="10"/>
                                         </Border>
 
                                         <TextBlock Text="{Binding Nombre}" FontWeight="Bold" Margin="10,8,10,0" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="#2C3E50"/>
-                                        <TextBlock Text="{Binding PrecioVenta, StringFormat={}{0:C}}" Foreground="#27AE60" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,2,0,5"/>
+                                        <TextBlock Text="{Binding PrecioVenta, StringFormat={}{0:C}}" Foreground="#27AE60" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,2,0,5"/>
 
-                                        <DockPanel Margin="10,0,10,10">
-                                            <Button Content="🗑" Click="btnEliminarFoto_Click" Tag="{Binding}" Width="35" Height="30" Background="#E74C3C" Foreground="White" FontWeight="Bold" Margin="0,0,5,0" ToolTip="Eliminar Foto" BorderThickness="0">
+                                        <!-- BOTONES REDISEÑADOS -->
+                                        <Grid Margin="12,5,12,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Botón Eliminar Estilizado -->
+                                            <Button Click="btnEliminarFoto_Click" Tag="{Binding}" Width="38" Height="34" Background="#FDEDEC" Foreground="#E74C3C" BorderThickness="0" Cursor="Hand">
+                                                <Button.Content>
+                                                    <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="16"/>
+                                                </Button.Content>
                                                 <Button.Resources>
                                                     <Style TargetType="Border">
-                                                        <Setter Property="CornerRadius" Value="5"/>
+                                                        <Setter Property="CornerRadius" Value="8"/>
                                                     </Style>
                                                 </Button.Resources>
                                             </Button>
-                                            <Button Content="Cambiar Foto" Click="btnSubirFoto_Click" Tag="{Binding}" Height="30" Background="#A93226" Foreground="White" FontWeight="SemiBold" Cursor="Hand" BorderThickness="0">
+
+                                            <!-- Botón Cambiar Foto Estilizado -->
+                                            <Button Grid.Column="1" Content="Cambiar Foto" Click="btnSubirFoto_Click" Tag="{Binding}" Height="34" Background="#CF8282" Foreground="White" FontWeight="SemiBold" Margin="8,0,0,0" BorderThickness="0" Cursor="Hand">
                                                 <Button.Resources>
                                                     <Style TargetType="Border">
-                                                        <Setter Property="CornerRadius" Value="5"/>
+                                                        <Setter Property="CornerRadius" Value="8"/>
                                                     </Style>
                                                 </Button.Resources>
                                             </Button>
-                                        </DockPanel>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
