@@ -50,55 +50,64 @@
                     <TextBlock Text="PuntoFlower" Foreground="White" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnDashboard_Click">
+                <!-- Menú de Navegación -->
+                <Button x:Name="btnDashboard" Style="{StaticResource MenuButtonStyle}" Click="btnDashboard_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Resumen General" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnInventario_Click">
+
+                <Button x:Name="btnInventario" Style="{StaticResource MenuButtonStyle}" Click="btnInventario_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Inventario / Flores" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnCatalogo_Click">
+
+                <Button x:Name="btnCatalogo" Style="{StaticResource MenuButtonStyle}" Click="btnCatalogo_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Catálogo de Fotos" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnVentas_Click">
+
+                <Button x:Name="btnVentas" Style="{StaticResource MenuButtonStyle}" Click="btnVentas_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Punto de Venta" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnAgenda_Click">
+
+                <Button x:Name="btnAgenda" Style="{StaticResource MenuButtonStyle}" Click="btnAgenda_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Agenda de Pedidos" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnReportes_Click">
+
+                <Button x:Name="btnReportes" Style="{StaticResource MenuButtonStyle}" Click="btnReportes_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Reportes e Ingresos" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnGastos_Click">
+
+                <Button x:Name="btnGastos" Style="{StaticResource MenuButtonStyle}" Click="btnGastos_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Gastos y Surtido" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnCorteCaja_Click">
+
+                <Button x:Name="btnCorteCaja" Style="{StaticResource MenuButtonStyle}" Click="btnCorteCaja_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Corte de Caja" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnConfiguracion_Click">
+
+                <Button x:Name="btnConfiguracion" Style="{StaticResource MenuButtonStyle}" Click="btnConfiguracion_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Configuración" VerticalAlignment="Center" FontSize="14"/>
@@ -126,7 +135,7 @@
                 <DockPanel LastChildFill="False">
                     <TextBlock Text="Bienvenido al Sistema" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"/>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="txtUsuarioLogueado" Text="Empleado: -" Foreground="#27AE60" FontWeight="Bold" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtUsuarioLogueado" Text="Usuario: -" Foreground="#27AE60" FontWeight="Bold" Margin="0,0,20,0" VerticalAlignment="Center"/>
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#BDC3C7" Margin="0,0,10,0" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtFechaActual" Text="Cargando fecha..." Foreground="#7F8C8D" FontSize="14" VerticalAlignment="Center"/>
                     </StackPanel>

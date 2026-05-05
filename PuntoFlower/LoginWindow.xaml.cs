@@ -14,6 +14,7 @@ namespace PuntoFlower
 
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
+            // Validar que los campos no estén vacíos
             if (string.IsNullOrEmpty(txtUsername.Text) || string.IsNullOrEmpty(txtPassword.Password))
             {
                 MessageBox.Show("Por favor, introduce tu usuario y contraseña.");
@@ -25,7 +26,7 @@ namespace PuntoFlower
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // MODIFICACIÓN: Seleccionamos también el Rol
+                    // Seleccionamos Estado y Rol para validar acceso y permisos
                     string query = "SELECT Estado, Rol FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@u", txtUsername.Text);
@@ -38,18 +39,22 @@ namespace PuntoFlower
                             string estado = reader["Estado"].ToString();
                             string rol = reader["Rol"].ToString();
 
+                            // Verificamos si el administrador ya activó la cuenta
                             if (estado == "Activo")
                             {
-                                // GUARDAMOS LA SESIÓN
+                                // --- GUARDAMOS LOS DATOS EN LA CLASE GLOBAL DE SESIÓN ---
+                                // Esto permite que MainWindow aplique las restricciones
                                 Session.UsuarioActual = txtUsername.Text;
                                 Session.RolActual = rol;
 
+                                // Abrir la ventana principal
                                 MainWindow main = new MainWindow();
                                 main.Show();
                                 this.Close();
                             }
                             else
                             {
+                                // Bloqueo de seguridad para usuarios 'Pendientes'[cite: 2]
                                 MessageBox.Show("Tu cuenta está pendiente de activación por un administrador.");
                             }
                         }
@@ -62,7 +67,7 @@ namespace PuntoFlower
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al conectar: " + ex.Message);
+                MessageBox.Show("Error al conectar con la base de datos: " + ex.Message);
             }
         }
 
@@ -74,7 +79,7 @@ namespace PuntoFlower
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
-            this.Close();
+            Application.Current.Shutdown(); // Cierra toda la aplicación
         }
     }
 }
