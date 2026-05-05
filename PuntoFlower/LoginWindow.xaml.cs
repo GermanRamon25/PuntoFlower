@@ -2,6 +2,7 @@
 using System;
 using System.Data.SqlClient;
 using System.Windows;
+using System.Windows.Input;
 
 namespace PuntoFlower
 {
@@ -12,9 +13,40 @@ namespace PuntoFlower
             InitializeComponent();
         }
 
+        // --- LÓGICA PARA MOSTRAR CONTRASEÑA ---
+        private void BtnShowPassword_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            RevelarPassword();
+        }
+
+        private void BtnShowPassword_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            OcultarPassword();
+        }
+
+        private void BtnShowPassword_MouseLeave(object sender, MouseEventArgs e)
+        {
+            OcultarPassword();
+        }
+
+        private void RevelarPassword()
+        {
+            txtPasswordRevelada.Text = txtPassword.Password;
+            txtPassword.Visibility = Visibility.Collapsed;
+            txtPasswordRevelada.Visibility = Visibility.Visible;
+            btnShowPassword.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(39, 174, 96)); // Cambia a verde al ver
+        }
+
+        private void OcultarPassword()
+        {
+            txtPasswordRevelada.Visibility = Visibility.Collapsed;
+            txtPassword.Visibility = Visibility.Visible;
+            btnShowPassword.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(149, 165, 166)); // Vuelve a gris
+        }
+
+        // --- LÓGICA DE LOGIN EXISTENTE ---
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
-            // Validar que los campos no estén vacíos
             if (string.IsNullOrEmpty(txtUsername.Text) || string.IsNullOrEmpty(txtPassword.Password))
             {
                 MessageBox.Show("Por favor, introduce tu usuario y contraseña.");
@@ -26,7 +58,6 @@ namespace PuntoFlower
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Seleccionamos Estado y Rol para validar acceso y permisos
                     string query = "SELECT Estado, Rol FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@u", txtUsername.Text);
@@ -39,22 +70,17 @@ namespace PuntoFlower
                             string estado = reader["Estado"].ToString();
                             string rol = reader["Rol"].ToString();
 
-                            // Verificamos si el administrador ya activó la cuenta
                             if (estado == "Activo")
                             {
-                                // --- GUARDAMOS LOS DATOS EN LA CLASE GLOBAL DE SESIÓN ---
-                                // Esto permite que MainWindow aplique las restricciones
                                 Session.UsuarioActual = txtUsername.Text;
                                 Session.RolActual = rol;
 
-                                // Abrir la ventana principal
                                 MainWindow main = new MainWindow();
                                 main.Show();
                                 this.Close();
                             }
                             else
                             {
-                                // Bloqueo de seguridad para usuarios 'Pendientes'[cite: 2]
                                 MessageBox.Show("Tu cuenta está pendiente de activación por un administrador.");
                             }
                         }
@@ -79,7 +105,7 @@ namespace PuntoFlower
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Shutdown(); // Cierra toda la aplicación
+            Application.Current.Shutdown();
         }
     }
 }
