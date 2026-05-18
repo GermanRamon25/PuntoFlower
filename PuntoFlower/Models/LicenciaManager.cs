@@ -67,7 +67,14 @@ namespace PuntoFlower.Models
             {
                 string mezcla = hwid + ClaveSecreta;
                 byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(mezcla));
-                return Convert.ToBase64String(hashBytes).Replace("=", "").Replace("/", "").Replace("+", "").Substring(0, 24);
+
+                // CAMBIO APLICADO: Agregamos .ToUpper() al final para forzar mayúsculas y evitar errores de validación
+                return Convert.ToBase64String(hashBytes)
+                              .Replace("=", "")
+                              .Replace("/", "")
+                              .Replace("+", "")
+                              .Substring(0, 24)
+                              .ToUpper();
             }
         }
     }
