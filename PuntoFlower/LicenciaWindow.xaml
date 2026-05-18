@@ -1,7 +1,7 @@
 ﻿<Window x:Class="PuntoFlower.LicenciaWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Activación de Licencia - PuntoFlower" Height="320" Width="450"
+        Title="Activación de Licencia - PuntoFlower" Height="345" Width="450"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="#F8F9F9">
     <Grid Margin="25">
         <StackPanel>
