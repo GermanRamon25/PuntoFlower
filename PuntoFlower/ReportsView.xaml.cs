@@ -72,7 +72,7 @@ namespace PuntoFlower.Views
                     }
                 }
 
-                // 3. Obtener Gastos
+                // 3. Obtener Gastos (CORREGIDO: Se cambió 'Description' por 'Descripcion' para acoplar con la BD local)
                 string qGastos = "SELECT Fecha, Descripcion, Monto FROM Gastos WHERE Fecha BETWEEN @i AND @f";
                 SqlCommand cmdG = new SqlCommand(qGastos, con);
                 cmdG.Parameters.AddWithValue("@i", inicio);
@@ -83,7 +83,7 @@ namespace PuntoFlower.Views
                     {
                         decimal m = (decimal)r["Monto"];
                         totalGastos += m;
-                        listaEgresos.Add(new { Fecha = r["Fecha"], Concepto = r["Description"].ToString(), Monto = m });
+                        listaEgresos.Add(new { Fecha = r["Fecha"], Concepto = r["Descripcion"].ToString(), Monto = m });
                     }
                 }
 
@@ -104,7 +104,7 @@ namespace PuntoFlower.Views
                     }
                 }
 
-                // 5. NUEVO: Obtener Mermas
+                // 5. Obtener Mermas
                 string qMermas = "SELECT Fecha, ProductoNombre, Cantidad, Motivo FROM Mermas WHERE Fecha BETWEEN @i AND @f ORDER BY Fecha DESC";
                 SqlCommand cmdM = new SqlCommand(qMermas, con);
                 cmdM.Parameters.AddWithValue("@i", inicio);
@@ -150,6 +150,10 @@ namespace PuntoFlower.Views
             {
                 try
                 {
+                    // LEER IDENTIDAD LOCAL DE LA SUCURSAL
+                    ConexionDB db = new ConexionDB();
+                    string sucursalNombre = db.ObtenerNombreSucursal();
+
                     iTextDocument doc = new iTextDocument(PageSize.A4, 25, 25, 30, 30);
                     PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
                     doc.Open();
@@ -157,11 +161,19 @@ namespace PuntoFlower.Views
                     BaseFont bf = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
                     iTextFont fontTitulo = new iTextFont(bf, 18, iTextFont.BOLD);
                     iTextFont fontSub = new iTextFont(bf, 12, iTextFont.BOLD, BaseColor.GRAY);
+
+                    // NUEVO: Estilo gris oscuro itálico para las firmas de auditoría
+                    iTextFont fontMeta = new iTextFont(bf, 10, iTextFont.ITALIC, BaseColor.DARK_GRAY);
                     iTextFont fontTablaHead = new iTextFont(bf, 10, iTextFont.BOLD, BaseColor.WHITE);
                     iTextFont fontCuerpo = new iTextFont(bf, 9);
 
+                    // Encabezado principal del Documento
                     doc.Add(new iTextParagraph("PUNTO FLOWER - REPORTE FINANCIERO E INVENTARIO", fontTitulo));
                     doc.Add(new iTextParagraph($"Rango: {dpInicio.SelectedDate.Value:dd/MM/yyyy} al {dpFin.SelectedDate.Value:dd/MM/yyyy}", fontSub));
+
+                    // CORRECCIÓN DIRECTA: Se inyectan físicamente las líneas al flujo de iTextSharp
+                    doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fontMeta));
+                    doc.Add(new iTextParagraph($"Generado por: {Session.UsuarioActual} (ADMINISTRADOR)", fontMeta));
                     doc.Add(new iTextParagraph(" "));
 
                     PdfPTable tablaResumen = new PdfPTable(3);
@@ -201,7 +213,7 @@ namespace PuntoFlower.Views
                     }
                     doc.Add(tablaDetalles);
 
-                    // NUEVA SECCIÓN: MERMAS EN PDF
+                    // SECCIÓN: MERMAS EN PDF
                     doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph("HISTORIAL DE MERMAS (PRODUCTO DAÑADO)", fontSub));
                     doc.Add(new iTextParagraph(" "));
@@ -224,7 +236,7 @@ namespace PuntoFlower.Views
                     doc.Add(tablaMermasPdf);
 
                     doc.Close();
-                    MessageBox.Show("Reporte exportado correctamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Reporte exportado correctamente con sellos de auditoría.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {

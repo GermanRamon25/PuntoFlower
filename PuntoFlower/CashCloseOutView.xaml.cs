@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Windows;
 using System.Windows.Controls;
-using PuntoFlower.Data; // Asegúrate de tener esta referencia para usar Session
+using PuntoFlower.Data;
 using System.IO;
 using Microsoft.Win32;
 
@@ -94,6 +94,10 @@ namespace PuntoFlower.Views
             {
                 try
                 {
+                    // OBTENER IDENTIDAD DE SUCURSAL LOCAL
+                    ConexionDB db = new ConexionDB();
+                    string sucursalNombre = db.ObtenerNombreSucursal();
+
                     iTextDocument doc = new iTextDocument(PageSize.A4, 25, 25, 30, 30);
                     PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
                     doc.Open();
@@ -104,8 +108,9 @@ namespace PuntoFlower.Views
                     iTextFont fCuerpo = new iTextFont(bf, 10);
                     iTextFont fBold = new iTextFont(bf, 10, iTextFont.BOLD);
 
-                    // 1. Encabezado con información del empleado
+                    // 1. Encabezado con información del empleado y SUCURSAL añadida
                     doc.Add(new iTextParagraph("PUNTO FLOWER - COMPROBANTE DE CORTE DE CAJA", fTitulo));
+                    doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fBold)); // Inyección de Sucursal
                     doc.Add(new iTextParagraph($"Fecha de Corte: {DateTime.Now:g}", fCuerpo));
                     doc.Add(new iTextParagraph($"Realizado por: {Session.UsuarioActual}", fCuerpo)); // Firma en PDF
                     doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
@@ -153,7 +158,38 @@ namespace PuntoFlower.Views
                     doc.Add(new iTextParagraph($"Firma del Cajero ({Session.UsuarioActual}): ___________________________", fCuerpo));
 
                     doc.Close();
-                    MessageBox.Show("Corte de caja exportado y guardado correctamente.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    // =========================================================================
+                    // BLINDAJE CONTRA APAGONES: RESPALDO AUTOMÁTICO AL FINALIZAR EL CORTE
+                    // =========================================================================
+                    try
+                    {
+                        string folderRespaldos = @"C:\RespaldosPuntoFlower\";
+                        if (!Directory.Exists(folderRespaldos))
+                        {
+                            Directory.CreateDirectory(folderRespaldos);
+                        }
+
+                        using (SqlConnection conRespaldo = db.OpenConnection())
+                        {
+                            // Comando SQL Nativo para respaldar la BD de forma sobreescribible diaria
+                            string sqlBackup = $@"BACKUP DATABASE PuntoFlowerDB 
+                                                 TO DISK = '{folderRespaldos}PuntoFlower_Cierre_Auto.bak' 
+                                                 WITH INIT;";
+
+                            using (SqlCommand cmdBackup = new SqlCommand(sqlBackup, conRespaldo))
+                            {
+                                cmdBackup.ExecuteNonQuery();
+                            }
+                        }
+                        MessageBox.Show("Corte de caja exportado y base de datos respaldada localmente con éxito.", "Cierre Exitoso", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    catch (Exception exBackup)
+                    {
+                        // Si falla el respaldo por permisos de carpeta, el PDF ya se guardó y el sistema avisa sutilmente
+                        MessageBox.Show("Corte exportado a PDF correctamente, pero el respaldo automático falló: " + exBackup.Message, "Aviso de Seguridad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+
                 }
                 catch (Exception ex)
                 {

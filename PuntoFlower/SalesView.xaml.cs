@@ -1,14 +1,30 @@
-﻿using PuntoFlower.Models;
+﻿using iTextSharp.text;
+using iTextSharp.text.pdf;
+using Microsoft.Win32;
 using PuntoFlower.Data;
+using PuntoFlower.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Data.SqlClient;
+using System.Drawing.Printing; // Nota la P mayúscula en Printing
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Data.SqlClient;
-using System.Windows.Media.Imaging;
-using System.IO;
+using DgAlignment = System.Drawing.StringAlignment;
+using DgBrush = System.Drawing.SolidBrush;
+using DgColor = System.Drawing.Color;
+// 2. ALIAS PARA SOLUCIONAR AMBIGÜEDADES DE DIBUJO E IMPRESIÓN TÉRMICA (CORREGIDA LA 'P' MAYÚSCULA)
+using DgFont = System.Drawing.Font;
+using DgGraphics = System.Drawing.Graphics;
+using DgRectangle = System.Drawing.RectangleF;
+using DgStringFormat = System.Drawing.StringFormat;
+using DgStyle = System.Drawing.FontStyle;
+using iTextDocument = iTextSharp.text.Document;
+// 1. ALIAS DE ITEXTSHARP (Para la lógica de exportación si se llega a requerir)
+using iTextFont = iTextSharp.text.Font;
+using iTextParagraph = iTextSharp.text.Paragraph;
 
 namespace PuntoFlower.Views
 {
@@ -20,6 +36,12 @@ namespace PuntoFlower.Views
         private decimal precioRamo = 0;
         private int floresAgregadas = 0;
         private Dictionary<int, decimal> preciosDinamicos = new Dictionary<int, decimal>();
+
+        // Variables temporales para el hilo de impresión física
+        private List<ItemTicket> productosParaImprimir = new List<ItemTicket>();
+        private decimal ticketTotal = 0;
+        private decimal ticketPagado = 0;
+        private decimal ticketCambio = 0;
 
         public SalesView()
         {
@@ -124,6 +146,7 @@ namespace PuntoFlower.Views
             floresAgregadas += cant;
             ActualizarProgreso();
             txtCantFlorRamo.Text = "0";
+            cbInsumosRamos.SelectedItem = null;
         }
 
         private void btnFinalizarRamo_Click(object sender, RoutedEventArgs e)
@@ -143,7 +166,7 @@ namespace PuntoFlower.Views
         private void btnAgregarVentaLibre_Click(object sender, RoutedEventArgs e)
         {
             var prod = cbInsumosLibre.SelectedItem as Producto;
-            if (prod == null || !int.TryParse(txtCantLibre.Text, out int cant)) return;
+            if (prod == null || !int.TryParse(txtCantLibre.Text, out int cant) || cant <= 0) return;
 
             ProductosEnTicket.Add(new ItemTicket
             {
@@ -152,6 +175,8 @@ namespace PuntoFlower.Views
                 InsumosADescontar = new List<DetalleInsumo> { new DetalleInsumo { Nombre = prod.Nombre, Cantidad = cant } },
                 DetalleVisual = $"{cant} unidad(es) x {prod.PrecioVenta:C}"
             });
+            cbInsumosLibre.SelectedItem = null;
+            txtCantLibre.Text = "1";
             ActualizarTotal();
         }
 
@@ -177,50 +202,151 @@ namespace PuntoFlower.Views
 
             if (!decimal.TryParse(txtPagoCon.Text, out decimal pagoRecibido) || pagoRecibido < total)
             {
-                MessageBox.Show("Monto recibido insuficiente.");
+                MessageBox.Show("Monto recibido insuficiente.", "Cobro Inválido", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             decimal cambioFinal = pagoRecibido - total;
             ConexionDB db = new ConexionDB();
 
-            using (SqlConnection con = db.OpenConnection())
-            {
-                SqlTransaction tra = con.BeginTransaction();
-                try
-                {
-                    foreach (var item in ProductosEnTicket)
-                    {
-                        string q = "INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio) " +
-                                   "VALUES (GETDATE(), @n, @t, 1, 'Efectivo', @rec, @cam)";
-                        SqlCommand cmdV = new SqlCommand(q, con, tra);
-                        cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
-                        cmdV.Parameters.AddWithValue("@t", item.Total);
-                        cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
-                        cmdV.Parameters.AddWithValue("@cam", cambioFinal);
-                        cmdV.ExecuteNonQuery();
+            btnConfirmarVenta.IsEnabled = false;
 
-                        foreach (var insumo in item.InsumosADescontar)
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    using (SqlTransaction tra = con.BeginTransaction())
+                    {
+                        try
                         {
-                            SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom", con, tra);
-                            cmdS.Parameters.AddWithValue("@c", insumo.Cantidad);
-                            cmdS.Parameters.AddWithValue("@nom", insumo.Nombre);
-                            cmdS.ExecuteNonQuery();
+                            foreach (var item in ProductosEnTicket)
+                            {
+                                string q = "INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio) " +
+                                           "VALUES (GETDATE(), @n, @t, 1, 'Efectivo', @rec, @cam)";
+                                using (SqlCommand cmdV = new SqlCommand(q, con, tra))
+                                {
+                                    cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
+                                    cmdV.Parameters.AddWithValue("@t", item.Total);
+                                    cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
+                                    cmdV.Parameters.AddWithValue("@cam", cambioFinal);
+                                    cmdV.ExecuteNonQuery();
+                                }
+
+                                foreach (var insumo in item.InsumosADescontar)
+                                {
+                                    using (SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom", con, tra))
+                                    {
+                                        cmdS.Parameters.AddWithValue("@c", insumo.Cantidad);
+                                        cmdS.Parameters.AddWithValue("@nom", insumo.Nombre);
+                                        cmdS.ExecuteNonQuery();
+                                    }
+                                }
+                            }
+
+                            tra.Commit();
+
+                            // Respaldamos los datos para mandarlos a la mini-printer antes de borrar la lista visual
+                            productosParaImprimir = ProductosEnTicket.ToList();
+                            ticketTotal = total;
+                            ticketPagado = pagoRecibido;
+                            ticketCambio = cambioFinal;
+
+                            MessageBoxResult result = MessageBox.Show("Venta registrada con éxito.\n\n¿Deseas imprimir el ticket en la máquina física?", "Venta Exitosa", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                            if (result == MessageBoxResult.Yes)
+                            {
+                                ImprimirTicketTermico();
+                            }
+
+                            ProductosEnTicket.Clear();
+                            txtPagoCon.Clear();
+                            txtCambio.Text = "$0.00";
+                            ActualizarTotal();
+                        }
+                        catch (Exception ex)
+                        {
+                            tra.Rollback();
+                            MessageBox.Show("Error interno en la base de datos local. Venta revertida: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
                         }
                     }
-                    tra.Commit();
-                    MessageBox.Show("Venta registrada con éxito.");
-                    ProductosEnTicket.Clear();
-                    txtPagoCon.Clear();
-                    txtCambio.Text = "$0.00";
-                    ActualizarTotal();
-                }
-                catch (Exception ex)
-                {
-                    tra.Rollback();
-                    MessageBox.Show("Error al procesar la venta: " + ex.Message);
                 }
             }
+            catch (Exception exCon)
+            {
+                MessageBox.Show("Error de enlace local: " + exCon.Message, "Fallo de Servidor");
+            }
+            finally
+            {
+                btnConfirmarVenta.IsEnabled = true;
+            }
+        }
+
+        private void ImprimirTicketTermico()
+        {
+            try
+            {
+                PrintDocument pd = new PrintDocument();
+                pd.PrintPage += new PrintPageEventHandler(DrawTicketPage);
+                pd.Print();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se detectó una impresora térmica activa o lista: " + ex.Message, "Fallo de Impresión", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+            }
+        }
+
+        // Subrutina encargada del dibujo utilizando los alias corregidos (DgFont, DgColor, DgBrush, etc.)
+        private void DrawTicketPage(object sender, PrintPageEventArgs e)
+        {
+            ConexionDB db = new ConexionDB();
+            string sucursal = db.ObtenerNombreSucursal();
+
+            DgGraphics g = e.Graphics;
+
+            // Usamos alias definidos arriba para resolver la ambigüedad con iTextSharp y WPF
+            DgFont fontTitulo = new DgFont("Arial", 11, DgStyle.Bold);
+            DgFont fontBold = new DgFont("Arial", 8, DgStyle.Bold);
+            DgFont fontNormal = new DgFont("Arial", 8, DgStyle.Regular);
+
+            DgBrush brush = new DgBrush(DgColor.Black);
+
+            float y = 10;
+
+            g.DrawString("🌸 PUNTO FLOWER 🌸", fontTitulo, brush, new DgRectangle(0, y, 220, 20), new DgStringFormat { Alignment = DgAlignment.Center });
+            y += 20;
+
+            // CORREGIDO: Se agregó de forma explícita el alias DgStringFormat para limpiar el error de compilación
+            g.DrawString(sucursal, fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center });
+            y += 20;
+
+            g.DrawString($"Fecha: {DateTime.Now:g}", fontNormal, brush, 5, y);
+            y += 15;
+            g.DrawString($"Atendió: {Session.UsuarioActual}", fontNormal, brush, 5, y);
+            y += 15;
+            g.DrawString("==================================", fontNormal, brush, 5, y);
+            y += 15;
+
+            foreach (var item in productosParaImprimir)
+            {
+                g.DrawString(item.ProductoNombre, fontBold, brush, 5, y);
+                y += 13;
+                g.DrawString($"   {item.DetalleVisual}", fontNormal, brush, 5, y);
+                y += 13;
+                g.DrawString($"   Total: {item.Total:C}", fontNormal, brush, 5, y);
+                y += 15;
+            }
+
+            g.DrawString("==================================", fontNormal, brush, 5, y);
+            y += 15;
+
+            g.DrawString($"TOTAL COMPRA: {ticketTotal:C}", fontBold, brush, 5, y);
+            y += 15;
+            g.DrawString($"RECIBIDO: {ticketPagado:C}", fontNormal, brush, 5, y);
+            y += 15;
+            g.DrawString($"CAMBIO: {ticketCambio:C}", fontBold, brush, 5, y);
+            y += 25;
+
+            g.DrawString("¡Gracias por su preferencia!", fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center });
         }
 
         private void txtPagoCon_TextChanged(object sender, TextChangedEventArgs e)
@@ -237,8 +363,6 @@ namespace PuntoFlower.Views
         private void LimpiarConfiguradorRamo()
         {
             composicionRamoActual.Clear(); floresAgregadas = 0; capacidadRamo = 0;
-
-            // Ya no es necesario acceder a imgReferencia o txtPlaceholder
 
             rbRamo6.IsChecked = rbRamo12.IsChecked = rbRamo24.IsChecked = rbRamo36.IsChecked = rbRamo50.IsChecked =
             rbRamo72.IsChecked = rbRamo100.IsChecked = rbRamo150.IsChecked = rbRamo200.IsChecked = rbRamo250.IsChecked = false;

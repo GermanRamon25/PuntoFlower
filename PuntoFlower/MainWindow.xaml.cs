@@ -19,6 +19,18 @@ namespace PuntoFlower
             // CORRECCIÓN: Se cambió Session.Rol por Session.RolActual para coincidir con Session.cs
             txtUsuarioLogueado.Text = $"{Session.RolActual}: {Session.UsuarioActual}";
 
+            // ASIGNACIÓN DINÁMICA DE LA SUCURSAL LOCAL
+            try
+            {
+                ConexionDB db = new ConexionDB();
+                string sucursalActual = db.ObtenerNombreSucursal();
+                this.Title = $"PuntoFlower - {sucursalActual}";
+            }
+            catch
+            {
+                this.Title = "PuntoFlower - Gestión de Florería";
+            }
+
             // Aplicar restricciones de seguridad según el Rol
             ConfigurarAccesoSegunRol();
 

@@ -22,6 +22,42 @@ namespace PuntoFlower.Views
             CargarUsuariosPendientes();
         }
 
+        // NUEVO: Carga el nombre guardado de la sucursal local al abrir la pestaña
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            ConexionDB db = new ConexionDB();
+            txtNombreSucursalInput.Text = db.ObtenerNombreSucursal();
+        }
+
+        // NUEVO: Evento para guardar de forma manual el nombre sin tocar la base de datos
+        private void btnGuardarSucursal_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtNombreSucursalInput.Text))
+            {
+                MessageBox.Show("El nombre de la sucursal no puede quedar vacío.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                ConexionDB db = new ConexionDB();
+                db.GuardarNombreSucursal(txtNombreSucursalInput.Text.Trim());
+
+                MessageBox.Show("Nombre de la sucursal guardado con éxito.", "Configuración Guardada", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Actualizamos el título de la MainWindow al instante sin reiniciar
+                Window parentWindow = Window.GetWindow(this);
+                if (parentWindow is MainWindow main)
+                {
+                    main.Title = $"PuntoFlower - {txtNombreSucursalInput.Text.Trim()}";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al guardar el nombre de la sucursal: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         // --- GESTIÓN DE USUARIOS ---
         private void CargarUsuariosPendientes()
         {

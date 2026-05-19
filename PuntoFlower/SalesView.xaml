@@ -74,11 +74,16 @@
 
                             <GroupBox Header="2. Composición" Padding="10">
                                 <StackPanel>
-                                    <DockPanel Margin="0,0,0,10">
-                                        <ComboBox x:Name="cbInsumosRamos" Width="220" DisplayMemberPath="Nombre" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
-                                        <TextBox x:Name="txtCantFlorRamo" Width="60" VerticalContentAlignment="Center" Text="0" Margin="0,0,10,0" HorizontalContentAlignment="Center"/>
-                                        <Button Content="Añadir" Click="btnAgregarAlRamo_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" Width="100" Height="30"/>
-                                    </DockPanel>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="110"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox x:Name="cbInsumosRamos" Grid.Column="0" DisplayMemberPath="Nombre" Margin="0,0,8,0" VerticalContentAlignment="Center" Height="30"/>
+                                        <TextBox x:Name="txtCantFlorRamo" Grid.Column="1" VerticalContentAlignment="Center" Text="0" Margin="0,0,8,0" HorizontalContentAlignment="Center" Height="30"/>
+                                        <Button Grid.Column="2" Content="Añadir" Click="btnAgregarAlRamo_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" Height="30"/>
+                                    </Grid>
                                     <TextBlock x:Name="lblProgresoRamo" Text="Seleccionadas: 0 / 0" FontSize="14" FontWeight="Bold" Foreground="#E67E22" Margin="0,5"/>
 
                                     <Button Content="Finalizar y Agregar al Ticket" Click="btnFinalizarRamo_Click" Background="#27AE60" Foreground="White" Height="45" Margin="0,5" FontWeight="Bold"/>
@@ -191,7 +196,7 @@
                         </StackPanel>
                     </UniformGrid>
 
-                    <Button Content="FINALIZAR VENTA" Click="btnConfirmarVenta_Click" Height="65" Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="18" BorderThickness="0">
+                    <Button x:Name="btnConfirmarVenta" Content="FINALIZAR VENTA" Click="btnConfirmarVenta_Click" Height="65" Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="18" BorderThickness="0">
                         <Button.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="10"/>
