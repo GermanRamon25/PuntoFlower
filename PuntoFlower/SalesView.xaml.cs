@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
-using System.Drawing.Printing; // Nota la P mayúscula en Printing
+using System.Drawing.Printing;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -15,14 +15,12 @@ using System.Windows.Controls;
 using DgAlignment = System.Drawing.StringAlignment;
 using DgBrush = System.Drawing.SolidBrush;
 using DgColor = System.Drawing.Color;
-// 2. ALIAS PARA SOLUCIONAR AMBIGÜEDADES DE DIBUJO E IMPRESIÓN TÉRMICA (CORREGIDA LA 'P' MAYÚSCULA)
 using DgFont = System.Drawing.Font;
 using DgGraphics = System.Drawing.Graphics;
 using DgRectangle = System.Drawing.RectangleF;
 using DgStringFormat = System.Drawing.StringFormat;
 using DgStyle = System.Drawing.FontStyle;
 using iTextDocument = iTextSharp.text.Document;
-// 1. ALIAS DE ITEXTSHARP (Para la lógica de exportación si se llega a requerir)
 using iTextFont = iTextSharp.text.Font;
 using iTextParagraph = iTextSharp.text.Paragraph;
 
@@ -32,16 +30,21 @@ namespace PuntoFlower.Views
     {
         public ObservableCollection<ItemTicket> ProductosEnTicket { get; set; }
         private List<DetalleInsumo> composicionRamoActual = new List<DetalleInsumo>();
-        private int capacidadRamo = 0;
+        private List<DetalleInsumo> composicionEspecialActual = new List<DetalleInsumo>();
+
+        private int capacityRamo = 0;
         private decimal precioRamo = 0;
         private int floresAgregadas = 0;
         private Dictionary<int, decimal> preciosDinamicos = new Dictionary<int, decimal>();
 
-        // Variables temporales para el hilo de impresión física
         private List<ItemTicket> productosParaImprimir = new List<ItemTicket>();
         private decimal ticketTotal = 0;
         private decimal ticketPagado = 0;
         private decimal ticketCambio = 0;
+
+        // Nueva variable global para rastrear el dinero físico descontado para los informes
+        private decimal ticketDescuentoDinero = 0;
+        private float ticketPorcentajeAplicado = 0;
 
         public SalesView()
         {
@@ -120,6 +123,7 @@ namespace PuntoFlower.Views
                 }
                 cbInsumosRamos.ItemsSource = lista;
                 cbInsumosLibre.ItemsSource = lista;
+                cbInsumosEspeciales.ItemsSource = lista;
             }
             catch { }
         }
@@ -129,8 +133,8 @@ namespace PuntoFlower.Views
             var rb = sender as RadioButton;
             if (rb == null || rb.Tag == null) return;
 
-            capacidadRamo = int.Parse(rb.Tag.ToString());
-            precioRamo = preciosDinamicos.ContainsKey(capacidadRamo) ? preciosDinamicos[capacidadRamo] : 0;
+            capacityRamo = int.Parse(rb.Tag.ToString());
+            precioRamo = preciosDinamicos.ContainsKey(capacityRamo) ? preciosDinamicos[capacityRamo] : 0;
 
             ActualizarProgreso();
         }
@@ -138,9 +142,9 @@ namespace PuntoFlower.Views
         private void btnAgregarAlRamo_Click(object sender, RoutedEventArgs e)
         {
             var flor = cbInsumosRamos.SelectedItem as Producto;
-            if (flor == null || capacidadRamo == 0) return;
+            if (flor == null || capacityRamo == 0) return;
             if (!int.TryParse(txtCantFlorRamo.Text, out int cant) || cant <= 0) return;
-            if (floresAgregadas + cant > capacidadRamo) { MessageBox.Show("Superas la capacidad del ramo."); return; }
+            if (floresAgregadas + cant > capacityRamo) { MessageBox.Show("Superas la capacidad del ramo."); return; }
 
             composicionRamoActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
             floresAgregadas += cant;
@@ -151,11 +155,11 @@ namespace PuntoFlower.Views
 
         private void btnFinalizarRamo_Click(object sender, RoutedEventArgs e)
         {
-            if (floresAgregadas != capacidadRamo) { MessageBox.Show("Debes completar la cantidad de flores seleccionada."); return; }
+            if (floresAgregadas != capacityRamo) { MessageBox.Show("Debes completar la cantidad de flores seleccionada."); return; }
 
             ProductosEnTicket.Add(new ItemTicket
             {
-                ProductoNombre = $"Ramo de {capacidadRamo} pz",
+                ProductoNombre = $"Ramo de {capacityRamo} pz",
                 Total = precioRamo,
                 InsumosADescontar = new List<DetalleInsumo>(composicionRamoActual),
                 DetalleVisual = string.Join(", ", composicionRamoActual.Select(x => $"{x.Cantidad} {x.Nombre}"))
@@ -180,35 +184,136 @@ namespace PuntoFlower.Views
             ActualizarTotal();
         }
 
+        private void btnAgregarFlorEspecial_Click(object sender, RoutedEventArgs e)
+        {
+            var flor = cbInsumosEspeciales.SelectedItem as Producto;
+            if (flor == null) return;
+            if (!int.TryParse(txtCantFlorEspecial.Text, out int cant) || cant <= 0) return;
+
+            composicionEspecialActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
+            lblProgresoEspecial.Text = "Flores añadidas: " + string.Join(", ", composicionEspecialActual.Select(x => $"{x.Cantidad} {x.Nombre}"));
+            txtCantFlorEspecial.Text = "0";
+            cbInsumosEspeciales.SelectedItem = null;
+        }
+
         private void btnAgregarEspecial_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(txtNombreEspecial.Text) || !decimal.TryParse(txtPrecioEspecial.Text, out decimal precio)) return;
+            if (string.IsNullOrEmpty(txtNombreEspecial.Text) || !decimal.TryParse(txtPrecioEspecial.Text, out decimal precio) || precio <= 0) return;
 
             ProductosEnTicket.Add(new ItemTicket
             {
-                ProductoNombre = txtNombreEspecial.Text,
+                ProductoNombre = txtNombreEspecial.Text.Trim(),
                 Total = precio,
-                InsumosADescontar = new List<DetalleInsumo>(),
-                DetalleVisual = "Arreglo Personalizado / Servicio Especial"
+                InsumosADescontar = new List<DetalleInsumo>(composicionEspecialActual),
+                DetalleVisual = composicionEspecialActual.Count > 0
+                    ? "Especial / Insumos: " + string.Join(", ", composicionEspecialActual.Select(x => $"{x.Cantidad} {x.Nombre}"))
+                    : "Servicio Especial (Sin insumos físicos)"
             });
-            txtNombreEspecial.Clear(); txtPrecioEspecial.Clear();
+
+            txtNombreEspecial.Clear();
+            txtPrecioEspecial.Clear();
+            composicionEspecialActual.Clear();
+            lblProgresoEspecial.Text = "Flores añadidas: Ninguna";
             ActualizarTotal();
+        }
+
+        private void cbMetodoPago_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (panelCuentaTransferencia == null) return;
+
+            var item = cbMetodoPago.SelectedItem as ComboBoxItem;
+            if (item != null && item.Content.ToString() == "Transferencia")
+            {
+                panelCuentaTransferencia.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                panelCuentaTransferencia.Visibility = Visibility.Collapsed;
+            }
+            CalcularCambioMatematico();
+        }
+
+        private void txtDescuento_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Protegemos la entrada para que no coloquen porcentajes absurdos o negativos
+            if (txtDescuento != null && float.TryParse(txtDescuento.Text, out float porc))
+            {
+                if (porc < 0) txtDescuento.Text = "0";
+                if (porc > 100) txtDescuento.Text = "100";
+            }
+            ActualizarTotal();
+        }
+
+        // --- CORRECCIÓN MATEMÁTICA: DE DINERO A PORCENTAJE ---
+        private decimal ObtenerTotalConDescuento()
+        {
+            decimal subtotal = ProductosEnTicket.Sum(x => x.Total);
+            decimal dineroDescontado = 0;
+
+            if (txtDescuento != null && float.TryParse(txtDescuento.Text, out float porcentaje) && porcentaje > 0)
+            {
+                // Fórmula de Tasa Porcentual Comercial: Subtotal * (Porcentaje / 100)
+                dineroDescontado = subtotal * (decimal)(porcentaje / 100.0);
+            }
+
+            decimal final = subtotal - dineroDescontado;
+            return final >= 0 ? final : 0;
+        }
+
+        private void CalcularCambioMatematico()
+        {
+            decimal totalNeto = ObtenerTotalConDescuento();
+
+            var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
+            string metodo = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
+
+            if (metodo != "Efectivo")
+            {
+                txtPagoCon.Text = totalNeto.ToString("F2");
+                txtCambio.Text = "$0.00";
+                return;
+            }
+
+            if (decimal.TryParse(txtPagoCon.Text, out decimal pago))
+            {
+                decimal cambio = pago - totalNeto;
+                txtCambio.Text = (cambio >= 0) ? cambio.ToString("C") : "$0.00";
+            }
+            else
+            {
+                txtCambio.Text = "$0.00";
+            }
         }
 
         private void btnConfirmarVenta_Click(object sender, RoutedEventArgs e)
         {
-            decimal total = ProductosEnTicket.Sum(x => x.Total);
-            if (total <= 0) return;
+            decimal subtotalBase = ProductosEnTicket.Sum(x => x.Total);
+            decimal totalNeto = ObtenerTotalConDescuento();
+            if (ProductosEnTicket.Count == 0 || totalNeto < 0) return;
 
-            if (!decimal.TryParse(txtPagoCon.Text, out decimal pagoRecibido) || pagoRecibido < total)
+            if (!decimal.TryParse(txtPagoCon.Text, out decimal pagoRecibido) || pagoRecibido < totalNeto)
             {
-                MessageBox.Show("Monto recibido insuficiente.", "Cobro Inválido", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Monto recibido insuficiente o formato de cobro inválido.", "Cobro Detenido", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            decimal cambioFinal = pagoRecibido - total;
-            ConexionDB db = new ConexionDB();
+            decimal cambioFinal = pagoRecibido - totalNeto;
 
+            var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
+            string metodoPago = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
+
+            object cuentaDestino = DBNull.Value;
+            if (metodoPago == "Transferencia" && cbCuentaDestino != null)
+            {
+                var itemCuenta = cbCuentaDestino.SelectedItem as ComboBoxItem;
+                if (itemCuenta != null) cuentaDestino = itemCuenta.Content.ToString();
+            }
+
+            // Calculamos la equivalencia en dinero del porcentaje para inyectarlo a la BD de auditoría
+            float.TryParse(txtDescuento.Text, out float porcText);
+            decimal totalDineroDescontado = subtotalBase - totalNeto;
+
+            ConexionDB db = new ConexionDB();
             btnConfirmarVenta.IsEnabled = false;
 
             try
@@ -221,14 +326,19 @@ namespace PuntoFlower.Views
                         {
                             foreach (var item in ProductosEnTicket)
                             {
-                                string q = "INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio) " +
-                                           "VALUES (GETDATE(), @n, @t, 1, 'Efectivo', @rec, @cam)";
+                                string q = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado) 
+                                           VALUES (GETDATE(), @n, @t, 1, @metodo, @rec, @cam, @cuenta, @desc)";
+
                                 using (SqlCommand cmdV = new SqlCommand(q, con, tra))
                                 {
                                     cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
                                     cmdV.Parameters.AddWithValue("@t", item.Total);
+                                    cmdV.Parameters.AddWithValue("@metodo", metodoPago);
                                     cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
                                     cmdV.Parameters.AddWithValue("@cam", cambioFinal);
+                                    cmdV.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                                    // Guardado prorrateado en dinero real para los informes semanales/diarios
+                                    cmdV.Parameters.AddWithValue("@desc", totalDineroDescontado / ProductosEnTicket.Count);
                                     cmdV.ExecuteNonQuery();
                                 }
 
@@ -245,11 +355,12 @@ namespace PuntoFlower.Views
 
                             tra.Commit();
 
-                            // Respaldamos los datos para mandarlos a la mini-printer antes de borrar la lista visual
                             productosParaImprimir = ProductosEnTicket.ToList();
-                            ticketTotal = total;
+                            ticketTotal = totalNeto;
                             ticketPagado = pagoRecibido;
                             ticketCambio = cambioFinal;
+                            ticketDescuentoDinero = totalDineroDescontado;
+                            ticketPorcentajeAplicado = porcText;
 
                             MessageBoxResult result = MessageBox.Show("Venta registrada con éxito.\n\n¿Deseas imprimir el ticket en la máquina física?", "Venta Exitosa", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
@@ -260,6 +371,8 @@ namespace PuntoFlower.Views
 
                             ProductosEnTicket.Clear();
                             txtPagoCon.Clear();
+                            txtDescuento.Text = "0";
+                            cbMetodoPago.SelectedIndex = 0;
                             txtCambio.Text = "$0.00";
                             ActualizarTotal();
                         }
@@ -295,7 +408,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // Subrutina encargada del dibujo utilizando los alias corregidos (DgFont, DgColor, DgBrush, etc.)
         private void DrawTicketPage(object sender, PrintPageEventArgs e)
         {
             ConexionDB db = new ConexionDB();
@@ -303,7 +415,6 @@ namespace PuntoFlower.Views
 
             DgGraphics g = e.Graphics;
 
-            // Usamos alias definidos arriba para resolver la ambigüedad con iTextSharp y WPF
             DgFont fontTitulo = new DgFont("Arial", 11, DgStyle.Bold);
             DgFont fontBold = new DgFont("Arial", 8, DgStyle.Bold);
             DgFont fontNormal = new DgFont("Arial", 8, DgStyle.Regular);
@@ -314,8 +425,6 @@ namespace PuntoFlower.Views
 
             g.DrawString("🌸 PUNTO FLOWER 🌸", fontTitulo, brush, new DgRectangle(0, y, 220, 20), new DgStringFormat { Alignment = DgAlignment.Center });
             y += 20;
-
-            // CORREGIDO: Se agregó de forma explícita el alias DgStringFormat para limpiar el error de compilación
             g.DrawString(sucursal, fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center });
             y += 20;
 
@@ -323,6 +432,12 @@ namespace PuntoFlower.Views
             y += 15;
             g.DrawString($"Atendió: {Session.UsuarioActual}", fontNormal, brush, 5, y);
             y += 15;
+
+            var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
+            string metodo = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
+            g.DrawString($"Método Pago: {metodo}", fontNormal, brush, 5, y);
+            y += 15;
+
             g.DrawString("==================================", fontNormal, brush, 5, y);
             y += 15;
 
@@ -339,6 +454,16 @@ namespace PuntoFlower.Views
             g.DrawString("==================================", fontNormal, brush, 5, y);
             y += 15;
 
+            // DIBUJO ESTÉTICO DEL PORCENTAJE EN PAPEL TÉRMICO
+            if (ticketPorcentajeAplicado > 0)
+            {
+                decimal subtotalOriginal = ticketTotal + ticketDescuentoDinero;
+                g.DrawString($"Subtotal: {subtotalOriginal:C}", fontNormal, brush, 5, y);
+                y += 15;
+                g.DrawString($"Descuento aplicado: {ticketPorcentajeAplicado}% (-{ticketDescuentoDinero:C})", fontNormal, brush, 5, y);
+                y += 15;
+            }
+
             g.DrawString($"TOTAL COMPRA: {ticketTotal:C}", fontBold, brush, 5, y);
             y += 15;
             g.DrawString($"RECIBIDO: {ticketPagado:C}", fontNormal, brush, 5, y);
@@ -351,18 +476,12 @@ namespace PuntoFlower.Views
 
         private void txtPagoCon_TextChanged(object sender, TextChangedEventArgs e)
         {
-            decimal total = ProductosEnTicket.Sum(x => x.Total);
-            if (decimal.TryParse(txtPagoCon.Text, out decimal pago))
-            {
-                decimal cambio = pago - total;
-                txtCambio.Text = (cambio >= 0) ? cambio.ToString("C") : "$0.00";
-            }
-            else { txtCambio.Text = "$0.00"; }
+            CalcularCambioMatematico();
         }
 
         private void LimpiarConfiguradorRamo()
         {
-            composicionRamoActual.Clear(); floresAgregadas = 0; capacidadRamo = 0;
+            composicionRamoActual.Clear(); floresAgregadas = 0; capacityRamo = 0;
 
             rbRamo6.IsChecked = rbRamo12.IsChecked = rbRamo24.IsChecked = rbRamo36.IsChecked = rbRamo50.IsChecked =
             rbRamo72.IsChecked = rbRamo100.IsChecked = rbRamo150.IsChecked = rbRamo200.IsChecked = rbRamo250.IsChecked = false;
@@ -370,9 +489,17 @@ namespace PuntoFlower.Views
             ActualizarTotal(); ActualizarProgreso();
         }
 
-        private void ActualizarProgreso() => lblProgresoRamo.Text = $"Seleccionadas: {floresAgregadas} / {capacidadRamo}";
-        private void ActualizarTotal() => txtTotal.Text = $"Total: {ProductosEnTicket.Sum(x => x.Total):C}";
-        private void btnLimpiarTicket_Click(object sender, RoutedEventArgs e) { ProductosEnTicket.Clear(); ActualizarTotal(); }
+        private void ActualizarProgreso() => lblProgresoRamo.Text = $"Seleccionadas: {floresAgregadas} / {capacityRamo}";
+
+        private void ActualizarTotal()
+        {
+            if (txtTotal == null) return;
+            decimal totalNeto = ObtenerTotalConDescuento();
+            txtTotal.Text = $"Total: {totalNeto:C}";
+            CalcularCambioMatematico();
+        }
+
+        private void btnLimpiarTicket_Click(object sender, RoutedEventArgs e) { ProductosEnTicket.Clear(); txtDescuento.Text = "0"; ActualizarTotal(); }
 
         private void btnEliminarItem_Click(object sender, RoutedEventArgs e)
         {

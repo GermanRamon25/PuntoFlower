@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using PuntoFlower.Data;
 using System.IO;
+using System.Linq;
 using Microsoft.Win32;
 
 // Alias para evitar conflictos con WPF
@@ -18,10 +19,16 @@ namespace PuntoFlower.Views
 {
     public partial class CashCloseOutView : UserControl
     {
+        // Variables globales para calcular el arqueo resumido
+        private decimal acumuladoEfectivo = 0;
+        private decimal acumuladoTarjeta = 0;
+        private decimal acumuladoTransfCuenta1 = 0;
+        private decimal acumuladoTransfCuenta2 = 0;
+        private decimal acumuladoDescuentos = 0;
+
         public CashCloseOutView()
         {
             InitializeComponent();
-            // Mostrar nombre del empleado que hace el corte en la interfaz
             txtEmpleadoEnTurno.Text = $"Empleado en turno: {Session.UsuarioActual}";
             RealizarCorteDelDia();
         }
@@ -31,13 +38,21 @@ namespace PuntoFlower.Views
             List<object> ventasHoy = new List<object>();
             decimal sumaRecibido = 0;
             decimal sumaCambio = 0;
+
+            // Reiniciamos contadores de arqueo
+            acumuladoEfectivo = 0;
+            acumuladoTarjeta = 0;
+            acumuladoTransfCuenta1 = 0;
+            acumuladoTransfCuenta2 = 0;
+            acumuladoDescuentos = 0;
+
             ConexionDB db = new ConexionDB();
 
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = @"SELECT Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio 
+                    string query = @"SELECT Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, CuentaTransferencia, DescuentoAplicado 
                                    FROM Ventas 
                                    WHERE CAST(Fecha AS DATE) = CAST(GETDATE() AS DATE)";
 
@@ -50,8 +65,28 @@ namespace PuntoFlower.Views
                             decimal cambio = r["MontoCambio"] != DBNull.Value ? Convert.ToDecimal(r["MontoCambio"]) : 0;
                             decimal totalVenta = Convert.ToDecimal(r["Total"]);
 
+                            string metodo = r["MetodoPago"]?.ToString() ?? "Efectivo";
+                            string cuenta = r["CuentaTransferencia"] != DBNull.Value ? r["CuentaTransferencia"].ToString() : "";
+                            decimal desc = r["DescuentoAplicado"] != DBNull.Value ? Convert.ToDecimal(r["DescuentoAplicado"]) : 0;
+
                             sumaRecibido += recibido;
                             sumaCambio += cambio;
+                            acumuladoDescuentos += desc;
+
+                            if (metodo == "Efectivo")
+                            {
+                                acumuladoEfectivo += (recibido - cambio);
+                            }
+                            else if (metodo == "Tarjeta")
+                            {
+                                acumuladoTarjeta += totalVenta;
+                            }
+                            else if (metodo == "Transferencia")
+                            {
+                                if (cuenta == "Cuenta Encargado 1") acumuladoTransfCuenta1 += totalVenta;
+                                else if (cuenta == "Cuenta Encargado 2") acumuladoTransfCuenta2 += totalVenta;
+                                else acumuladoEfectivo += totalVenta;
+                            }
 
                             ventasHoy.Add(new
                             {
@@ -59,7 +94,9 @@ namespace PuntoFlower.Views
                                 ProductoNombre = r["ProductoNombre"].ToString(),
                                 Total = totalVenta,
                                 MontoRecibido = recibido,
-                                MontoCambio = cambio
+                                MontoCambio = cambio,
+                                MetodoPago = metodo + (string.IsNullOrEmpty(cuenta) ? "" : $" ({cuenta})"),
+                                Descuento = desc
                             });
                         }
                     }
@@ -68,9 +105,7 @@ namespace PuntoFlower.Views
                 dgCorte.ItemsSource = ventasHoy;
                 txtTotalRecibido.Text = sumaRecibido.ToString("C");
                 txtTotalCambio.Text = sumaCambio.ToString("C");
-
-                decimal enCaja = sumaRecibido - sumaCambio;
-                txtEfectivoReal.Text = enCaja.ToString("C");
+                txtEfectivoReal.Text = acumuladoEfectivo.ToString("C");
             }
             catch (Exception ex)
             {
@@ -80,7 +115,7 @@ namespace PuntoFlower.Views
 
         private void btnFinalizarCorte_Click(object sender, RoutedEventArgs e)
         {
-            if (dgCorte.ItemsSource == null)
+            if (dgCorte.ItemsSource == null || !dgCorte.ItemsSource.Cast<object>().Any())
             {
                 MessageBox.Show("No hay movimientos registrados hoy para realizar un corte.", "Aviso");
                 return;
@@ -94,7 +129,6 @@ namespace PuntoFlower.Views
             {
                 try
                 {
-                    // OBTENER IDENTIDAD DE SUCURSAL LOCAL
                     ConexionDB db = new ConexionDB();
                     string sucursalNombre = db.ObtenerNombreSucursal();
 
@@ -102,54 +136,99 @@ namespace PuntoFlower.Views
                     PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
                     doc.Open();
 
-                    // Fuentes
                     BaseFont bf = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
-                    iTextFont fTitulo = new iTextFont(bf, 16, iTextFont.BOLD);
-                    iTextFont fCuerpo = new iTextFont(bf, 10);
-                    iTextFont fBold = new iTextFont(bf, 10, iTextFont.BOLD);
+                    iTextFont fTitulo = new iTextFont(bf, 15, iTextFont.BOLD);
+                    iTextFont fSub = new iTextFont(bf, 11, iTextFont.BOLD, BaseColor.DARK_GRAY);
+                    iTextFont fCuerpo = new iTextFont(bf, 9);
+                    iTextFont fBold = new iTextFont(bf, 9, iTextFont.BOLD);
+                    iTextFont fTablaHead = new iTextFont(bf, 9, iTextFont.BOLD, BaseColor.WHITE);
 
-                    // 1. Encabezado con información del empleado y SUCURSAL añadida
+                    // Color Unificado: Azul Marino Corporativo
+                    BaseColor azulMarino = new BaseColor(44, 62, 80);
+
+                    // 1. Encabezado institucional de auditoría
                     doc.Add(new iTextParagraph("PUNTO FLOWER - COMPROBANTE DE CORTE DE CAJA", fTitulo));
-                    doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fBold)); // Inyección de Sucursal
+                    doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fBold));
                     doc.Add(new iTextParagraph($"Fecha de Corte: {DateTime.Now:g}", fCuerpo));
-                    doc.Add(new iTextParagraph($"Realizado por: {Session.UsuarioActual}", fCuerpo)); // Firma en PDF
+                    doc.Add(new iTextParagraph($"Realizado por: {Session.UsuarioActual}", fCuerpo));
                     doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
                     doc.Add(new iTextParagraph(" "));
 
-                    // 2. Bloque de Totales
+                    // Macroestructura Horizontal para las dos tablas en paralelo
+                    PdfPTable tablaEstructuraHorizontal = new PdfPTable(2);
+                    tablaEstructuraHorizontal.WidthPercentage = 100;
+                    tablaEstructuraHorizontal.SetWidths(new float[] { 46f, 54f });
+
+                    // --- CELDA IZQUIERDA: RESUMEN DE EFECTIVO GENERAL (Colores unificados) ---
                     PdfPTable tablaResumen = new PdfPTable(1);
-                    tablaResumen.WidthPercentage = 40;
-                    tablaResumen.HorizontalAlignment = Element.ALIGN_LEFT;
+                    tablaResumen.WidthPercentage = 100;
 
-                    tablaResumen.AddCell(new PdfPCell(new Phrase("RESUMEN DE EFECTIVO", fBold)) { GrayFill = 0.9f });
-                    tablaResumen.AddCell(new Phrase($"Total Recibido: {txtTotalRecibido.Text}", fCuerpo));
-                    tablaResumen.AddCell(new Phrase($"Total Cambio: {txtTotalCambio.Text}", fCuerpo));
+                    tablaResumen.AddCell(new PdfPCell(new Phrase("RESUMEN DE EFECTIVO GENERAL", fTablaHead)) { BackgroundColor = azulMarino, Padding = 5 });
+                    tablaResumen.AddCell(new PdfPCell(new Phrase($"Total Recibido del Día: {txtTotalRecibido.Text}", fCuerpo)) { Padding = 4 });
+                    tablaResumen.AddCell(new PdfPCell(new Phrase($"Total Cambio Entregado: {txtTotalCambio.Text}", fCuerpo)) { Padding = 4 });
 
-                    PdfPCell cellFinal = new PdfPCell(new Phrase($"EFECTIVO FINAL EN CAJA: {txtEfectivoReal.Text}", fBold));
-                    cellFinal.BackgroundColor = new BaseColor(235, 245, 251);
+                    PdfPCell cellFinal = new PdfPCell(new Phrase($"EFECTIVO ESTIMADO EN CAJA: {txtEfectivoReal.Text}", fBold)) { BackgroundColor = new BaseColor(234, 242, 248), Padding = 6 };
                     tablaResumen.AddCell(cellFinal);
 
-                    doc.Add(tablaResumen);
+                    PdfPCell celdaIzquierda = new PdfPCell(tablaResumen) { Border = PdfPCell.NO_BORDER, PaddingRight = 15 };
+                    tablaEstructuraHorizontal.AddCell(celdaIzquierda);
+
+                    // --- CELDA DERECHA: DESGLOSE POR METODOS DE PAGO Y AUDITORÍA ---
+                    PdfPTable tablaMetodos = new PdfPTable(2);
+                    tablaMetodos.WidthPercentage = 100;
+                    tablaMetodos.SetWidths(new float[] { 60f, 40f });
+
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Canal de Ingreso / Concepto", fTablaHead)) { BackgroundColor = azulMarino, Padding = 5 });
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Monto Acumulado", fTablaHead)) { BackgroundColor = azulMarino, HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 5 });
+
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Ventas en Efectivo Puro (Neto)", fCuerpo)) { Padding = 3 });
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoEfectivo.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
+
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Terminal Bancaria (Tarjeta)", fCuerpo)) { Padding = 3 });
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoTarjeta.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
+
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Transferencias - Encargado 1", fCuerpo)) { Padding = 3 });
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoTransfCuenta1.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
+
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Transferencias - Encargado 2", fCuerpo)) { Padding = 3 });
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoTransfCuenta2.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
+
+                    PdfPCell cellLabelDesc = new PdfPCell(new Phrase("Total de Descuentos Aplicados", fBold)) { BackgroundColor = new BaseColor(253, 237, 236), Padding = 4 };
+                    PdfPCell cellValDesc = new PdfPCell(new Phrase(acumuladoDescuentos.ToString("C"), fBold)) { BackgroundColor = new BaseColor(253, 237, 236), HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 };
+                    tablaMetodos.AddCell(cellLabelDesc);
+                    tablaMetodos.AddCell(cellValDesc);
+
+                    PdfPCell celdaDerecha = new PdfPCell(tablaMetodos) { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_TOP };
+                    tablaEstructuraHorizontal.AddCell(celdaDerecha);
+
+                    doc.Add(tablaEstructuraHorizontal);
+                    doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph(" "));
 
-                    // 3. Tabla de Auditoría
-                    PdfPTable tablaVentas = new PdfPTable(4);
-                    tablaVentas.WidthPercentage = 100;
-                    tablaVentas.SetWidths(new float[] { 15f, 45f, 20f, 20f });
+                    // 4. TABLA 3: Detalle de Transacciones del Turno
+                    doc.Add(new iTextParagraph("DETALLE DE TRANSACCIONES DEL TURNO", fSub));
+                    doc.Add(new iTextParagraph(" "));
 
-                    string[] headers = { "Hora", "Producto", "Pago Cliente", "Cambio" };
+                    PdfPTable tablaVentas = new PdfPTable(6);
+                    tablaVentas.WidthPercentage = 100;
+                    tablaVentas.SetWidths(new float[] { 12f, 35f, 15f, 15f, 13f, 10f });
+
+                    // SOLUCIÓN AL ERROR: Declaramos formalmente la variable 'headers' con los nombres de las columnas
+                    string[] headers = { "Hora", "Producto", "Método Pago", "Importe", "Descuento", "Cambio" };
                     foreach (string h in headers)
                     {
-                        PdfPCell cell = new PdfPCell(new Phrase(h, fBold)) { HorizontalAlignment = Element.ALIGN_CENTER, GrayFill = 0.8f };
+                        PdfPCell cell = new PdfPCell(new Phrase(h, fTablaHead)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = azulMarino, Padding = 5 };
                         tablaVentas.AddCell(cell);
                     }
 
                     foreach (dynamic item in dgCorte.ItemsSource)
                     {
-                        tablaVentas.AddCell(new Phrase(item.Fecha.ToString("t"), fCuerpo));
-                        tablaVentas.AddCell(new Phrase(item.ProductoNombre, fCuerpo));
-                        tablaVentas.AddCell(new Phrase(item.MontoRecibido.ToString("C"), fCuerpo));
-                        tablaVentas.AddCell(new Phrase(item.MontoCambio.ToString("C"), fCuerpo));
+                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.Fecha.ToString("t"), fCuerpo)) { Padding = 4 });
+                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.ProductoNombre, fCuerpo)) { Padding = 4 });
+                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.MetodoPago, fCuerpo)) { Padding = 4 });
+                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.Total.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
+                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.Descuento.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
+                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.MontoCambio.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                     }
 
                     doc.Add(tablaVentas);
@@ -159,9 +238,7 @@ namespace PuntoFlower.Views
 
                     doc.Close();
 
-                    // =========================================================================
-                    // BLINDAJE CONTRA APAGONES: RESPALDO AUTOMÁTICO AL FINALIZAR EL CORTE
-                    // =========================================================================
+                    // Resguardo de base de datos automatizado
                     try
                     {
                         string folderRespaldos = @"C:\RespaldosPuntoFlower\";
@@ -172,7 +249,6 @@ namespace PuntoFlower.Views
 
                         using (SqlConnection conRespaldo = db.OpenConnection())
                         {
-                            // Comando SQL Nativo para respaldar la BD de forma sobreescribible diaria
                             string sqlBackup = $@"BACKUP DATABASE PuntoFlowerDB 
                                                  TO DISK = '{folderRespaldos}PuntoFlower_Cierre_Auto.bak' 
                                                  WITH INIT;";
@@ -186,10 +262,8 @@ namespace PuntoFlower.Views
                     }
                     catch (Exception exBackup)
                     {
-                        // Si falla el respaldo por permisos de carpeta, el PDF ya se guardó y el sistema avisa sutilmente
                         MessageBox.Show("Corte exportado a PDF correctamente, pero el respaldo automático falló: " + exBackup.Message, "Aviso de Seguridad", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
-
                 }
                 catch (Exception ex)
                 {

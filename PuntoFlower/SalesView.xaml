@@ -127,18 +127,40 @@
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="15" ShadowDepth="2" Color="#D5DBDB" Opacity="0.3"/>
                     </Border.Effect>
-                    <StackPanel Margin="15">
-                        <TextBlock Text="Arreglos Personalizados" FontSize="24" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,15"/>
-                        <Border Background="#F8F9FA" Padding="20" CornerRadius="10">
-                            <StackPanel>
-                                <TextBlock Text="Nombre del Servicio / Arreglo" Foreground="#7F8C8D"/>
-                                <TextBox x:Name="txtNombreEspecial" Height="45" Margin="0,5,0,15" VerticalContentAlignment="Center" FontSize="16"/>
-                                <TextBlock Text="Precio Acordado ($)" Foreground="#7F8C8D"/>
-                                <TextBox x:Name="txtPrecioEspecial" Height="45" Margin="0,5,0,20" VerticalContentAlignment="Center" FontSize="20" FontWeight="Bold" Foreground="#27AE60"/>
-                                <Button Content="Agregar Pedido Especial" Click="btnAgregarEspecial_Click" Background="#27AE60" Foreground="White" FontWeight="Bold" Height="50"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="15">
+                            <TextBlock Text="Arreglos Personalizados con Insumos" FontSize="24" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,15"/>
+                            <Border Background="#F8F9FA" Padding="20" CornerRadius="10">
+                                <StackPanel>
+                                    <TextBlock Text="Nombre del Servicio / Arreglo" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+                                    <TextBox x:Name="txtNombreEspecial" Height="40" Margin="0,5,0,12" VerticalContentAlignment="Center" FontSize="15"/>
+
+                                    <TextBlock Text="Precio Acordado con el Cliente ($)" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+                                    <TextBox x:Name="txtPrecioEspecial" Height="40" Margin="0,5,0,15" VerticalContentAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="#27AE60"/>
+
+                                    <Border BorderThickness="0,1,0,0" BorderBrush="#D5DBDB" Margin="0,5,0,10" Padding="0,10,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Flores Utilizadas en este Arreglo (Para Inventario)" FontSize="13" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,8"/>
+                                            <Grid Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="70"/>
+                                                    <ColumnDefinition Width="110"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ComboBox x:Name="cbInsumosEspeciales" Grid.Column="0" DisplayMemberPath="Nombre" Margin="0,0,8,0" VerticalContentAlignment="Center" Height="32"/>
+                                                <TextBox x:Name="txtCantFlorEspecial" Grid.Column="1" VerticalContentAlignment="Center" Text="0" Margin="0,0,8,0" HorizontalContentAlignment="Center" Height="32" FontSize="14"/>
+                                                <Button Grid.Column="2" Content="Asociar Flor" Click="btnAgregarFlorEspecial_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" Height="32"/>
+                                            </Grid>
+
+                                            <TextBlock x:Name="lblProgresoEspecial" Text="Flores añadidas: Ninguna" FontSize="12" FontWeight="SemiBold" Foreground="#E67E22" Margin="2,3,0,12" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Button Content="Agregar Pedido Especial al Ticket" Click="btnAgregarEspecial_Click" Background="#27AE60" Foreground="White" FontWeight="Bold" Height="50"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Border>
             </TabItem>
         </TabControl>
@@ -181,22 +203,52 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <StackPanel Grid.Row="2" Margin="0,15,0,0">
-                    <Separator Background="#F2F3F4" Margin="0,0,0,10"/>
-                    <TextBlock x:Name="txtTotal" Text="Total: $0.00" FontSize="32" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Right"/>
+                <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                    <Separator Background="#F2F3F4" Margin="0,0,0,8"/>
 
-                    <UniformGrid Columns="2" Margin="0,10">
+                    <Grid Margin="0,2,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                            <TextBlock Text="Método de Pago" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                            <ComboBox x:Name="cbMetodoPago" Height="32" SelectedIndex="0" SelectionChanged="cbMetodoPago_SelectionChanged">
+                                <ComboBoxItem Content="Efectivo"/>
+                                <ComboBoxItem Content="Tarjeta"/>
+                                <ComboBoxItem Content="Transferencia"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                            <TextBlock Text="Descuento Aplicado (%)" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                            <TextBox x:Name="txtDescuento" Height="32" VerticalContentAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#E74C3C" Text="0" HorizontalContentAlignment="Center" TextChanged="txtDescuento_TextChanged"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel x:Name="panelCuentaTransferencia" Margin="0,0,0,8" Visibility="Collapsed">
+                        <TextBlock Text="Cuenta de Destino (Transferencia)" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                        <ComboBox x:Name="cbCuentaDestino" Height="32" SelectedIndex="0">
+                            <ComboBoxItem Content="Cuenta Encargado 1"/>
+                            <ComboBoxItem Content="Cuenta Encargado 2"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <TextBlock x:Name="txtTotal" Text="Total: $0.00" FontSize="30" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Right"/>
+
+                    <UniformGrid Columns="2" Margin="0,5">
                         <StackPanel Margin="0,0,5,0">
                             <TextBlock Text="Recibido ($)" Foreground="#7F8C8D" FontSize="11" FontWeight="SemiBold"/>
-                            <TextBox x:Name="txtPagoCon" Height="40" FontSize="20" FontWeight="Bold" VerticalContentAlignment="Center" TextChanged="txtPagoCon_TextChanged" HorizontalContentAlignment="Center"/>
+                            <TextBox x:Name="txtPagoCon" Height="38" FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center" TextChanged="txtPagoCon_TextChanged" HorizontalContentAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Margin="5,0,0,0">
                             <TextBlock Text="Cambio ($)" Foreground="#7F8C8D" FontSize="11" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtCambio" Text="$0.00" Height="40" FontSize="20" FontWeight="Bold" Foreground="#E74C3C" Padding="0,5,0,0" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtCambio" Text="$0.00" Height="38" FontSize="18" FontWeight="Bold" Foreground="#E74C3C" Padding="0,4,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </UniformGrid>
 
-                    <Button x:Name="btnConfirmarVenta" Content="FINALIZAR VENTA" Click="btnConfirmarVenta_Click" Height="65" Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="18" BorderThickness="0">
+                    <Button x:Name="btnConfirmarVenta" Content="FINALIZAR VENTA" Click="btnConfirmarVenta_Click" Height="55" Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="16" BorderThickness="0">
                         <Button.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="10"/>
