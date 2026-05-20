@@ -26,6 +26,10 @@ namespace PuntoFlower.Views
         private decimal acumuladoTransfCuenta2 = 0;
         private decimal acumuladoDescuentos = 0;
 
+        // Variables dinámicas para los nombres de los encargados activos
+        private string nombreEncargado1 = "Encargado 1";
+        private string nombreEncargado2 = "Encargado 2";
+
         public CashCloseOutView()
         {
             InitializeComponent();
@@ -47,6 +51,10 @@ namespace PuntoFlower.Views
             acumuladoDescuentos = 0;
 
             ConexionDB db = new ConexionDB();
+
+            // NUEVO: Recuperamos los nombres reales desde la tabla ConfiguracionSistema
+            nombreEncargado1 = db.ObtenerEncargadoCuenta1();
+            nombreEncargado2 = db.ObtenerEncargadoCuenta2();
 
             try
             {
@@ -83,9 +91,13 @@ namespace PuntoFlower.Views
                             }
                             else if (metodo == "Transferencia")
                             {
-                                if (cuenta == "Cuenta Encargado 1") acumuladoTransfCuenta1 += totalVenta;
-                                else if (cuenta == "Cuenta Encargado 2") acumuladoTransfCuenta2 += totalVenta;
-                                else acumuladoEfectivo += totalVenta;
+                                // MODIFICACIÓN CRÍTICA: Se comparan las ventas usando las variables dinámicas de los nombres guardados
+                                if (cuenta == nombreEncargado1 || cuenta == "Cuenta Encargado 1")
+                                    acumuladoTransfCuenta1 += totalVenta;
+                                else if (cuenta == nombreEncargado2 || cuenta == "Cuenta Encargado 2")
+                                    acumuladoTransfCuenta2 += totalVenta;
+                                else
+                                    acumuladoEfectivo += totalVenta; // Fallback de seguridad por si no coincide
                             }
 
                             ventasHoy.Add(new
@@ -187,10 +199,11 @@ namespace PuntoFlower.Views
                     tablaMetodos.AddCell(new PdfPCell(new Phrase("Terminal Bancaria (Tarjeta)", fCuerpo)) { Padding = 3 });
                     tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoTarjeta.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
 
-                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Transferencias - Encargado 1", fCuerpo)) { Padding = 3 });
+                    // MODIFICACIÓN DINÁMICA: Se inyectan los nombres reales leídos de la BD en las filas del reporte
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase($"Transferencias - {nombreEncargado1}", fCuerpo)) { Padding = 3 });
                     tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoTransfCuenta1.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
 
-                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Transferencias - Encargado 2", fCuerpo)) { Padding = 3 });
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase($"Transferencias - {nombreEncargado2}", fCuerpo)) { Padding = 3 });
                     tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoTransfCuenta2.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
 
                     PdfPCell cellLabelDesc = new PdfPCell(new Phrase("Total de Descuentos Aplicados", fBold)) { BackgroundColor = new BaseColor(253, 237, 236), Padding = 4 };
@@ -213,7 +226,6 @@ namespace PuntoFlower.Views
                     tablaVentas.WidthPercentage = 100;
                     tablaVentas.SetWidths(new float[] { 12f, 35f, 15f, 15f, 13f, 10f });
 
-                    // SOLUCIÓN AL ERROR: Declaramos formalmente la variable 'headers' con los nombres de las columnas
                     string[] headers = { "Hora", "Producto", "Método Pago", "Importe", "Descuento", "Cambio" };
                     foreach (string h in headers)
                     {

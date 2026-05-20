@@ -22,14 +22,25 @@ namespace PuntoFlower.Views
             CargarUsuariosPendientes();
         }
 
-        // NUEVO: Carga el nombre guardado de la sucursal local al abrir la pestaña
+        // Carga el nombre guardado de la sucursal local y los encargados al abrir la pestaña
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
-            ConexionDB db = new ConexionDB();
-            txtNombreSucursalInput.Text = db.ObtenerNombreSucursal();
+            try
+            {
+                ConexionDB db = new ConexionDB();
+                txtNombreSucursalInput.Text = db.ObtenerNombreSucursal();
+
+                // Rellenar los inputs con los nombres guardados en la tabla de configuración
+                txtEncargado1Input.Text = db.ObtenerEncargadoCuenta1();
+                txtEncargado2Input.Text = db.ObtenerEncargadoCuenta2();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al cargar la configuración de la sucursal: " + ex.Message, "Fallo de Enlace");
+            }
         }
 
-        // NUEVO: Evento para guardar de forma manual el nombre sin tocar la base de datos
+        // Ejecuta el guardado masivo transaccional en la tabla ConfiguracionSistema
         private void btnGuardarSucursal_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtNombreSucursalInput.Text))
@@ -38,23 +49,35 @@ namespace PuntoFlower.Views
                 return;
             }
 
+            if (string.IsNullOrWhiteSpace(txtEncargado1Input.Text) || string.IsNullOrWhiteSpace(txtEncargado2Input.Text))
+            {
+                MessageBox.Show("Los nombres de los encargados de las cuentas no pueden quedar vacíos.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             try
             {
                 ConexionDB db = new ConexionDB();
-                db.GuardarNombreSucursal(txtNombreSucursalInput.Text.Trim());
 
-                MessageBox.Show("Nombre de la sucursal guardado con éxito.", "Configuración Guardada", MessageBoxButton.OK, MessageBoxImage.Information);
+                // Guardado masivo parametrizado contra inyecciones SQL
+                db.GuardarDatosSucursal(
+                    txtNombreSucursalInput.Text.Trim(),
+                    txtEncargado1Input.Text.Trim(),
+                    txtEncargado2Input.Text.Trim()
+                );
+
+                MessageBox.Show("Identidad de la sucursal y cuentas de encargados guardadas con éxito.", "Configuración Guardada", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Actualizamos el título de la MainWindow al instante sin reiniciar
                 Window parentWindow = Window.GetWindow(this);
                 if (parentWindow is MainWindow main)
                 {
-                    main.Title = $"PuntoFlower - {txtNombreSucursalInput.Text.Trim()}";
+                    main.Title = $"PuntoFlower - {txtNombreSucursalInput.Text.Trim().ToUpper()}";
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al guardar el nombre de la sucursal: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Error al guardar la configuración: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -196,6 +219,7 @@ namespace PuntoFlower.Views
             florSeleccionada = dgPreciosFlores.SelectedItem as FlorPrecio;
             if (florSeleccionada != null)
             {
+                // CORREGIDO: Se eliminó la variable intrusa 'fontBold' que causaba el fallo de compilación
                 txtEditNombre.Text = florSeleccionada.Nombre;
                 txtEditCosto.Text = florSeleccionada.PrecioCompra.ToString("N2");
                 txtEditVenta.Text = florSeleccionada.PrecioVenta.ToString("N2");
@@ -239,5 +263,12 @@ namespace PuntoFlower.Views
         }
     }
 
-    public class FlorPrecio { public int Id { get; set; } public string Nombre { get; set; } public decimal PrecioCompra { get; set; } public decimal PrecioVenta { get; set; } }
+    // CORREGIDO: Se reincorporó la estructura de soporte para evitar los errores de compilación
+    public class FlorPrecio
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; }
+        public decimal PrecioCompra { get; set; }
+        public decimal PrecioVenta { get; set; }
+    }
 }

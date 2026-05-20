@@ -172,31 +172,35 @@
                     <TabItem Header="Datos de Sucursal" Style="{StaticResource SubTabItemStyle}">
                         <Grid Margin="15">
                             <StackPanel>
-                                <TextBlock Text="Identidad de la Sucursal Local" FontSize="18" FontWeight="Bold" Foreground="#CF8282" Margin="0,5,0,15"/>
+                                <TextBlock Text="Identidad de la Sucursal Local y Cuentas" FontSize="18" FontWeight="Bold" Foreground="#CF8282" Margin="0,5,0,15"/>
 
                                 <Border Background="#F8F9FA" Padding="20" CornerRadius="12" BorderThickness="1" BorderBrush="#E5E7E9">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="200"/>
-                                        </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Nombre Comercial o Identificador de esta Sucursal" Foreground="#7F8C8D" Margin="0,0,0,6" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBox x:Name="txtNombreSucursalInput" Height="38" VerticalContentAlignment="Center" FontSize="14" Padding="8,0" Margin="0,0,0,15"/>
 
-                                        <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                                            <TextBlock Text="Nombre Comercial o Identificador de esta Sucursal" Foreground="#7F8C8D" Margin="0,0,0,8" FontWeight="SemiBold" FontSize="14"/>
-                                            <TextBox x:Name="txtNombreSucursalInput" Height="40" VerticalContentAlignment="Center" FontSize="15" Padding="8,0"/>
-                                        </StackPanel>
+                                        <UniformGrid Columns="2" Margin="0,0,0,20">
+                                            <StackPanel Margin="0,0,10,0">
+                                                <TextBlock Text="Nombre de Encargado de Cuenta 1 (Transferencia)" Foreground="#7F8C8D" Margin="0,0,0,6" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBox x:Name="txtEncargado1Input" Height="38" VerticalContentAlignment="Center" FontSize="14" Padding="8,0"/>
+                                            </StackPanel>
+                                            <StackPanel Margin="10,0,0,0">
+                                                <TextBlock Text="Nombre de Encargado de Cuenta 2 (Transferencia)" Foreground="#7F8C8D" Margin="0,0,0,6" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBox x:Name="txtEncargado2Input" Height="38" VerticalContentAlignment="Center" FontSize="14" Padding="8,0"/>
+                                            </StackPanel>
+                                        </UniformGrid>
 
-                                        <Button Grid.Column="1" Content="ACTUALIZAR NOMBRE" Click="btnGuardarSucursal_Click" Height="40" Background="#3498DB" Foreground="White" FontWeight="Bold" VerticalAlignment="Bottom" Cursor="Hand">
+                                        <Button Content="GUARDAR DATOS DE SUCURSAL" Click="btnGuardarSucursal_Click" Height="45" Background="#3498DB" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right" Width="260" Cursor="Hand">
                                             <Button.Resources>
                                                 <Style TargetType="Border">
                                                     <Setter Property="CornerRadius" Value="6"/>
                                                 </Style>
                                             </Button.Resources>
                                         </Button>
-                                    </Grid>
+                                    </StackPanel>
                                 </Border>
 
-                                <TextBlock Text="* Este nombre se utilizará para identificar las transacciones, reportes y registros de esta sucursal en el sistema central." Foreground="#95A5A6" FontStyle="Italic" Margin="5,15,0,0" FontSize="12"/>
+                                <TextBlock Text="* Los nombres de los encargados alimentarán automáticamente los selectores de transferencia en el módulo de ventas." Foreground="#95A5A6" FontStyle="Italic" Margin="5,15,0,0" FontSize="12"/>
                             </StackPanel>
                         </Grid>
                     </TabItem>

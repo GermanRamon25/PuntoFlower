@@ -28,7 +28,9 @@ namespace PuntoFlower.Views
 {
     public partial class SalesView : UserControl
     {
-        public ObservableCollection<ItemTicket> ProductosEnTicket { get; set; }
+        // Colección estática para preservar el estado del ticket al cambiar de módulos
+        public static ObservableCollection<ItemTicket> ProductosEnTicket { get; set; } = new ObservableCollection<ItemTicket>();
+
         private List<DetalleInsumo> composicionRamoActual = new List<DetalleInsumo>();
         private List<DetalleInsumo> composicionEspecialActual = new List<DetalleInsumo>();
 
@@ -42,22 +44,51 @@ namespace PuntoFlower.Views
         private decimal ticketPagado = 0;
         private decimal ticketCambio = 0;
 
-        // Nueva variable global para rastrear el dinero físico descontado para los informes
         private decimal ticketDescuentoDinero = 0;
         private float ticketPorcentajeAplicado = 0;
 
         public SalesView()
         {
             InitializeComponent();
-            ProductosEnTicket = new ObservableCollection<ItemTicket>();
             lstVenta.ItemsSource = ProductosEnTicket;
             CargarPreciosDesdeDB();
         }
 
+        // Se ejecuta cada vez que el usuario ingresa o regresa a la pestaña de Ventas
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             CargarInsumos();
             CargarPreciosDesdeDB();
+            CargarEncargadosCuentasDinamicos(); // Refresca los nombres reales al instante
+            ActualizarTotal();
+        }
+
+        // CORREGIDO: Inyecta cadenas de texto directamente en lugar de objetos ComboBoxItem complejos para evitar el error del cuadro en blanco
+        private void CargarEncargadosCuentasDinamicos()
+        {
+            try
+            {
+                ConexionDB db = new ConexionDB();
+                string e1 = db.ObtenerEncargadoCuenta1();
+                string e2 = db.ObtenerEncargadoCuenta2();
+
+                if (cbCuentaDestino != null)
+                {
+                    // 1. Limpiamos la memoria visual previa
+                    cbCuentaDestino.Items.Clear();
+
+                    // 2. Insertamos los nombres reales como texto plano (WPF los renderiza de forma perfecta automáticamente)
+                    cbCuentaDestino.Items.Add(string.IsNullOrWhiteSpace(e1) ? "Encargado 1" : e1);
+                    cbCuentaDestino.Items.Add(string.IsNullOrWhiteSpace(e2) ? "Encargado 2" : e2);
+
+                    // 3. Seleccionamos el primer elemento por defecto
+                    cbCuentaDestino.SelectedIndex = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error al refrescar encargados: " + ex.Message);
+            }
         }
 
         private void CargarPreciosDesdeDB()
@@ -235,7 +266,6 @@ namespace PuntoFlower.Views
 
         private void txtDescuento_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // Protegemos la entrada para que no coloquen porcentajes absurdos o negativos
             if (txtDescuento != null && float.TryParse(txtDescuento.Text, out float porc))
             {
                 if (porc < 0) txtDescuento.Text = "0";
@@ -244,7 +274,6 @@ namespace PuntoFlower.Views
             ActualizarTotal();
         }
 
-        // --- CORRECCIÓN MATEMÁTICA: DE DINERO A PORCENTAJE ---
         private decimal ObtenerTotalConDescuento()
         {
             decimal subtotal = ProductosEnTicket.Sum(x => x.Total);
@@ -252,7 +281,6 @@ namespace PuntoFlower.Views
 
             if (txtDescuento != null && float.TryParse(txtDescuento.Text, out float porcentaje) && porcentaje > 0)
             {
-                // Fórmula de Tasa Porcentual Comercial: Subtotal * (Porcentaje / 100)
                 dineroDescontado = subtotal * (decimal)(porcentaje / 100.0);
             }
 
@@ -302,14 +330,16 @@ namespace PuntoFlower.Views
             var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
             string metodoPago = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
 
+            // CORREGIDO: Se ajustó la extracción del texto para que lea directamente el valor de la cadena
             object cuentaDestino = DBNull.Value;
             if (metodoPago == "Transferencia" && cbCuentaDestino != null)
             {
-                var itemCuenta = cbCuentaDestino.SelectedItem as ComboBoxItem;
-                if (itemCuenta != null) cuentaDestino = itemCuenta.Content.ToString();
+                if (cbCuentaDestino.SelectedItem != null)
+                {
+                    cuentaDestino = cbCuentaDestino.SelectedItem.ToString();
+                }
             }
 
-            // Calculamos la equivalencia en dinero del porcentaje para inyectarlo a la BD de auditoría
             float.TryParse(txtDescuento.Text, out float porcText);
             decimal totalDineroDescontado = subtotalBase - totalNeto;
 
@@ -337,7 +367,6 @@ namespace PuntoFlower.Views
                                     cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
                                     cmdV.Parameters.AddWithValue("@cam", cambioFinal);
                                     cmdV.Parameters.AddWithValue("@cuenta", cuentaDestino);
-                                    // Guardado prorrateado en dinero real para los informes semanales/diarios
                                     cmdV.Parameters.AddWithValue("@desc", totalDineroDescontado / ProductosEnTicket.Count);
                                     cmdV.ExecuteNonQuery();
                                 }
@@ -454,7 +483,6 @@ namespace PuntoFlower.Views
             g.DrawString("==================================", fontNormal, brush, 5, y);
             y += 15;
 
-            // DIBUJO ESTÉTICO DEL PORCENTAJE EN PAPEL TÉRMICO
             if (ticketPorcentajeAplicado > 0)
             {
                 decimal subtotalOriginal = ticketTotal + ticketDescuentoDinero;
