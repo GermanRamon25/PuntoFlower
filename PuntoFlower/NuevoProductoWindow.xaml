@@ -19,13 +19,11 @@
                             <ComboBoxItem Content="Bodega"/>
                         </ComboBox>
                     </StackPanel>
+
                     <StackPanel Margin="5,0,0,0">
                         <TextBlock Text="Tipo de Venta" Foreground="#566573"/>
-                        <ComboBox x:Name="cbTipo" Height="35" Margin="0,5" SelectedIndex="3">
-                            <ComboBoxItem Content="Ramos"/>
-                            <ComboBoxItem Content="Coronas"/>
-                            <ComboBoxItem Content="Medallones"/>
-                            <ComboBoxItem Content="Insumo"/>
+                        <ComboBox x:Name="cbTipo" Height="35" Margin="0,5" SelectedIndex="0">
+                            <ComboBoxItem Content="Insumo" IsSelected="True"/>
                         </ComboBox>
                     </StackPanel>
                 </UniformGrid>
