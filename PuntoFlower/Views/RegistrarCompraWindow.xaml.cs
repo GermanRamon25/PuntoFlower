@@ -26,7 +26,7 @@ namespace PuntoFlower.Views
             ConexionDB db = new ConexionDB();
             using (SqlConnection con = db.OpenConnection())
             {
-                SqlCommand cmd = new SqlCommand("SELECT Nombre FROM Productos ORDER BY Nombre", con);
+                SqlCommand cmd = new SqlCommand("SELECT DISTINCT Nombre FROM Productos ORDER BY Nombre", con);
                 using (SqlDataReader r = cmd.ExecuteReader())
                 {
                     while (r.Read()) lista.Add(new Producto { Nombre = r["Nombre"].ToString() });
@@ -40,13 +40,30 @@ namespace PuntoFlower.Views
 
         private void CalcularVistaPrevia()
         {
-            if (lblTotal == null || lblDetalleCalculo == null) return;
+            if (lblTotal == null || lblDetalleCalculo == null || cbFormatoSurtido == null) return;
 
             if (decimal.TryParse(txtCosto.Text, out decimal costoTotal) && int.TryParse(txtCantidad.Text, out int cantidad))
             {
                 lblTotal.Text = $"Total de la Compra: {costoTotal:C2}";
 
-                int piezasTotales = (cbFormatoSurtido.SelectedIndex == 0) ? (cantidad * 12) : cantidad;
+                // EVALUACIÓN MATEMÁTICA EN VISTA PREVIA
+                int piezasTotales = 0;
+                switch (cbFormatoSurtido.SelectedIndex)
+                {
+                    case 0: // Por Docenas
+                        piezasTotales = cantidad * 12;
+                        break;
+                    case 1: // Por Piezas
+                        piezasTotales = cantidad;
+                        break;
+                    case 2: // Por Paquetes (24 pz)
+                        piezasTotales = cantidad * 24;
+                        break;
+                    default:
+                        piezasTotales = cantidad;
+                        break;
+                }
+
                 decimal unitario = piezasTotales > 0 ? (costoTotal / piezasTotales) : 0;
 
                 lblDetalleCalculo.Text = piezasTotales > 0
@@ -59,59 +76,101 @@ namespace PuntoFlower.Views
         {
             var prod = cbProductos.SelectedItem as Producto;
 
-            if (prod == null || string.IsNullOrEmpty(txtCantidad.Text) || string.IsNullOrEmpty(txtCosto.Text))
+            if (prod == null || string.IsNullOrWhiteSpace(txtCantidad.Text) || string.IsNullOrWhiteSpace(txtCosto.Text))
             {
-                MessageBox.Show("Por favor, complete todos los campos.");
+                MessageBox.Show("Por favor, complete todos los campos.", "Campos Vacíos", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
+            if (!int.TryParse(txtCantidad.Text, out int cantidadIngresada) || cantidadIngresada <= 0)
+            {
+                MessageBox.Show("Por favor, ingresa una cantidad de entrada numérica válida.", "Formato Incorrecto", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!decimal.TryParse(txtCosto.Text, out decimal costoTotal) || costoTotal < 0)
+            {
+                MessageBox.Show("Por favor, ingresa un monto de costo total válido.", "Formato Incorrecto", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // EVALUACIÓN MATEMÁTICA EN INSERCIÓN BD
+            int piezasTotalesEntran = 0;
+            switch (cbFormatoSurtido.SelectedIndex)
+            {
+                case 0: // Por Docenas
+                    piezasTotalesEntran = cantidadIngresada * 12;
+                    break;
+                case 1: // Por Piezas
+                    piezasTotalesEntran = cantidadIngresada;
+                    break;
+                case 2: // Por Paquetes (24 pz)
+                    piezasTotalesEntran = cantidadIngresada * 24;
+                    break;
+                default:
+                    piezasTotalesEntran = cantidadIngresada;
+                    break;
+            }
+
+            decimal costoUnitarioFinal = piezasTotalesEntran > 0 ? (costoTotal / piezasTotalesEntran) : 0;
+
+            ConexionDB db = new ConexionDB();
             try
             {
-                int cantidadIngresada = int.Parse(txtCantidad.Text);
-                decimal costoTotal = decimal.Parse(txtCosto.Text);
-
-                // CONVERSIÓN: Si es docena multiplicamos cantidad, si no se queda igual
-                int piezasTotalesEntran = (cbFormatoSurtido.SelectedIndex == 0) ? (cantidadIngresada * 12) : cantidadIngresada;
-
-                // CÁLCULO: Precio Unitario para la tabla Productos
-                decimal costoUnitarioFinal = costoTotal / piezasTotalesEntran;
-
-                ConexionDB db = new ConexionDB();
                 using (SqlConnection con = db.OpenConnection())
                 {
                     SqlTransaction tra = con.BeginTransaction();
                     try
                     {
-                        // 1. ACTUALIZACIÓN AUTOMÁTICA EN INVENTARIO
-                        // Aumentamos stock y actualizamos el costo unitario oficial de la flor
-                        string queryStock = "UPDATE Productos SET StockActual = StockActual + @cant, PrecioCompra = @costoUnit WHERE Nombre = @nom";
-                        SqlCommand cmdStock = new SqlCommand(queryStock, con, tra);
-                        cmdStock.Parameters.AddWithValue("@cant", piezasTotalesEntran);
-                        cmdStock.Parameters.AddWithValue("@costoUnit", costoUnitarioFinal);
-                        cmdStock.Parameters.AddWithValue("@nom", prod.Nombre);
-                        cmdStock.ExecuteNonQuery();
+                        // 1. ACTUALIZACIÓN AUTOMÁTICA EN INVENTARIO (EN BODEGA ÚNICAMENTE)
+                        string queryStock = @"
+                            IF EXISTS (SELECT 1 FROM Productos WHERE Nombre = @nom AND Categoria = 'Bodega')
+                            BEGIN
+                                UPDATE Productos 
+                                SET StockActual = StockActual + @cant, 
+                                    PrecioCompra = @costoUnit 
+                                WHERE Nombre = @nom AND Categoria = 'Bodega';
+                            END
+                            ELSE
+                            BEGIN
+                                INSERT INTO Productos (Nombre, Categoria, TipoVenta, PrecioCompra, PrecioVenta, StockActual, StockMinimo, FechaIngreso, RutaImagen)
+                                VALUES (@nom, 'Bodega', 'Insumo', @costoUnit, 0.00, @cant, 10, GETDATE(), '');
+                            END";
 
-                        // 2. REGISTRO EN HISTORIAL
+                        using (SqlCommand cmdStock = new SqlCommand(queryStock, con, tra))
+                        {
+                            cmdStock.Parameters.AddWithValue("@cant", piezasTotalesEntran);
+                            cmdStock.Parameters.AddWithValue("@costoUnit", costoUnitarioFinal);
+                            cmdStock.Parameters.AddWithValue("@nom", prod.Nombre);
+                            cmdStock.ExecuteNonQuery();
+                        }
+
+                        // 2. REGISTRO EN HISTORIAL DE DETALLE COMPRAS
                         string queryHist = "INSERT INTO DetalleCompras (ProveedorId, ProductoNombre, Cantidad, PrecioCosto) VALUES (@pId, @nom, @cant, @costoUnit)";
-                        SqlCommand cmdHist = new SqlCommand(queryHist, con, tra);
-                        cmdHist.Parameters.AddWithValue("@pId", _provId);
-                        cmdHist.Parameters.AddWithValue("@nom", prod.Nombre);
-                        cmdHist.Parameters.AddWithValue("@cant", piezasTotalesEntran);
-                        cmdHist.Parameters.AddWithValue("@costoUnit", costoUnitarioFinal);
-                        cmdHist.ExecuteNonQuery();
+                        using (SqlCommand cmdHist = new SqlCommand(queryHist, con, tra))
+                        {
+                            cmdHist.Parameters.AddWithValue("@pId", _provId);
+                            cmdHist.Parameters.AddWithValue("@nom", prod.Nombre);
+                            cmdHist.Parameters.AddWithValue("@cant", piezasTotalesEntran);
+                            cmdHist.Parameters.AddWithValue("@costoUnit", costoUnitarioFinal);
+                            cmdHist.ExecuteNonQuery();
+                        }
 
                         tra.Commit();
-                        MessageBox.Show($"¡Surtido exitoso!\nEntraron: {piezasTotalesEntran} unidades.\nNuevo costo unitario: {costoUnitarioFinal:C2}");
+                        MessageBox.Show($"¡Surtido exitoso!\n\nLas {piezasTotalesEntran} unidades entraron directamente a la BODEGA.\nNuevo costo unitario: {costoUnitarioFinal:C2}", "Ingreso de Mercancía", MessageBoxButton.OK, MessageBoxImage.Information);
                         this.DialogResult = true;
                     }
                     catch (Exception ex)
                     {
                         tra.Rollback();
-                        MessageBox.Show("Error en la base de datos: " + ex.Message);
+                        MessageBox.Show("Error en la base de datos al guardar la transacción: " + ex.Message, "Error Interno", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
             }
-            catch (Exception ex) { MessageBox.Show("Error al procesar: " + ex.Message); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al conectar con el servidor: " + ex.Message, "Fallo", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

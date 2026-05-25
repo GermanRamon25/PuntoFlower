@@ -6,6 +6,66 @@
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="900">
 
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+
+        <Style x:Key="InventoryTabItemStyle" TargetType="TabItem">
+            <Setter Property="HeaderTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock x:Name="TabText" Text="{Binding}" Foreground="#7F8C8D" FontWeight="SemiBold" FontSize="14" Padding="12,6"/>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
+                                <Setter TargetName="TabText" Property="Foreground" Value="#2980B9"/>
+                                <Setter TargetName="TabText" Property="FontWeight" Value="Bold"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" Margin="0,0,10,0" Padding="5,5" Background="Transparent" BorderThickness="0,0,0,3" BorderBrush="Transparent" Cursor="Hand">
+                            <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Center" ContentSource="Header"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#2980B9"/>
+                                <Setter TargetName="Border" Property="Background" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#F8F9FA"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="InventoryDataGridStyle" TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="RowHeight" Value="40"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#EFEFEF"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+        </Style>
+
+        <Style x:Key="GridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F8F9FA"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="#E5E8E8"/>
+        </Style>
+    </UserControl.Resources>
+
     <Grid Background="#F5F5F5">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -40,75 +100,100 @@
                             Background="#E74C3C" Foreground="White" 
                             FontWeight="Bold" BorderThickness="0" Cursor="Hand" Margin="5,0"/>
 
-                    <Button Content="Surtir Stock" Width="110" Height="35" 
+                    <Button Content="Traspasar a Venta" Width="130" Height="35" 
                             x:Name="btnSurtirStock"
                             Click="btnSurtirStock_Click" 
-                            Background="#F39C12" Foreground="White" 
+                            Background="#2980B9" Foreground="White" 
                             FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
 
                     <Button Content="Registrar Merma" x:Name="btnMerma" 
                             Click="btnMerma_Click" Width="120" Height="35" 
                             Background="#922B21" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Margin="5,0" Cursor="Hand"/>
+                            FontWeight="Bold" BorderThickness="0" Margin="0,0,5,0" Cursor="Hand"/>
+
+                    <Button Content="PDF Reporte" x:Name="btnReporte" 
+                            Click="btnReporte_Click" Width="100" Height="35" 
+                            Background="#34495E" Foreground="White" 
+                            FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <Border Grid.Row="1" Background="White" Margin="10,0,10,10" CornerRadius="8">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
-            </Border.Effect>
-            <Grid Margin="10">
-                <DataGrid x:Name="dgInventario" AutoGenerateColumns="False" Background="Transparent" 
-                          BorderThickness="0" CanUserAddRows="False" RowHeight="40" 
-                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" 
-                          HorizontalGridLinesBrush="#EEE" IsReadOnly="True"
-                          SelectionMode="Single">
+        <TabControl x:Name="tcInventarios" Grid.Row="1" Margin="10,0,10,10" Background="Transparent" BorderThickness="0">
 
-                    <DataGrid.ColumnHeaderStyle>
-                        <Style TargetType="DataGridColumnHeader">
-                            <Setter Property="Background" Value="#F8F9FA"/>
-                            <Setter Property="Foreground" Value="#2C3E50"/>
-                            <Setter Property="FontWeight" Value="Bold"/>
-                            <Setter Property="Padding" Value="10,5"/>
-                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                            <Setter Property="BorderBrush" Value="#DDD"/>
-                        </Style>
-                    </DataGrid.ColumnHeaderStyle>
+            <TabItem Header="Stock en Mostrador (Venta)" Style="{StaticResource InventoryTabItemStyle}">
+                <Border Background="White" CornerRadius="0,8,8,8" Margin="0,5,0,0">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                    </Border.Effect>
+                    <Grid Margin="10">
+                        <DataGrid x:Name="dgInventarioVenta" Style="{StaticResource InventoryDataGridStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Nombre de la Flor" Width="*" Binding="{Binding Nombre}"/>
+                                <DataGridTextColumn Header="Ubicación" Width="120" Binding="{Binding Categoria}"/>
+                                <DataGridTextColumn Header="Existencia Mostrador" Width="150" Binding="{Binding StockActual}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Precio Venta" Width="120" Binding="{Binding PrecioVenta, StringFormat={}{0:C}}"/>
+                                <DataGridTemplateColumn Header="Estado Stock" Width="130">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="StatusBorder" CornerRadius="12" Padding="10,2" HorizontalAlignment="Center" Background="#E8F6F3">
+                                                <TextBlock x:Name="StatusText" Text="Disponible" Foreground="#27AE60" FontWeight="SemiBold" FontSize="11"/>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding NecesitaSurtir}" Value="True">
+                                                    <Setter TargetName="StatusBorder" Property="Background" Value="#FDEDEC"/>
+                                                    <Setter TargetName="StatusText" Property="Text" Value="Reabastecer"/>
+                                                    <Setter TargetName="StatusText" Property="Foreground" Value="#E74C3C"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
 
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Nombre de la Flor" Width="*" Binding="{Binding Nombre}"/>
-                        <DataGridTextColumn Header="Categoría" Width="150" Binding="{Binding Categoria}"/>
-                        <DataGridTextColumn Header="Existencia" Width="100" Binding="{Binding StockActual}">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Center"/>
-                                    <Setter Property="FontWeight" Value="Bold"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+            <TabItem Header="Stock en Reserva (Bodega)" Style="{StaticResource InventoryTabItemStyle}">
+                <Border Background="White" CornerRadius="0,8,8,8" Margin="0,5,0,0">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                    </Border.Effect>
+                    <Grid Margin="10">
+                        <DataGrid x:Name="dgInventarioBodega" Style="{StaticResource InventoryDataGridStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Nombre de la Flor" Width="*" Binding="{Binding Nombre}"/>
+                                <DataGridTextColumn Header="Ubicación" Width="120" Binding="{Binding Categoria}"/>
+                                <DataGridTextColumn Header="Existencia Reserva" Width="150" Binding="{Binding StockActual}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Último Costo Compra" Width="140" Binding="{Binding PrecioCompra, StringFormat={}{0:C}}"/>
+                                <DataGridTextColumn Header="Stock Mínimo" Width="110" Binding="{Binding StockMinimo}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
 
-                        <DataGridTextColumn Header="Precio Venta" Width="120" Binding="{Binding PrecioVenta, StringFormat={}{0:C}}"/>
-
-                        <DataGridTemplateColumn Header="Estado Stock" Width="130">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Border x:Name="StatusBorder" CornerRadius="12" Padding="10,2" HorizontalAlignment="Center" Background="#E8F6F3">
-                                        <TextBlock x:Name="StatusText" Text="Disponible" Foreground="#27AE60" FontWeight="SemiBold" FontSize="11"/>
-                                    </Border>
-                                    <DataTemplate.Triggers>
-                                        <DataTrigger Binding="{Binding NecesitaSurtir}" Value="True">
-                                            <Setter TargetName="StatusBorder" Property="Background" Value="#FDEDEC"/>
-                                            <Setter TargetName="StatusText" Property="Text" Value="Reabastecer"/>
-                                            <Setter TargetName="StatusText" Property="Foreground" Value="#E74C3C"/>
-                                        </DataTrigger>
-                                    </DataTemplate.Triggers>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
-        </Border>
+        </TabControl>
     </Grid>
 </UserControl>

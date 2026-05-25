@@ -3,9 +3,19 @@ using PuntoFlower.Models;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Microsoft.Win32;
+
+// Alias de iTextSharp para control estricto de fuentes y elementos
+using iTextFont = iTextSharp.text.Font;
+using iTextParagraph = iTextSharp.text.Paragraph;
+using iTextDocument = iTextSharp.text.Document;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
 
 namespace PuntoFlower.Views
 {
@@ -23,63 +33,80 @@ namespace PuntoFlower.Views
 
         private void CargarDesdeSQL(string filtro = "")
         {
-            List<Producto> listaProductos = new List<Producto>();
+            List<Producto> listaVenta = new List<Producto>();
+            List<Producto> listaBodega = new List<Producto>();
             ConexionDB db = new ConexionDB();
 
             try
             {
                 using (SqlConnection conexion = db.OpenConnection())
                 {
-                    // Traemos todos los campos, incluyendo RutaImagen para el futuro catálogo
                     string query = "SELECT * FROM Productos";
                     if (!string.IsNullOrEmpty(filtro))
                         query += " WHERE Nombre LIKE @buscar OR Categoria LIKE @buscar";
 
-                    SqlCommand comando = new SqlCommand(query, conexion);
-                    if (!string.IsNullOrEmpty(filtro))
-                        comando.Parameters.AddWithValue("@buscar", "%" + filtro + "%");
-
-                    using (SqlDataReader reader = comando.ExecuteReader())
+                    using (SqlCommand comando = new SqlCommand(query, conexion))
                     {
-                        while (reader.Read())
+                        if (!string.IsNullOrEmpty(filtro))
+                            comando.Parameters.AddWithValue("@buscar", "%" + filtro + "%");
+
+                        using (SqlDataReader reader = comando.ExecuteReader())
                         {
-                            listaProductos.Add(new Producto
+                            while (reader.Read())
                             {
-                                Id = Convert.ToInt32(reader["Id"]),
-                                Nombre = reader["Nombre"].ToString(),
-                                Categoria = reader["Categoria"].ToString(),
-                                TipoVenta = reader["TipoVenta"].ToString(),
-                                StockActual = Convert.ToInt32(reader["StockActual"]),
-                                StockMinimo = Convert.ToInt32(reader["StockMinimo"]),
-                                PrecioCompra = Convert.ToDecimal(reader["PrecioCompra"]),
-                                PrecioVenta = Convert.ToDecimal(reader["PrecioVenta"]),
-                                // Cargamos la ruta de la imagen aunque no se vea en la tabla
-                                RutaImagen = reader["RutaImagen"] != DBNull.Value ? reader["RutaImagen"].ToString() : ""
-                            });
+                                Producto prod = new Producto
+                                {
+                                    Id = Convert.ToInt32(reader["Id"]),
+                                    Nombre = reader["Nombre"].ToString(),
+                                    Categoria = reader["Categoria"].ToString(),
+                                    TipoVenta = reader["TipoVenta"].ToString(),
+                                    StockActual = Convert.ToInt32(reader["StockActual"]),
+                                    StockMinimo = Convert.ToInt32(reader["StockMinimo"]),
+                                    PrecioCompra = Convert.ToDecimal(reader["PrecioCompra"]),
+                                    PrecioVenta = Convert.ToDecimal(reader["PrecioVenta"]),
+                                    RutaImagen = reader["RutaImagen"] != DBNull.Value ? reader["RutaImagen"].ToString() : ""
+                                };
+
+                                if (prod.Categoria == "Venta")
+                                    listaVenta.Add(prod);
+                                else if (prod.Categoria == "Bodega")
+                                    listaBodega.Add(prod);
+                            }
                         }
                     }
                 }
-                dgInventario.ItemsSource = null;
-                dgInventario.ItemsSource = listaProductos;
+
+                dgInventarioVenta.ItemsSource = null;
+                dgInventarioVenta.ItemsSource = listaVenta;
+
+                dgInventarioBodega.ItemsSource = null;
+                dgInventarioBodega.ItemsSource = listaBodega;
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al sincronizar inventario: " + ex.Message);
+                MessageBox.Show("Error al sincronizar las tablas de inventario segmentado: " + ex.Message, "Fallo de Enlace");
             }
         }
 
-        // Registro de Mermas (Pérdidas)
+        private Producto ObtenerProductoSeleccionado()
+        {
+            if (tcInventarios.SelectedIndex == 0)
+                return dgInventarioVenta.SelectedItem as Producto;
+            else
+                return dgInventarioBodega.SelectedItem as Producto;
+        }
+
         private void btnMerma_Click(object sender, RoutedEventArgs e)
         {
-            var seleccionado = dgInventario.SelectedItem as Producto;
+            var seleccionado = ObtenerProductoSeleccionado();
             if (seleccionado == null)
             {
-                MessageBox.Show("Por favor, selecciona una flor de la lista para registrar la merma.", "Atención");
+                MessageBox.Show("Por favor, selecciona una flor de la lista activa para registrar la merma.", "Atención");
                 return;
             }
 
             string cantidadStr = Microsoft.VisualBasic.Interaction.InputBox(
-                $"¿Cuántas unidades de '{seleccionado.Nombre}' se perdieron?", "Registro de Merma", "1");
+                $"¿Cuántas unidades de '{seleccionado.Nombre}' ({seleccionado.Categoria}) se perdieron?", "Registro de Merma", "1");
 
             if (string.IsNullOrEmpty(cantidadStr)) return;
 
@@ -87,7 +114,7 @@ namespace PuntoFlower.Views
             {
                 if (cantBaja > seleccionado.StockActual)
                 {
-                    MessageBox.Show("La cantidad de merma no puede superar el stock actual.", "Error");
+                    MessageBox.Show("La cantidad de merma no puede superar el stock actual de esta área.", "Error");
                     return;
                 }
 
@@ -107,7 +134,7 @@ namespace PuntoFlower.Views
 
                         string qInsert = "INSERT INTO Mermas (ProductoNombre, Cantidad, Motivo, Fecha) VALUES (@nom, @cant, @mot, GETDATE())";
                         SqlCommand cmdIn = new SqlCommand(qInsert, con);
-                        cmdIn.Parameters.AddWithValue("@nom", seleccionado.Nombre);
+                        cmdIn.Parameters.AddWithValue("@nom", $"{seleccionado.Nombre} ({seleccionado.Categoria})");
                         cmdIn.Parameters.AddWithValue("@cant", cantBaja);
                         cmdIn.Parameters.AddWithValue("@mot", motivo);
                         cmdIn.ExecuteNonQuery();
@@ -121,26 +148,25 @@ namespace PuntoFlower.Views
 
         private void btnSurtirStock_Click(object sender, RoutedEventArgs e)
         {
-            var seleccionado = dgInventario.SelectedItem as Producto;
+            var seleccionado = ObtenerProductoSeleccionado();
             if (seleccionado != null)
             {
-                // Abrir ventana de surtido enviando el nombre de la flor
                 PuntoFlower.Views.SurtirStockWindow ventanaSurtir = new PuntoFlower.Views.SurtirStockWindow(seleccionado.Nombre);
                 ventanaSurtir.Owner = Window.GetWindow(this);
                 if (ventanaSurtir.ShowDialog() == true) CargarDesdeSQL();
             }
             else
             {
-                MessageBox.Show("Selecciona una flor para registrar la entrada de mercancía.", "Atención");
+                MessageBox.Show("Selecciona una flor de cualquiera de las dos tablas para gestionar su traspaso interno.", "Atención");
             }
         }
 
         private void btnEliminar_Click(object sender, RoutedEventArgs e)
         {
-            var seleccionado = dgInventario.SelectedItem as Producto;
+            var seleccionado = ObtenerProductoSeleccionado();
             if (seleccionado == null) return;
 
-            var result = MessageBox.Show($"¿Deseas eliminar '{seleccionado.Nombre}' del catálogo permanentemente?", "Confirmar Eliminación", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            var result = MessageBox.Show($"¿Deseas eliminar '{seleccionado.Nombre}' ({seleccionado.Categoria}) del catálogo permanentemente?", "Confirmar Eliminación", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result == MessageBoxResult.Yes)
             {
                 ConexionDB db = new ConexionDB();
@@ -155,7 +181,7 @@ namespace PuntoFlower.Views
                     }
                     CargarDesdeSQL();
                 }
-                catch (Exception ex) { MessageBox.Show("No se puede eliminar porque tiene historial de ventas o compras vinculadas."); }
+                catch (Exception) { MessageBox.Show("No se puede eliminar porque tiene historial de movimientos vinculados."); }
             }
         }
 
@@ -168,6 +194,160 @@ namespace PuntoFlower.Views
             NuevoProductoWindow ventana = new NuevoProductoWindow();
             ventana.Owner = Window.GetWindow(this);
             if (ventana.ShowDialog() == true) CargarDesdeSQL();
+        }
+
+        // NUEVO MÉTODO: Compila de forma matemática el PDF Ejecutivo de Inventario General
+        private void btnReporte_Click(object sender, RoutedEventArgs e)
+        {
+            var itemsVenta = dgInventarioVenta.ItemsSource as List<Producto> ?? new List<Producto>();
+            var itemsBodega = dgInventarioBodega.ItemsSource as List<Producto> ?? new List<Producto>();
+
+            if (!itemsVenta.Any() && !itemsBodega.Any())
+            {
+                MessageBox.Show("No hay datos en el inventario actual para exportar un reporte.", "Aviso");
+                return;
+            }
+
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "PDF Files (*.pdf)|*.pdf";
+            sfd.FileName = $"Reporte_Inventario_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+
+            if (sfd.ShowDialog() == true)
+            {
+                try
+                {
+                    ConexionDB db = new ConexionDB();
+                    string sucursalNombre = db.ObtenerNombreSucursal();
+
+                    // Cálculos Financieros Globales para los KPIs superiores
+                    int totalVariedades = itemsVenta.Select(x => x.Nombre).Union(itemsBodega.Select(y => y.Nombre)).Distinct().Count();
+                    int piezasTotales = itemsVenta.Sum(x => x.StockActual) + itemsBodega.Sum(y => y.StockActual);
+                    decimal inversionBodega = itemsBodega.Sum(x => x.StockActual * x.PrecioCompra);
+                    decimal valorVitrina = itemsVenta.Sum(x => x.StockActual * x.PrecioVenta);
+
+                    iTextDocument doc = new iTextDocument(PageSize.A4, 25, 25, 30, 30);
+                    PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
+                    doc.Open();
+
+                    BaseFont bf = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
+                    iTextFont fTitulo = new iTextFont(bf, 14, iTextFont.BOLD, new BaseColor(44, 62, 80));
+                    iTextFont fSub = new iTextFont(bf, 11, iTextFont.BOLD, BaseColor.DARK_GRAY);
+                    iTextFont fCuerpo = new iTextFont(bf, 9);
+                    iTextFont fBold = new iTextFont(bf, 9, iTextFont.BOLD);
+                    iTextFont fTablaHead = new iTextFont(bf, 9, iTextFont.BOLD, BaseColor.WHITE);
+
+                    BaseColor azulMarino = new BaseColor(44, 62, 80);
+
+                    // Header Institucional
+                    doc.Add(new iTextParagraph("PUNTO FLOWER - AUDITORÍA DE INVENTARIO GENERAL", fTitulo));
+                    doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fBold));
+                    doc.Add(new iTextParagraph($"Fecha de Emisión: {DateTime.Now:g}", fCuerpo));
+                    doc.Add(new iTextParagraph($"Generado por: {Session.UsuarioActual}", fCuerpo));
+                    doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
+                    doc.Add(new iTextParagraph(" "));
+
+                    // 1. CUADRO DE RESUMEN ANALÍTICO (KPIs)
+                    doc.Add(new iTextParagraph("RESUMEN VALORATIVO FINANCIERO", fSub));
+                    doc.Add(new iTextParagraph(" "));
+
+                    PdfPTable tablaKPI = new PdfPTable(4);
+                    tablaKPI.WidthPercentage = 100;
+                    tablaKPI.SetWidths(new float[] { 25f, 25f, 25f, 25f });
+
+                    string[] kpiHeaders = { "Variedades Catálogo", "Piezas Totales", "Inversión Bodega", "Valor de Recuperación" };
+                    foreach (string kh in kpiHeaders)
+                    {
+                        tablaKPI.AddCell(new PdfPCell(new Phrase(kh, fTablaHead)) { BackgroundColor = azulMarino, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 5 });
+                    }
+
+                    tablaKPI.AddCell(new PdfPCell(new Phrase($"{totalVariedades} tipos", fBold)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 6 });
+                    tablaKPI.AddCell(new PdfPCell(new Phrase($"{piezasTotales} u.", fBold)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 6 });
+                    tablaKPI.AddCell(new PdfPCell(new Phrase(inversionBodega.ToString("C"), fBold)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = new BaseColor(234, 242, 248), Padding = 6 });
+                    tablaKPI.AddCell(new PdfPCell(new Phrase(valorVitrina.ToString("C"), fBold)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = new BaseColor(234, 250, 241), Padding = 6 });
+
+                    doc.Add(tablaKPI);
+                    doc.Add(new iTextParagraph(" "));
+                    doc.Add(new iTextParagraph(" "));
+
+                    // 2. TABLA SECRETA A: BALANCE EN MOSTRADOR (VENTA)
+                    doc.Add(new iTextParagraph("SECCIÓN A: MERCCANCÍA DISPONIBLE EN MOSTRADOR (VENTA)", fSub));
+                    doc.Add(new iTextParagraph(" "));
+
+                    PdfPTable tVenta = new PdfPTable(4);
+                    tVenta.WidthPercentage = 100;
+                    tVenta.SetWidths(new float[] { 45f, 15f, 20f, 20f });
+
+                    string[] vHeads = { "Nombre de la Flor", "Existencias", "Precio Sugerido", "Total Vitrina" };
+                    foreach (string vh in vHeads) tVenta.AddCell(new PdfPCell(new Phrase(vh, fTablaHead)) { BackgroundColor = azulMarino, Padding = 5 });
+
+                    foreach (var p in itemsVenta)
+                    {
+                        tVenta.AddCell(new PdfPCell(new Phrase(p.Nombre, fCuerpo)) { Padding = 4 });
+                        tVenta.AddCell(new PdfPCell(new Phrase(p.StockActual.ToString(), fBold)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 });
+                        tVenta.AddCell(new PdfPCell(new Phrase(p.PrecioVenta.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
+                        tVenta.AddCell(new PdfPCell(new Phrase((p.StockActual * p.PrecioVenta).ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
+                    }
+                    doc.Add(tVenta);
+                    doc.Add(new iTextParagraph(" "));
+                    doc.Add(new iTextParagraph(" "));
+
+                    // 3. TABLA SECRETA B: BALANCE EN RESERVA (BODEGA)
+                    doc.Add(new iTextParagraph("SECCIÓN B: RESERVA EN CÁMARA FRÍA (BODEGA)", fSub));
+                    doc.Add(new iTextParagraph(" "));
+
+                    PdfPTable tBodega = new PdfPTable(4);
+                    tBodega.WidthPercentage = 100;
+                    tBodega.SetWidths(new float[] { 45f, 15f, 20f, 20f });
+
+                    string[] bHeads = { "Nombre de la Flor", "Existencias", "Último Costo Unitario", "Capital Congelado" };
+                    foreach (string bh in bHeads) tBodega.AddCell(new PdfPCell(new Phrase(bh, fTablaHead)) { BackgroundColor = azulMarino, Padding = 5 });
+
+                    foreach (var p in itemsBodega)
+                    {
+                        tBodega.AddCell(new PdfPCell(new Phrase(p.Nombre, fCuerpo)) { Padding = 4 });
+                        tBodega.AddCell(new PdfPCell(new Phrase(p.StockActual.ToString(), fBold)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 });
+                        tBodega.AddCell(new PdfPCell(new Phrase(p.PrecioCompra.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
+                        tBodega.AddCell(new PdfPCell(new Phrase((p.StockActual * p.PrecioCompra).ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
+                    }
+                    doc.Add(tBodega);
+                    doc.Add(new iTextParagraph(" "));
+                    doc.Add(new iTextParagraph(" "));
+
+                    // 4. SECCIÓN C: REPORTE DE HISTORIAL DE MERMAS REGISTRADAS
+                    doc.Add(new iTextParagraph("SECCIÓN C: HISTORIAL DE MERMAS Y PÉRDIDAS DETECTADAS", fSub));
+                    doc.Add(new iTextParagraph(" "));
+
+                    PdfPTable tMermas = new PdfPTable(4);
+                    tMermas.WidthPercentage = 100;
+                    tMermas.SetWidths(new float[] { 40f, 15f, 25f, 20f });
+
+                    string[] mHeads = { "Producto afectado", "Cantidad", "Motivo de la Pérdida", "Fecha Registro" };
+                    foreach (string mh in mHeads) tMermas.AddCell(new PdfPCell(new Phrase(mh, fTablaHead)) { BackgroundColor = new BaseColor(146, 43, 33), Padding = 5 });
+
+                    using (SqlConnection con = db.OpenConnection())
+                    {
+                        SqlCommand cmdM = new SqlCommand("SELECT TOP 15 ProductoNombre, Cantidad, Motivo, Fecha FROM Mermas ORDER BY Fecha DESC", con);
+                        using (SqlDataReader rm = cmdM.ExecuteReader())
+                        {
+                            while (rm.Read())
+                            {
+                                tMermas.AddCell(new PdfPCell(new Phrase(rm["ProductoNombre"].ToString(), fCuerpo)) { Padding = 4 });
+                                tMermas.AddCell(new PdfPCell(new Phrase(rm["Cantidad"].ToString(), fBold)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 });
+                                tMermas.AddCell(new PdfPCell(new Phrase(rm["Motivo"].ToString(), fCuerpo)) { Padding = 4 });
+                                tMermas.AddCell(new PdfPCell(new Phrase(Convert.ToDateTime(rm["Fecha"]).ToString("d"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 });
+                            }
+                        }
+                    }
+                    doc.Add(tMermas);
+
+                    doc.Close();
+                    MessageBox.Show("Reporte integral de inventario exportado a PDF con éxito.", "Auditoría Concluida", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al estructurar el reporte PDF: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
     }
 }

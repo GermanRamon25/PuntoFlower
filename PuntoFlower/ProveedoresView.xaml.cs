@@ -51,9 +51,9 @@ namespace PuntoFlower.Views
 
         private void btnGuardar_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(txtNombre.Text))
+            if (string.IsNullOrWhiteSpace(txtNombre.Text))
             {
-                MessageBox.Show("El nombre del proveedor es obligatorio.");
+                MessageBox.Show("El nombre del proveedor es obligatorio.", "Datos Faltantes");
                 return;
             }
 
@@ -64,26 +64,26 @@ namespace PuntoFlower.Views
                 {
                     string query = "INSERT INTO Proveedores (Nombre, Telefono, Direccion, Categoria) VALUES (@nom, @tel, @dir, @cat)";
                     SqlCommand cmd = new SqlCommand(query, con);
-                    cmd.Parameters.AddWithValue("@nom", txtNombre.Text);
-                    cmd.Parameters.AddWithValue("@tel", txtTelefono.Text);
-                    cmd.Parameters.AddWithValue("@dir", txtDireccion.Text);
-                    cmd.Parameters.AddWithValue("@cat", (cbCategoria.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Varios");
+                    cmd.Parameters.AddWithValue("@nom", txtNombre.Text.Trim());
+                    cmd.Parameters.AddWithValue("@tel", txtTelefono.Text.Trim());
+                    cmd.Parameters.AddWithValue("@dir", txtDireccion.Text.Trim());
+                    cmd.Parameters.AddWithValue("@cat", (cbCategoria.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Flores Frescas");
 
                     cmd.ExecuteNonQuery();
-                    MessageBox.Show("Proveedor guardado con éxito.");
+                    MessageBox.Show("Proveedor guardado con éxito.", "Guardado Correcto");
 
-                    // Limpiar campos
-                    txtNombre.Clear(); txtTelefono.Clear(); txtDireccion.Clear();
+                    txtNombre.Clear();
+                    txtTelefono.Clear();
+                    txtDireccion.Clear();
                     CargarProveedores();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al guardar: " + ex.Message);
+                MessageBox.Show("Error al guardar: " + ex.Message, "Error");
             }
         }
 
-        // CAMBIO APLICADO AQUÍ: Conexión con la ventana de registro de compras
         private void btnNuevaCompra_Click(object sender, RoutedEventArgs e)
         {
             var seleccionado = dgProveedores.SelectedItem;
@@ -96,24 +96,21 @@ namespace PuntoFlower.Views
 
             try
             {
-                // Usamos 'dynamic' para acceder a las propiedades del objeto anónimo de la lista
                 dynamic prov = seleccionado;
                 int id = prov.Id;
                 string nombre = prov.Nombre;
 
-                // Abrimos la ventana de registro de compras pasándole el ID y Nombre
                 RegistrarCompraWindow ventana = new RegistrarCompraWindow(id, nombre);
-                ventana.Owner = Window.GetWindow(this); // Se centra sobre el programa
+                ventana.Owner = Window.GetWindow(this);
 
                 if (ventana.ShowDialog() == true)
                 {
-                    // Si el surtido fue exitoso, aquí podrías refrescar alguna lista si fuera necesario
-                    // Por ahora, solo confirmamos que se cerró tras guardar.
+                    // Lógica tras cerrar ventana
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al abrir la ventana de compras: " + ex.Message);
+                MessageBox.Show("Error al abrir la ventana de compras: " + ex.Message, "Error");
             }
         }
     }
