@@ -133,6 +133,7 @@ namespace PuntoFlower.Views
             }
         }
 
+        // MODIFICADO: Ahora solo filtra los productos cuya categoría sea estrictamente 'Venta' (Mostrador)
         private void CargarInsumos()
         {
             List<Producto> lista = new List<Producto>();
@@ -141,7 +142,9 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    SqlCommand cmd = new SqlCommand("SELECT Nombre, PrecioVenta, RutaImagen FROM Productos WHERE StockActual > 0", con);
+                    // CORRECCIÓN DE FILTRO: Se añadió AND Categoria = 'Venta' para excluir las existencias de bodega
+                    string query = "SELECT Nombre, PrecioVenta, RutaImagen FROM Productos WHERE StockActual > 0 AND Categoria = 'Venta'";
+                    SqlCommand cmd = new SqlCommand(query, con);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read()) lista.Add(new Producto
@@ -330,7 +333,6 @@ namespace PuntoFlower.Views
             var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
             string metodoPago = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
 
-            // CORREGIDO: Se ajustó la extracción del texto para que lea directamente el valor de la cadena
             object cuentaDestino = DBNull.Value;
             if (metodoPago == "Transferencia" && cbCuentaDestino != null)
             {
@@ -373,9 +375,10 @@ namespace PuntoFlower.Views
 
                                 foreach (var insumo in item.InsumosADescontar)
                                 {
-                                    using (SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom", con, tra))
+                                    // RECOMENDACIÓN: Al descontar stock, filtramos por 'Venta' para que afecte el mostrador directamente
+                                    using (SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom AND Categoria = 'Venta'", con, tra))
                                     {
-                                        cmdS.Parameters.AddWithValue("@c", insumo.Cantidad);
+                                        cmdS.Parameters.AddWithValue("@c", insumo.Quantity ?? insumo.Cantidad);
                                         cmdS.Parameters.AddWithValue("@nom", insumo.Nombre);
                                         cmdS.ExecuteNonQuery();
                                     }
@@ -507,6 +510,8 @@ namespace PuntoFlower.Views
             CalcularCambioMatematico();
         }
 
+        private void RimujarConfiguradorRamo() => LimpiarConfiguradorRamo();
+
         private void LimpiarConfiguradorRamo()
         {
             composicionRamoActual.Clear(); floresAgregadas = 0; capacityRamo = 0;
@@ -536,6 +541,6 @@ namespace PuntoFlower.Views
         }
 
         public class ItemTicket { public string ProductoNombre { get; set; } public decimal Total { get; set; } public string DetalleVisual { get; set; } public List<DetalleInsumo> InsumosADescontar { get; set; } }
-        public class DetalleInsumo { public string Nombre { get; set; } public int Cantidad { get; set; } }
+        public class DetalleInsumo { public string Nombre { get; set; } public int? Quantity { get; set; } public int Cantidad { get; set; } }
     }
 }
