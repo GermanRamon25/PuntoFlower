@@ -218,6 +218,7 @@
                                 <ComboBoxItem Content="Efectivo"/>
                                 <ComboBoxItem Content="Tarjeta"/>
                                 <ComboBoxItem Content="Transferencia"/>
+                                <ComboBoxItem Content="Liquidación de Pedido"/>
                             </ComboBox>
                         </StackPanel>
 
@@ -230,6 +231,11 @@
                     <StackPanel x:Name="panelCuentaTransferencia" Margin="0,0,0,8" Visibility="Collapsed">
                         <TextBlock Text="Cuenta de Destino (Transferencia)" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
                         <ComboBox x:Name="cbCuentaDestino" Height="32" SelectedIndex="0" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="panelNumeroReferencia" Margin="0,0,0,8" Visibility="Collapsed">
+                        <TextBlock Text="Número de Depósito / Referencia" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                        <TextBox x:Name="txtNumeroReferencia" Height="32" VerticalContentAlignment="Center" FontSize="14" HorizontalContentAlignment="Left" Padding="5,0,0,0"/>
                     </StackPanel>
 
                     <TextBlock x:Name="txtTotal" Text="Total: $0.00" FontSize="30" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Right"/>

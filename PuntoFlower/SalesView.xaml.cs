@@ -47,6 +47,9 @@ namespace PuntoFlower.Views
         private decimal ticketDescuentoDinero = 0;
         private float ticketPorcentajeAplicado = 0;
 
+        // Variable para retener el número de referencia en el hilo de impresión física
+        private string ticketReferencia = "";
+
         public SalesView()
         {
             InitializeComponent();
@@ -251,18 +254,22 @@ namespace PuntoFlower.Views
             ActualizarTotal();
         }
 
+        // MODIFICADO: Agrega soporte para resetear campos extras si se selecciona el nuevo método
         private void cbMetodoPago_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (panelCuentaTransferencia == null) return;
+            if (panelCuentaTransferencia == null || panelNumeroReferencia == null) return;
 
             var item = cbMetodoPago.SelectedItem as ComboBoxItem;
             if (item != null && item.Content.ToString() == "Transferencia")
             {
                 panelCuentaTransferencia.Visibility = Visibility.Visible;
+                panelNumeroReferencia.Visibility = Visibility.Visible;
             }
             else
             {
                 panelCuentaTransferencia.Visibility = Visibility.Collapsed;
+                panelNumeroReferencia.Visibility = Visibility.Collapsed;
+                if (txtNumeroReferencia != null) txtNumeroReferencia.Clear();
             }
             CalcularCambioMatematico();
         }
@@ -316,6 +323,8 @@ namespace PuntoFlower.Views
             }
         }
 
+        // MODIFICADO: Soporta de manera nativa la inserción contable de 'Liquidación de Pedido' 
+        // descontando flores pero dándole un estatus rastreable para el arqueo final.
         private void btnConfirmarVenta_Click(object sender, RoutedEventArgs e)
         {
             decimal subtotalBase = ProductosEnTicket.Sum(x => x.Total);
@@ -334,11 +343,18 @@ namespace PuntoFlower.Views
             string metodoPago = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
 
             object cuentaDestino = DBNull.Value;
-            if (metodoPago == "Transferencia" && cbCuentaDestino != null)
+            object numeroRefValor = DBNull.Value;
+
+            if (metodoPago == "Transferencia")
             {
-                if (cbCuentaDestino.SelectedItem != null)
+                if (cbCuentaDestino != null && cbCuentaDestino.SelectedItem != null)
                 {
                     cuentaDestino = cbCuentaDestino.SelectedItem.ToString();
+                }
+
+                if (txtNumeroReferencia != null && !string.IsNullOrWhiteSpace(txtNumeroReferencia.Text))
+                {
+                    numeroRefValor = txtNumeroReferencia.Text.Trim();
                 }
             }
 
@@ -358,8 +374,8 @@ namespace PuntoFlower.Views
                         {
                             foreach (var item in ProductosEnTicket)
                             {
-                                string q = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado) 
-                                           VALUES (GETDATE(), @n, @t, 1, @metodo, @rec, @cam, @cuenta, @desc)";
+                                string q = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia) 
+                                           VALUES (GETDATE(), @n, @t, 1, @metodo, @rec, @cam, @cuenta, @desc, @numRef)";
 
                                 using (SqlCommand cmdV = new SqlCommand(q, con, tra))
                                 {
@@ -370,12 +386,13 @@ namespace PuntoFlower.Views
                                     cmdV.Parameters.AddWithValue("@cam", cambioFinal);
                                     cmdV.Parameters.AddWithValue("@cuenta", cuentaDestino);
                                     cmdV.Parameters.AddWithValue("@desc", totalDineroDescontado / ProductosEnTicket.Count);
+                                    cmdV.Parameters.AddWithValue("@numRef", numeroRefValor);
                                     cmdV.ExecuteNonQuery();
                                 }
 
+                                // DESCUENTO FÍSICO AUTOMÁTICO DE FLORES EN MOSTRADOR (Aplica para cualquier método de pago seleccionado, incluyendo Liquidación)
                                 foreach (var insumo in item.InsumosADescontar)
                                 {
-                                    // RECOMENDACIÓN: Al descontar stock, filtramos por 'Venta' para que afecte el mostrador directamente
                                     using (SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom AND Categoria = 'Venta'", con, tra))
                                     {
                                         cmdS.Parameters.AddWithValue("@c", insumo.Quantity ?? insumo.Cantidad);
@@ -393,17 +410,20 @@ namespace PuntoFlower.Views
                             ticketCambio = cambioFinal;
                             ticketDescuentoDinero = totalDineroDescontado;
                             ticketPorcentajeAplicado = porcText;
+                            ticketReferencia = numeroRefValor != DBNull.Value ? numeroRefValor.ToString() : "";
 
-                            MessageBoxResult result = MessageBox.Show("Venta registrada con éxito.\n\n¿Deseas imprimir el ticket en la máquina física?", "Venta Exitosa", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                            MessageBoxResult result = MessageBox.Show("Cobro e inventario procesados con éxito.\n\n¿Deseas imprimir el ticket en la máquina física?", "Operación Exitosa", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                             if (result == MessageBoxResult.Yes)
                             {
                                 ImprimirTicketTermico();
                             }
 
+                            // Limpieza y reseteo de la UI
                             ProductosEnTicket.Clear();
                             txtPagoCon.Clear();
                             txtDescuento.Text = "0";
+                            if (txtNumeroReferencia != null) txtNumeroReferencia.Clear();
                             cbMetodoPago.SelectedIndex = 0;
                             txtCambio.Text = "$0.00";
                             ActualizarTotal();
@@ -467,8 +487,19 @@ namespace PuntoFlower.Views
 
             var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
             string metodo = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
-            g.DrawString($"Método Pago: {metodo}", fontNormal, brush, 5, y);
-            y += 15;
+
+            if (metodo == "Transferencia" && !string.IsNullOrEmpty(ticketReferencia))
+            {
+                g.DrawString($"Método Pago: {metodo}", fontNormal, brush, 5, y);
+                y += 15;
+                g.DrawString($"Ref/Dep: {ticketReferencia}", fontBold, brush, 5, y);
+                y += 15;
+            }
+            else
+            {
+                g.DrawString($"Método Pago: {metodo}", fontNormal, brush, 5, y);
+                y += 15;
+            }
 
             g.DrawString("==================================", fontNormal, brush, 5, y);
             y += 15;

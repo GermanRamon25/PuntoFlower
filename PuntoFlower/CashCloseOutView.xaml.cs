@@ -60,7 +60,8 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = @"SELECT Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, CuentaTransferencia, DescuentoAplicado 
+                    // MODIFICADO: Seleccionamos la columna NumeroReferencia de la BD
+                    string query = @"SELECT Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, CuentaTransferencia, DescuentoAplicado, NumeroReferencia 
                                    FROM Ventas 
                                    WHERE CAST(Fecha AS DATE) = CAST(GETDATE() AS DATE)";
 
@@ -77,6 +78,9 @@ namespace PuntoFlower.Views
                             string cuenta = r["CuentaTransferencia"] != DBNull.Value ? r["CuentaTransferencia"].ToString() : "";
                             decimal desc = r["DescuentoAplicado"] != DBNull.Value ? Convert.ToDecimal(r["DescuentoAplicado"]) : 0;
 
+                            // Extrae la referencia del depósito de la fila actual
+                            string referencia = r["NumeroReferencia"] != DBNull.Value ? r["NumeroReferencia"].ToString() : "";
+
                             sumaRecibido += recibido;
                             sumaCambio += cambio;
                             acumuladoDescuentos += desc;
@@ -91,7 +95,6 @@ namespace PuntoFlower.Views
                             }
                             else if (metodo == "Transferencia")
                             {
-                                // MODIFICACIÓN CRÍTICA: Se comparan las ventas usando las variables dinámicas de los nombres guardados
                                 if (cuenta == nombreEncargado1 || cuenta == "Cuenta Encargado 1")
                                     acumuladoTransfCuenta1 += totalVenta;
                                 else if (cuenta == nombreEncargado2 || cuenta == "Cuenta Encargado 2")
@@ -108,6 +111,7 @@ namespace PuntoFlower.Views
                                 MontoRecibido = recibido,
                                 MontoCambio = cambio,
                                 MetodoPago = metodo + (string.IsNullOrEmpty(cuenta) ? "" : $" ({cuenta})"),
+                                NumeroReferencia = string.IsNullOrEmpty(referencia) ? "—" : referencia, // Si está vacío pone una raya limpia
                                 Descuento = desc
                             });
                         }
@@ -171,7 +175,7 @@ namespace PuntoFlower.Views
                     tablaEstructuraHorizontal.WidthPercentage = 100;
                     tablaEstructuraHorizontal.SetWidths(new float[] { 46f, 54f });
 
-                    // --- CELDA IZQUIERDA: RESUMEN DE EFECTIVO GENERAL (Colores unificados) ---
+                    // --- CELDA IZQUIERDA: RESUMEN DE EFECTIVO GENERAL ---
                     PdfPTable tablaResumen = new PdfPTable(1);
                     tablaResumen.WidthPercentage = 100;
 
@@ -185,7 +189,7 @@ namespace PuntoFlower.Views
                     PdfPCell celdaIzquierda = new PdfPCell(tablaResumen) { Border = PdfPCell.NO_BORDER, PaddingRight = 15 };
                     tablaEstructuraHorizontal.AddCell(celdaIzquierda);
 
-                    // --- CELDA DERECHA: DESGLOSE POR METODOS DE PAGO Y AUDITORÍA ---
+                    // --- CELDA DERECHA: DESGLOSE POR METODOS DE PAGO ---
                     PdfPTable tablaMetodos = new PdfPTable(2);
                     tablaMetodos.WidthPercentage = 100;
                     tablaMetodos.SetWidths(new float[] { 60f, 40f });
@@ -199,7 +203,6 @@ namespace PuntoFlower.Views
                     tablaMetodos.AddCell(new PdfPCell(new Phrase("Terminal Bancaria (Tarjeta)", fCuerpo)) { Padding = 3 });
                     tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoTarjeta.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
 
-                    // MODIFICACIÓN DINÁMICA: Se inyectan los nombres reales leídos de la BD en las filas del reporte
                     tablaMetodos.AddCell(new PdfPCell(new Phrase($"Transferencias - {nombreEncargado1}", fCuerpo)) { Padding = 3 });
                     tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoTransfCuenta1.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
 
@@ -222,11 +225,13 @@ namespace PuntoFlower.Views
                     doc.Add(new iTextParagraph("DETALLE DE TRANSACCIONES DEL TURNO", fSub));
                     doc.Add(new iTextParagraph(" "));
 
-                    PdfPTable tablaVentas = new PdfPTable(6);
+                    // MODIFICADO: Incrementada la tabla de 6 a 7 columnas para alojar el "Ref/Depósito" con armonía
+                    PdfPTable tablaVentas = new PdfPTable(7);
                     tablaVentas.WidthPercentage = 100;
-                    tablaVentas.SetWidths(new float[] { 12f, 35f, 15f, 15f, 13f, 10f });
+                    tablaVentas.SetWidths(new float[] { 12f, 26f, 15f, 15f, 12f, 10f, 10f });
 
-                    string[] headers = { "Hora", "Producto", "Método Pago", "Importe", "Descuento", "Cambio" };
+                    // Array de cabeceras modificado
+                    string[] headers = { "Hora", "Producto", "Método Pago", "Ref/Depósito", "Importe", "Descuento", "Cambio" };
                     foreach (string h in headers)
                     {
                         PdfPCell cell = new PdfPCell(new Phrase(h, fTablaHead)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = azulMarino, Padding = 5 };
@@ -238,6 +243,10 @@ namespace PuntoFlower.Views
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.Fecha.ToString("t"), fCuerpo)) { Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.ProductoNombre, fCuerpo)) { Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.MetodoPago, fCuerpo)) { Padding = 4 });
+
+                        // NUEVA CELDA: Inyecta el número de referencia capturado de forma manual
+                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.NumeroReferencia, fCuerpo)) { Padding = 4, HorizontalAlignment = Element.ALIGN_CENTER });
+
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.Total.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.Descuento.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.MontoCambio.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });

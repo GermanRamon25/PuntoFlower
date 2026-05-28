@@ -60,11 +60,13 @@
                           HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                           Background="Transparent" BorderThickness="0">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Hora" Binding="{Binding Fecha, StringFormat=t}" Width="100"/>
+                        <DataGridTextColumn Header="Hora" Binding="{Binding Fecha, StringFormat=t}" Width="90"/>
                         <DataGridTextColumn Header="Producto/Servicio" Binding="{Binding ProductoNombre}" Width="*"/>
-                        <DataGridTextColumn Header="Total Venta" Binding="{Binding Total, StringFormat={}{0:C}}" Width="120"/>
-                        <DataGridTextColumn Header="Cliente Pagó" Binding="{Binding MontoRecibido, StringFormat={}{0:C}}" Width="120"/>
-                        <DataGridTextColumn Header="Cambio Dado" Binding="{Binding MontoCambio, StringFormat={}{0:C}}" Width="120"/>
+                        <DataGridTextColumn Header="Método Pago" Binding="{Binding MetodoPago}" Width="150"/>
+                        <DataGridTextColumn Header="Ref/Depósito" Binding="{Binding NumeroReferencia}" Width="120"/>
+                        <DataGridTextColumn Header="Importe" Binding="{Binding Total, StringFormat={}{0:C}}" Width="100"/>
+                        <DataGridTextColumn Header="Descuento" Binding="{Binding Descuento, StringFormat={}{0:C}}" Width="100"/>
+                        <DataGridTextColumn Header="Cambio" Binding="{Binding MontoCambio, StringFormat={}{0:C}}" Width="90"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </DockPanel>

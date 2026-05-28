@@ -48,15 +48,20 @@ namespace PuntoFlower.Views
             DateTime fechaRegistro = DateTime.Now;
 
             decimal saldoPendiente = total - anticipo;
+
+            // Obtener el método de pago del anticipo de forma segura
+            var itemMetodo = cbMetodoAnticipo.SelectedItem as ComboBoxItem;
+            string metodoAnticipo = itemMetodo != null ? itemMetodo.Content.ToString() : "Efectivo";
+
             ConexionDB db = new ConexionDB();
 
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Consulta actualizada incluyendo el nuevo campo FechaRegistro
-                    string query = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente) 
-                                   VALUES (@nom, @tel, @fec, @fecReg, @dir, @not, 'Pendiente', @des, @total, @ant, @saldo)";
+                    // MODIFICADO: Se inyecta @metodo (MetodoPago) para controlar la entrada financiera del anticipo
+                    string query = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago) 
+                                   VALUES (@nom, @tel, @fec, @fecReg, @dir, @not, 'Pendiente', @des, @total, @ant, @saldo, @metodo)";
 
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@nom", txtCliente.Text);
@@ -69,6 +74,7 @@ namespace PuntoFlower.Views
                     cmd.Parameters.AddWithValue("@total", total);
                     cmd.Parameters.AddWithValue("@ant", anticipo);
                     cmd.Parameters.AddWithValue("@saldo", saldoPendiente);
+                    cmd.Parameters.AddWithValue("@metodo", metodoAnticipo); // Almacena el método inicial
 
                     cmd.ExecuteNonQuery();
 
