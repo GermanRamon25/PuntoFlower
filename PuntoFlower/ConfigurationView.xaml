@@ -205,6 +205,29 @@
                         </Grid>
                     </TabItem>
 
+                    <TabItem Header="Seguridad y Acceso" Style="{StaticResource SubTabItemStyle}">
+                        <Grid Margin="15">
+                            <StackPanel HorizontalAlignment="Left" Width="450">
+                                <TextBlock Text="🔒 Modificar Credenciales Administrativas" FontSize="18" FontWeight="Bold" Foreground="#CF8282" Margin="0,5,0,5"/>
+                                <TextBlock Text="Administra de forma segura el identificador de acceso y clave de este mostrador." Foreground="#7F8C8D" FontStyle="Italic" Margin="0,0,0,25"/>
+
+                                <Border Background="#F8F9FA" Padding="30,40" CornerRadius="12" BorderThickness="1" BorderBrush="#E5E7E9">
+                                    <StackPanel HorizontalAlignment="Center" Width="350">
+                                        <TextBlock Text="Para modificar el nombre del usuario administrador junto con la contraseña, abre el panel seguro flotante." TextWrapping="Wrap" Foreground="#5D6D7E" FontSize="13" Margin="0,0,0,25" TextAlignment="Center"/>
+
+                                        <Button Content="⚙️ ABRIR PANEL DE SEGURIDAD" Click="btnAbrirPanelSeguridad_Click" Height="48" Background="#27AE60" Foreground="White" FontWeight="Bold" Cursor="Hand">
+                                            <Button.Resources>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="CornerRadius" Value="6"/>
+                                                </Style>
+                                            </Button.Resources>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </TabItem>
+
                 </TabControl>
             </Border>
         </StackPanel>

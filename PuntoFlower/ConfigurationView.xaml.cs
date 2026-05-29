@@ -22,15 +22,12 @@ namespace PuntoFlower.Views
             CargarUsuariosPendientes();
         }
 
-        // Carga el nombre guardado de la sucursal local y los encargados al abrir la pestaña
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
                 ConexionDB db = new ConexionDB();
                 txtNombreSucursalInput.Text = db.ObtenerNombreSucursal();
-
-                // Rellenar los inputs con los nombres guardados en la tabla de configuración
                 txtEncargado1Input.Text = db.ObtenerEncargadoCuenta1();
                 txtEncargado2Input.Text = db.ObtenerEncargadoCuenta2();
             }
@@ -40,7 +37,21 @@ namespace PuntoFlower.Views
             }
         }
 
-        // Ejecuta el guardado masivo transaccional en la tabla ConfiguracionSistema
+        // ENLACE DIRECTO: Abre la ventana modal flotante
+        private void btnAbrirPanelSeguridad_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                CambiarPasswordWindow ventanaSeguridad = new CambiarPasswordWindow();
+                ventanaSeguridad.Owner = Window.GetWindow(this);
+                ventanaSeguridad.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudo desplegar el panel de seguridad local: " + ex.Message, "Error de Sistema", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void btnGuardarSucursal_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtNombreSucursalInput.Text))
@@ -58,8 +69,6 @@ namespace PuntoFlower.Views
             try
             {
                 ConexionDB db = new ConexionDB();
-
-                // Guardado masivo parametrizado contra inyecciones SQL
                 db.GuardarDatosSucursal(
                     txtNombreSucursalInput.Text.Trim(),
                     txtEncargado1Input.Text.Trim(),
@@ -68,7 +77,6 @@ namespace PuntoFlower.Views
 
                 MessageBox.Show("Identidad de la sucursal y cuentas de encargados guardadas con éxito.", "Configuración Guardada", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                // Actualizamos el título de la MainWindow al instante sin reiniciar
                 Window parentWindow = Window.GetWindow(this);
                 if (parentWindow is MainWindow main)
                 {
@@ -81,7 +89,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // --- GESTIÓN DE USUARIOS ---
         private void CargarUsuariosPendientes()
         {
             ConexionDB db = new ConexionDB();
@@ -106,7 +113,6 @@ namespace PuntoFlower.Views
             if (row == null) return;
 
             string usuario = row["Username"].ToString();
-
             ConexionDB db = new ConexionDB();
             try
             {
@@ -123,7 +129,6 @@ namespace PuntoFlower.Views
             catch (Exception ex) { MessageBox.Show("Error al activar: " + ex.Message); }
         }
 
-        // --- LÓGICA DE RAMOS ---
         private void CargarPreciosActuales()
         {
             ConexionDB db = new ConexionDB();
@@ -191,7 +196,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // --- LÓGICA DE FLORES ---
         private void CargarTablaFlores()
         {
             ConexionDB db = new ConexionDB();
@@ -219,7 +223,6 @@ namespace PuntoFlower.Views
             florSeleccionada = dgPreciosFlores.SelectedItem as FlorPrecio;
             if (florSeleccionada != null)
             {
-                // CORREGIDO: Se eliminó la variable intrusa 'fontBold' que causaba el fallo de compilación
                 txtEditNombre.Text = florSeleccionada.Nombre;
                 txtEditCosto.Text = florSeleccionada.PrecioCompra.ToString("N2");
                 txtEditVenta.Text = florSeleccionada.PrecioVenta.ToString("N2");
@@ -263,7 +266,7 @@ namespace PuntoFlower.Views
         }
     }
 
-    // CORREGIDO: Se reincorporó la estructura de soporte para evitar los errores de compilación
+    // CLASE RESTAURADA: Esto corregirá los 6 errores de compilación de inmediato
     public class FlorPrecio
     {
         public int Id { get; set; }

@@ -50,7 +50,6 @@
                     <TextBlock Text="PuntoFlower" Foreground="White" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <!-- Menú de Navegación -->
                 <Button x:Name="btnDashboard" Style="{StaticResource MenuButtonStyle}" Click="btnDashboard_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
@@ -114,9 +113,9 @@
                     </StackPanel>
                 </Button>
 
-                <Separator Background="White" Margin="20,30,20,10" Opacity="0.3"/>
+                <Separator Background="White" Margin="20,20,20,10" Opacity="0.3"/>
 
-                <Button Style="{StaticResource MenuButtonStyle}" Click="btnCerrarSesion_Click" Background="#A93226" Margin="0,10">
+                <Button Style="{StaticResource MenuButtonStyle}" Click="btnCerrarSesion_Click" Background="#A93226" Margin="0,5">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
                         <TextBlock Text="Cerrar Sesión" VerticalAlignment="Center" FontSize="14"/>

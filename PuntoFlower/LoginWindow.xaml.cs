@@ -45,7 +45,7 @@ namespace PuntoFlower
             btnShowPassword.Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)); // Vuelve a gris obscuro
         }
 
-        // --- LÓGICA DE ACCESO CON AUDITADO LOCAL ---
+        // --- LÓGICA DE ACCESO EN TEXTO PLANO ORIGINAL (CON SOPORTE DE MINÚSCULAS AUTOMÁTICO) ---
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(txtUsername.Text) || string.IsNullOrEmpty(txtPassword.Password))
@@ -54,16 +54,20 @@ namespace PuntoFlower
                 return;
             }
 
+            // CORRECCIÓN DE BLINDAJE: .ToLower() convierte "Admin" a "admin" automáticamente antes de ir a la BD
+            string usuarioFormateado = txtUsername.Text.Trim().ToLower();
+            string passwordIngresada = txtPassword.Password.Trim();
+
             ConexionDB db = new ConexionDB();
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Consultamos el Rol y el Estado de activación en la base de datos local
+                    // Consultamos usando la contraseña en texto plano, tal cual la tienes en tu BD
                     string query = "SELECT Estado, Rol FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
                     SqlCommand cmd = new SqlCommand(query, con);
-                    cmd.Parameters.AddWithValue("@u", txtUsername.Text);
-                    cmd.Parameters.AddWithValue("@p", txtPassword.Password);
+                    cmd.Parameters.AddWithValue("@u", usuarioFormateado);
+                    cmd.Parameters.AddWithValue("@p", passwordIngresada);
 
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
@@ -74,18 +78,18 @@ namespace PuntoFlower
 
                             if (estado == "Activo")
                             {
-                                // Cerramos el reader para liberar la conexión activa de SQL Server y permitir el UPDATE
                                 reader.Close();
 
-                                // AUDITORÍA LOCAL AUTOMÁTICA: Guardamos marca de tiempo de entrada
+                                // Auditoría de acceso (También con el usuario formateado en minúsculas)
                                 string queryAuditoria = "UPDATE Usuarios SET UltimoAcceso = GETDATE() WHERE Username = @u";
                                 using (SqlCommand cmdAudit = new SqlCommand(queryAuditoria, con))
                                 {
-                                    cmdAudit.Parameters.AddWithValue("@u", txtUsername.Text);
+                                    cmdAudit.Parameters.AddWithValue("@u", usuarioFormateado);
                                     cmdAudit.ExecuteNonQuery();
                                 }
 
-                                Session.UsuarioActual = txtUsername.Text;
+                                // Guardamos los datos limpios en la sesión global
+                                Session.UsuarioActual = usuarioFormateado;
                                 Session.RolActual = rol;
 
                                 MainWindow main = new MainWindow();

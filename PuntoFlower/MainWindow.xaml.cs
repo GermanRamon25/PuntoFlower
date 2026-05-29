@@ -16,7 +16,6 @@ namespace PuntoFlower
             txtFechaActual.Text = DateTime.Now.ToString("dddd dd 'de' MMMM, yyyy", new CultureInfo("es-MX"));
 
             // Mostrar nombre del usuario logueado y su rol
-            // CORRECCIÓN: Se cambió Session.Rol por Session.RolActual para coincidir con Session.cs
             txtUsuarioLogueado.Text = $"{Session.RolActual}: {Session.UsuarioActual}";
 
             // ASIGNACIÓN DINÁMICA DE LA SUCURSAL LOCAL
@@ -40,18 +39,25 @@ namespace PuntoFlower
 
         private void ConfigurarAccesoSegunRol()
         {
-            // Verificamos si el usuario actual tiene el rol de Empleado
+            // Caso 1: Si el usuario es un Empleado operativo en mostrador
             if (Session.RolActual == "Empleado")
             {
-                // Ocultamos los módulos que el empleado no debe utilizar
+                // Ocultamos los módulos gerenciales clásicos
                 btnDashboard.Visibility = Visibility.Collapsed;
                 btnInventario.Visibility = Visibility.Collapsed;
                 btnReportes.Visibility = Visibility.Collapsed;
                 btnGastos.Visibility = Visibility.Collapsed;
                 btnConfiguracion.Visibility = Visibility.Collapsed;
-
-                // El sistema dejará visibles automáticamente: 
-                // Catálogo, Ventas, Agenda y Corte de Caja.
+            }
+            // Caso 2: Si el usuario es Administrador o Dueño
+            else if (Session.RolActual == "Admin")
+            {
+                // El sistema habilita de forma transparente todas las funciones de auditoría y configuración
+                btnDashboard.Visibility = Visibility.Visible;
+                btnInventario.Visibility = Visibility.Visible;
+                btnReportes.Visibility = Visibility.Visible;
+                btnGastos.Visibility = Visibility.Visible;
+                btnConfiguracion.Visibility = Visibility.Visible;
             }
         }
 
@@ -66,7 +72,7 @@ namespace PuntoFlower
             }
         }
 
-        // --- Métodos de Navegación ---
+        // --- Métodos de Navegación del Panel Izquierdo ---
 
         private void btnDashboard_Click(object sender, RoutedEventArgs e) => MainContent.Content = new DashboardView();
 
