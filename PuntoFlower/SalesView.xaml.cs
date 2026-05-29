@@ -68,7 +68,6 @@ namespace PuntoFlower.Views
             ActualizarTotal();
         }
 
-        // MODIFICADO: Extrae también el MetodoPago original y el Anticipo de la base de datos
         private void CargarPedidosAlComboBoxDesplegable()
         {
             List<PedidoComboClass> listaCombo = new List<PedidoComboClass>();
@@ -100,22 +99,18 @@ namespace PuntoFlower.Views
             catch { }
         }
 
-        // MODIFICADO: Auto-selecciona el método de pago e inyecta el anticipo monetario de la agenda de forma automática
         private void cbPedidosAgendaDesplegable_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var pedidoSeleccionado = cbPedidosAgendaDesplegable.SelectedItem as PedidoComboClass;
 
             if (pedidoSeleccionado != null)
             {
-                // 1. Rellenamos datos básicos de contacto
                 txtClientePedidoCaja.Text = pedidoSeleccionado.ClienteNombre;
                 txtTelPedidoCaja.Text = pedidoSeleccionado.Telefono;
                 dpFechaPedidoCaja.SelectedDate = pedidoSeleccionado.FechaEntrega;
 
-                // 2. NUEVO AUTO-LLENADO FINANCIERO: Inyecta el anticipo en el cuadro de cobro
                 txtDescuento.Text = pedidoSeleccionado.AnticipoOrigen.ToString("F2");
 
-                // 3. NUEVO AUTO-LLENADO FINANCIERO: Posiciona el ComboBox de pago según el registro de origen
                 if (cbMetodoPago != null)
                 {
                     string met = pedidoSeleccionado.MetodoPagoOrigen.Trim();
@@ -130,20 +125,18 @@ namespace PuntoFlower.Views
                             break;
                         }
                     }
-                    if (!encontrado) cbMetodoPago.SelectedIndex = 0; // Fallback por seguridad
+                    if (!encontrado) cbMetodoPago.SelectedIndex = 0;
                 }
 
-                // Bloqueamos campos de edición manual para mantener la fidelidad de la auditoría
                 txtClientePedidoCaja.IsEnabled = false;
                 txtTelPedidoCaja.IsEnabled = false;
                 dpFechaPedidoCaja.IsEnabled = false;
-                txtDescuento.IsEnabled = false; // Bloquea el anticipo para que no se altere accidentalmente
+                txtDescuento.IsEnabled = false;
 
                 lblInfoNuevoCliente.Text = "* Información y montos financieros recuperados con éxito. Listo para asociar ramo.";
             }
             else
             {
-                // Limpieza total si se deselecciona el combo
                 txtClientePedidoCaja.Clear();
                 txtTelPedidoCaja.Clear();
                 dpFechaPedidoCaja.SelectedDate = null;
@@ -632,7 +625,6 @@ namespace PuntoFlower.Views
                             }
                             else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo != null)
                             {
-                                // CONGELADO LÓGICO PERFECTO: No suma el anticipo, re-calcula el deudor exacto (Precio de Ramo de Hoy - Anticipo de Origen)
                                 decimal deudor = totalNetoArreglo - pedidoEnlazadoCombo.AnticipoOrigen;
                                 string queryActualizarExistente = @"UPDATE Pedidos 
                                                                     SET Descripcion = @des,
@@ -734,8 +726,13 @@ namespace PuntoFlower.Views
                             ticketPorcentajeAplicado = porcText;
                             ticketReferencia = numeroRefValor != DBNull.Value ? numeroRefValor.ToString() : "";
 
-                            MessageBox.Show("Operación procesada con éxito financiero unificado.", "PuntoFlower POS");
-                            ImprimirTicketTermico();
+                            // MODIFICADO: Recuperamos la condicional original con botones Yes/No para que pregunte antes de imprimir físicamente
+                            MessageBoxResult result = MessageBox.Show("Operación registrada con éxito contable.\n\n¿Deseas imprimir el ticket físico en este momento?", "Venta Exitosa", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                            if (result == MessageBoxResult.Yes)
+                            {
+                                ImprimirTicketTermico();
+                            }
 
                             // RESETEO DE UI
                             ProductosEnTicket.Clear();
@@ -782,7 +779,10 @@ namespace PuntoFlower.Views
                 pd.PrintPage += new PrintPageEventHandler(DrawTicketPage);
                 pd.Print();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se detectó una impresora activa o lista: " + ex.Message, "Fallo de Impresión", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+            }
         }
 
         private void DrawTicketPage(object sender, PrintPageEventArgs e)
@@ -875,7 +875,6 @@ namespace PuntoFlower.Views
             public string ClienteNombre { get; set; }
             public string Telefono { get; set; }
             public DateTime? FechaEntrega { get; set; }
-            // PROPIEDADES EXTENDIDAS PARA LA ENTRADA DIRECTA DE FINANZAS DE LA AGENDA
             public string MetodoPagoOrigen { get; set; }
             public decimal AnticipoOrigen { get; set; }
         }
