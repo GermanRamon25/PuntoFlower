@@ -19,14 +19,12 @@ namespace PuntoFlower.Views
 {
     public partial class CashCloseOutView : UserControl
     {
-        // Variables globales para calcular el arqueo resumido
         private decimal acumuladoEfectivo = 0;
         private decimal acumuladoTarjeta = 0;
         private decimal acumuladoTransfCuenta1 = 0;
         private decimal acumuladoTransfCuenta2 = 0;
         private decimal acumuladoDescuentos = 0;
 
-        // Variables dinámicas para los nombres de los encargados activos
         private string nombreEncargado1 = "Encargado 1";
         private string nombreEncargado2 = "Encargado 2";
 
@@ -34,16 +32,20 @@ namespace PuntoFlower.Views
         {
             InitializeComponent();
             txtEmpleadoEnTurno.Text = $"Empleado en turno: {Session.UsuarioActual}";
-            RealizarCorteDelDia();
         }
 
-        private void RealizarCorteDelDia()
+        private void cmbPeriodo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            List<object> ventasHoy = new List<object>();
+            if (txtTituloCorte == null || txtSubtituloTabla == null) return;
+            ProcesarCorteFiltrado();
+        }
+
+        private void ProcesarCorteFiltrado()
+        {
+            List<object> ventasFiltradas = new List<object>();
             decimal sumaRecibido = 0;
             decimal sumaCambio = 0;
 
-            // Reiniciamos contadores de arqueo
             acumuladoEfectivo = 0;
             acumuladoTarjeta = 0;
             acumuladoTransfCuenta1 = 0;
@@ -51,19 +53,44 @@ namespace PuntoFlower.Views
             acumuladoDescuentos = 0;
 
             ConexionDB db = new ConexionDB();
-
-            // NUEVO: Recuperamos los nombres reales desde la tabla ConfiguracionSistema
             nombreEncargado1 = db.ObtenerEncargadoCuenta1();
             nombreEncargado2 = db.ObtenerEncargadoCuenta2();
+
+            string condicionFecha = "";
+            string seleccion = (cmbPeriodo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Hoy";
+
+            // NUEVA LÓGICA RECOMENDADA: Filtros basados en Calendario Comercial
+            switch (seleccion)
+            {
+                case "Hoy":
+                    txtTituloCorte.Text = "Corte de Caja Diario";
+                    txtSubtituloTabla.Text = "Auditoría de Movimientos (Hoy)";
+                    condicionFecha = "WHERE CAST(Fecha AS DATE) = CAST(GETDATE() AS DATE)";
+                    break;
+
+                case "Esta Semana":
+                    txtTituloCorte.Text = "Reporte Financiero Semanal (Natural)";
+                    txtSubtituloTabla.Text = "Auditoría de Movimientos (Lunes a Domingo Actual)";
+                    // DATEDIFF con wk toma el inicio de la semana configurado en el servidor (Lunes por defecto)
+                    condicionFecha = "WHERE DATEDIFF(wk, Fecha, GETDATE()) = 0 AND Fecha <= GETDATE()";
+                    break;
+
+                case "Este Mes":
+                    txtTituloCorte.Text = "Reporte Financiero Mensual (Calendario)";
+                    txtSubtituloTabla.Text = "Auditoría de Movimientos (Mes en Curso)";
+                    // DATEDIFF con mm asegura que solo tome los días que compartan el mismo mes y año actual
+                    condicionFecha = "WHERE DATEDIFF(mm, Fecha, GETDATE()) = 0 AND Fecha <= GETDATE()";
+                    break;
+            }
 
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // MODIFICADO: Seleccionamos la columna NumeroReferencia de la BD
-                    string query = @"SELECT Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, CuentaTransferencia, DescuentoAplicado, NumeroReferencia 
-                                   FROM Ventas 
-                                   WHERE CAST(Fecha AS DATE) = CAST(GETDATE() AS DATE)";
+                    string query = $@"SELECT Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, CuentaTransferencia, DescuentoAplicado, NumeroReferencia 
+                                     FROM Ventas 
+                                     {condicionFecha}
+                                     ORDER BY Fecha DESC";
 
                     SqlCommand cmd = new SqlCommand(query, con);
                     using (SqlDataReader r = cmd.ExecuteReader())
@@ -77,8 +104,6 @@ namespace PuntoFlower.Views
                             string metodo = r["MetodoPago"]?.ToString() ?? "Efectivo";
                             string cuenta = r["CuentaTransferencia"] != DBNull.Value ? r["CuentaTransferencia"].ToString() : "";
                             decimal desc = r["DescuentoAplicado"] != DBNull.Value ? Convert.ToDecimal(r["DescuentoAplicado"]) : 0;
-
-                            // Extrae la referencia del depósito de la fila actual
                             string referencia = r["NumeroReferencia"] != DBNull.Value ? r["NumeroReferencia"].ToString() : "";
 
                             sumaRecibido += recibido;
@@ -100,10 +125,10 @@ namespace PuntoFlower.Views
                                 else if (cuenta == nombreEncargado2 || cuenta == "Cuenta Encargado 2")
                                     acumuladoTransfCuenta2 += totalVenta;
                                 else
-                                    acumuladoEfectivo += totalVenta; // Fallback de seguridad por si no coincide
+                                    acumuladoEfectivo += totalVenta;
                             }
 
-                            ventasHoy.Add(new
+                            ventasFiltradas.Add(new
                             {
                                 Fecha = (DateTime)r["Fecha"],
                                 ProductoNombre = r["ProductoNombre"].ToString(),
@@ -111,21 +136,21 @@ namespace PuntoFlower.Views
                                 MontoRecibido = recibido,
                                 MontoCambio = cambio,
                                 MetodoPago = metodo + (string.IsNullOrEmpty(cuenta) ? "" : $" ({cuenta})"),
-                                NumeroReferencia = string.IsNullOrEmpty(referencia) ? "—" : referencia, // Si está vacío pone una raya limpia
+                                NumeroReferencia = string.IsNullOrEmpty(referencia) ? "—" : referencia,
                                 Descuento = desc
                             });
                         }
                     }
                 }
 
-                dgCorte.ItemsSource = ventasHoy;
+                dgCorte.ItemsSource = ventasFiltradas;
                 txtTotalRecibido.Text = sumaRecibido.ToString("C");
                 txtTotalCambio.Text = sumaCambio.ToString("C");
                 txtEfectivoReal.Text = acumuladoEfectivo.ToString("C");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al realizar el corte: " + ex.Message);
+                MessageBox.Show("Error al realizar el filtro de caja: " + ex.Message, "Error Operativo");
             }
         }
 
@@ -133,13 +158,15 @@ namespace PuntoFlower.Views
         {
             if (dgCorte.ItemsSource == null || !dgCorte.ItemsSource.Cast<object>().Any())
             {
-                MessageBox.Show("No hay movimientos registrados hoy para realizar un corte.", "Aviso");
+                MessageBox.Show("No hay movimientos registrados en este periodo para realizar una exportación.", "Aviso");
                 return;
             }
 
+            string periodoSeleccionado = (cmbPeriodo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Hoy";
+
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "PDF Files (*.pdf)|*.pdf";
-            sfd.FileName = $"Corte_Caja_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+            sfd.FileName = $"Reporte_Caja_{periodoSeleccionado.Replace(" ", "")}_{DateTime.Now:yyyyMMdd}.pdf";
 
             if (sfd.ShowDialog() == true)
             {
@@ -159,37 +186,31 @@ namespace PuntoFlower.Views
                     iTextFont fBold = new iTextFont(bf, 9, iTextFont.BOLD);
                     iTextFont fTablaHead = new iTextFont(bf, 9, iTextFont.BOLD, BaseColor.WHITE);
 
-                    // Color Unificado: Azul Marino Corporativo
                     BaseColor azulMarino = new BaseColor(44, 62, 80);
 
-                    // 1. Encabezado institucional de auditoría
-                    doc.Add(new iTextParagraph("PUNTO FLOWER - COMPROBANTE DE CORTE DE CAJA", fTitulo));
+                    doc.Add(new iTextParagraph($"PUNTO FLOWER - REPORTE DE AUDITORÍA ({periodoSeleccionado.ToUpper()})", fTitulo));
                     doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fBold));
-                    doc.Add(new iTextParagraph($"Fecha de Corte: {DateTime.Now:g}", fCuerpo));
-                    doc.Add(new iTextParagraph($"Realizado por: {Session.UsuarioActual}", fCuerpo));
+                    doc.Add(new iTextParagraph($"Fecha de Emisión: {DateTime.Now:g}", fCuerpo));
+                    doc.Add(new iTextParagraph($"Generado por: {Session.UsuarioActual}", fCuerpo));
                     doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
                     doc.Add(new iTextParagraph(" "));
 
-                    // Macroestructura Horizontal para las dos tablas en paralelo
                     PdfPTable tablaEstructuraHorizontal = new PdfPTable(2);
                     tablaEstructuraHorizontal.WidthPercentage = 100;
                     tablaEstructuraHorizontal.SetWidths(new float[] { 46f, 54f });
 
-                    // --- CELDA IZQUIERDA: RESUMEN DE EFECTIVO GENERAL ---
                     PdfPTable tablaResumen = new PdfPTable(1);
                     tablaResumen.WidthPercentage = 100;
-
-                    tablaResumen.AddCell(new PdfPCell(new Phrase("RESUMEN DE EFECTIVO GENERAL", fTablaHead)) { BackgroundColor = azulMarino, Padding = 5 });
-                    tablaResumen.AddCell(new PdfPCell(new Phrase($"Total Recibido del Día: {txtTotalRecibido.Text}", fCuerpo)) { Padding = 4 });
+                    tablaResumen.AddCell(new PdfPCell(new Phrase("RESUMEN DE EFECTIVO ESTIMADO", fTablaHead)) { BackgroundColor = azulMarino, Padding = 5 });
+                    tablaResumen.AddCell(new PdfPCell(new Phrase($"Total Recibido en Periodo: {txtTotalRecibido.Text}", fCuerpo)) { Padding = 4 });
                     tablaResumen.AddCell(new PdfPCell(new Phrase($"Total Cambio Entregado: {txtTotalCambio.Text}", fCuerpo)) { Padding = 4 });
 
-                    PdfPCell cellFinal = new PdfPCell(new Phrase($"EFECTIVO ESTIMADO EN CAJA: {txtEfectivoReal.Text}", fBold)) { BackgroundColor = new BaseColor(234, 242, 248), Padding = 6 };
+                    PdfPCell cellFinal = new PdfPCell(new Phrase($"EFECTIVO NETO ESTIMADO: {txtEfectivoReal.Text}", fBold)) { BackgroundColor = new BaseColor(234, 242, 248), Padding = 6 };
                     tablaResumen.AddCell(cellFinal);
 
                     PdfPCell celdaIzquierda = new PdfPCell(tablaResumen) { Border = PdfPCell.NO_BORDER, PaddingRight = 15 };
                     tablaEstructuraHorizontal.AddCell(celdaIzquierda);
 
-                    // --- CELDA DERECHA: DESGLOSE POR METODOS DE PAGO ---
                     PdfPTable tablaMetodos = new PdfPTable(2);
                     tablaMetodos.WidthPercentage = 100;
                     tablaMetodos.SetWidths(new float[] { 60f, 40f });
@@ -197,7 +218,7 @@ namespace PuntoFlower.Views
                     tablaMetodos.AddCell(new PdfPCell(new Phrase("Canal de Ingreso / Concepto", fTablaHead)) { BackgroundColor = azulMarino, Padding = 5 });
                     tablaMetodos.AddCell(new PdfPCell(new Phrase("Monto Acumulado", fTablaHead)) { BackgroundColor = azulMarino, HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 5 });
 
-                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Ventas en Efectivo Puro (Neto)", fCuerpo)) { Padding = 3 });
+                    tablaMetodos.AddCell(new PdfPCell(new Phrase("Ventas en Efectivo Neto", fCuerpo)) { Padding = 3 });
                     tablaMetodos.AddCell(new PdfPCell(new Phrase(acumuladoEfectivo.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 3 });
 
                     tablaMetodos.AddCell(new PdfPCell(new Phrase("Terminal Bancaria (Tarjeta)", fCuerpo)) { Padding = 3 });
@@ -219,19 +240,15 @@ namespace PuntoFlower.Views
 
                     doc.Add(tablaEstructuraHorizontal);
                     doc.Add(new iTextParagraph(" "));
+
+                    doc.Add(new iTextParagraph($"HISTORIAL DE MOVIMIENTOS ({periodoSeleccionado.ToUpper()})", fSub));
                     doc.Add(new iTextParagraph(" "));
 
-                    // 4. TABLA 3: Detalle de Transacciones del Turno
-                    doc.Add(new iTextParagraph("DETALLE DE TRANSACCIONES DEL TURNO", fSub));
-                    doc.Add(new iTextParagraph(" "));
-
-                    // MODIFICADO: Incrementada la tabla de 6 a 7 columnas para alojar el "Ref/Depósito" con armonía
                     PdfPTable tablaVentas = new PdfPTable(7);
                     tablaVentas.WidthPercentage = 100;
-                    tablaVentas.SetWidths(new float[] { 12f, 26f, 15f, 15f, 12f, 10f, 10f });
+                    tablaVentas.SetWidths(new float[] { 14f, 24f, 15f, 15f, 12f, 10f, 10f });
 
-                    // Array de cabeceras modificado
-                    string[] headers = { "Hora", "Producto", "Método Pago", "Ref/Depósito", "Importe", "Descuento", "Cambio" };
+                    string[] headers = { "Fecha/Hora", "Producto", "Método Pago", "Ref/Depósito", "Importe", "Descuento", "Cambio" };
                     foreach (string h in headers)
                     {
                         PdfPCell cell = new PdfPCell(new Phrase(h, fTablaHead)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = azulMarino, Padding = 5 };
@@ -240,13 +257,10 @@ namespace PuntoFlower.Views
 
                     foreach (dynamic item in dgCorte.ItemsSource)
                     {
-                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.Fecha.ToString("t"), fCuerpo)) { Padding = 4 });
+                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.Fecha.ToString("dd/MM HH:mm"), fCuerpo)) { Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.ProductoNombre, fCuerpo)) { Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.MetodoPago, fCuerpo)) { Padding = 4 });
-
-                        // NUEVA CELDA: Inyecta el número de referencia capturado de forma manual
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.NumeroReferencia, fCuerpo)) { Padding = 4, HorizontalAlignment = Element.ALIGN_CENTER });
-
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.Total.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.Descuento.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.MontoCambio.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
@@ -255,40 +269,35 @@ namespace PuntoFlower.Views
                     doc.Add(tablaVentas);
                     doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph(" "));
-                    doc.Add(new iTextParagraph($"Firma del Cajero ({Session.UsuarioActual}): ___________________________", fCuerpo));
+                    doc.Add(new iTextParagraph($"Firma de Supervisor / Auditor: ___________________________", fCuerpo));
 
                     doc.Close();
 
-                    // Resguardo de base de datos automatizado
                     try
                     {
                         string folderRespaldos = @"C:\RespaldosPuntoFlower\";
-                        if (!Directory.Exists(folderRespaldos))
-                        {
-                            Directory.CreateDirectory(folderRespaldos);
-                        }
+                        if (!Directory.Exists(folderRespaldos)) Directory.CreateDirectory(folderRespaldos);
 
                         using (SqlConnection conRespaldo = db.OpenConnection())
                         {
                             string sqlBackup = $@"BACKUP DATABASE PuntoFlowerDB 
                                                  TO DISK = '{folderRespaldos}PuntoFlower_Cierre_Auto.bak' 
                                                  WITH INIT;";
-
                             using (SqlCommand cmdBackup = new SqlCommand(sqlBackup, conRespaldo))
                             {
                                 cmdBackup.ExecuteNonQuery();
                             }
                         }
-                        MessageBox.Show("Corte de caja exportado y base de datos respaldada localmente con éxito.", "Cierre Exitoso", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show("Reporte exportado y base de datos respaldada localmente con éxito.", "Auditoría Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     catch (Exception exBackup)
                     {
-                        MessageBox.Show("Corte exportado a PDF correctamente, pero el respaldo automático falló: " + exBackup.Message, "Aviso de Seguridad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        MessageBox.Show("Reporte exportado correctamente, pero el respaldo automático falló: " + exBackup.Message, "Aviso de Resguardo", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error al generar el PDF: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("Error al generar el documento PDF: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }

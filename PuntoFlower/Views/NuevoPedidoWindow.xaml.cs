@@ -59,7 +59,7 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // MODIFICADO: Se inyecta @metodo (MetodoPago) para controlar la entrada financiera del anticipo
+                    // Se inyecta @metodo (MetodoPago) para controlar la entrada financiera del anticipo en la BD
                     string query = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago) 
                                    VALUES (@nom, @tel, @fec, @fecReg, @dir, @not, 'Pendiente', @des, @total, @ant, @saldo, @metodo)";
 
