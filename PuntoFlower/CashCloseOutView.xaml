@@ -21,6 +21,18 @@
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                <Button x:Name="btnEliminarVentaSeleccionada" Content="❌ ELIMINAR VENTA" 
+                        Click="btnEliminarVentaSeleccionada_Click"
+                        Visibility="Collapsed"
+                        Background="#E74C3C" Foreground="White" FontWeight="Bold" 
+                        Height="45" Padding="15,0" Margin="0,0,10,0" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="8"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+
                 <TextBlock Text="Periodo:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" FontWeight="SemiBold" Foreground="#5D6D7E"/>
                 <ComboBox x:Name="cmbPeriodo" Width="150" Height="35" VerticalContentAlignment="Center" Margin="0,0,15,0" SelectionChanged="cmbPeriodo_SelectionChanged">
                     <ComboBoxItem Content="Hoy" IsSelected="True"/>
@@ -67,11 +79,12 @@
                 <TextBlock x:Name="txtSubtituloTabla" Text="Auditoría de Movimientos (Hoy)" DockPanel.Dock="Top" FontWeight="Bold" Margin="0,0,0,10" Foreground="#5D6D7E"/>
                 <DataGrid x:Name="dgCorte" AutoGenerateColumns="False" IsReadOnly="True" 
                           HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                          Background="Transparent" BorderThickness="0">
+                          Background="Transparent" BorderThickness="0" SelectionMode="Single">
                     <DataGrid.Columns>
+                        <DataGridTextColumn Header="Id Venta" Binding="{Binding Id}" Width="70"/>
                         <DataGridTextColumn Header="Fecha/Hora" Binding="{Binding Fecha, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130"/>
                         <DataGridTextColumn Header="Producto/Servicio" Binding="{Binding ProductoNombre}" Width="*"/>
-                        <DataGridTextColumn Header="Método Pago" Binding="{Binding MetodoPago}" Width="150"/>
+                        <DataGridTextColumn Header="Método Pago" Binding="{Binding MetodoPagoVisual}" Width="150"/>
                         <DataGridTextColumn Header="Ref/Depósito" Binding="{Binding NumeroReferencia}" Width="120"/>
                         <DataGridTextColumn Header="Importe" Binding="{Binding Total, StringFormat={}{0:C}}" Width="100"/>
                         <DataGridTextColumn Header="Descuento" Binding="{Binding Descuento, StringFormat={}{0:C}}" Width="100"/>
