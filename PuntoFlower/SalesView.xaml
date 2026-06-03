@@ -70,6 +70,7 @@
                                     <RadioButton x:Name="rbRamo250" Content="250 pz" Tag="250" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="80" Height="40"/>
                                 </WrapPanel>
                             </GroupBox>
+
                             <GroupBox Header="2. Composición" Padding="10">
                                 <StackPanel>
                                     <Grid Margin="0,0,0,10">
@@ -131,8 +132,10 @@
                                 <StackPanel>
                                     <TextBlock Text="Nombre del Servicio / Arreglo" Foreground="#7F8C8D" FontWeight="SemiBold"/>
                                     <TextBox x:Name="txtNombreEspecial" Height="40" Margin="0,5,0,12" VerticalContentAlignment="Center" FontSize="15"/>
+
                                     <TextBlock Text="Precio Acordado con el Cliente ($)" Foreground="#7F8C8D" FontWeight="SemiBold"/>
                                     <TextBox x:Name="txtPrecioEspecial" Height="40" Margin="0,5,0,15" VerticalContentAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="#27AE60"/>
+
                                     <Border BorderThickness="0,1,0,0" BorderBrush="#D5DBDB" Margin="0,5,0,10" Padding="0,10,0,0">
                                         <StackPanel>
                                             <TextBlock Text="Flores Utilizadas en este Arreglo (Para Inventario)" FontSize="13" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,8"/>
@@ -171,6 +174,7 @@
                             <TextBlock Text="Cobrar Saldo / Abono de Agenda" FontSize="20" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,5"/>
                             <Button Content="🔄 Cargar / Refrescar Pedidos con Saldo Pendiente" Click="btnRefrescarPedidosAbono_Click" Height="35" Background="#3498DB" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
                         </StackPanel>
+
                         <DataGrid x:Name="dgPedidosPendientes" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" Background="Transparent" BorderThickness="0">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*"/>
@@ -197,7 +201,7 @@
             <Grid Margin="15">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="2*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
@@ -228,96 +232,91 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <StackPanel Grid.Row="2" Margin="0,10,0,0">
-                    <Separator Background="#F2F3F4" Margin="0,0,0,8"/>
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" MaxHeight="355" Margin="0,5,0,0">
+                    <StackPanel Margin="0,0,5,0">
+                        <Separator Background="#F2F3F4" Margin="0,0,0,8"/>
 
-                    <CheckBox x:Name="chkEsPedidoApartado" Content="Registrar como Pedido Agendado (Apartar)" FontWeight="Bold" Foreground="#2E4053" Margin="0,0,0,8" Checked="chkEsPedidoApartado_Checked" Unchecked="chkEsPedidoApartado_Unchecked"/>
+                        <CheckBox x:Name="chkEsPedidoApartado" Content="Vincular / Registrar como Pedido Agendado" FontWeight="Bold" Foreground="#2E4053" Margin="0,0,0,8" Checked="chkEsPedidoApartado_Checked" Unchecked="chkEsPedidoApartado_Unchecked"/>
 
-                    <Border x:Name="panelCamposPedidoCaja" Visibility="Collapsed" Margin="0,0,0,8" Background="#F4F6F7" Padding="8" CornerRadius="5">
-                        <StackPanel>
-                            <TextBlock Text="Asociar a Pedido Existente de Agenda:" FontSize="11" FontWeight="Bold" Foreground="#2E4053" Margin="0,0,0,3"/>
-                            <ComboBox x:Name="cbPedidosAgendaDesplegable" Height="30" DisplayMemberPath="ClienteNombre" SelectionChanged="cbPedidosAgendaDesplegable_SelectionChanged" Margin="0,0,0,5"/>
+                        <Border x:Name="panelCamposPedidoCaja" Visibility="Collapsed" Margin="0,0,0,8" Background="#F4F6F7" Padding="8" CornerRadius="5">
+                            <StackPanel>
+                                <TextBlock Text="Asociar a Pedido Existente de Agenda:" FontSize="11" FontWeight="SemiBold" Foreground="#2980B9" Margin="0,0,0,3"/>
+                                <ComboBox x:Name="cbPedidosAgendaDesplegable" Height="28" DisplayMemberPath="ClienteNombre" Margin="0,0,0,8" SelectionChanged="cbPedidosAgendaDesplegable_SelectionChanged"/>
 
-                            <StackPanel x:Name="panelFleteAuditoria" Orientation="Vertical" Margin="0,2,0,5" Visibility="Collapsed">
-                                <DockPanel Margin="0,1">
-                                    <TextBlock Text="🚚 Costo de Flete:" FontSize="11" Foreground="#5D6D7E"/>
-                                    <TextBlock x:Name="lblEnvioApartado" Text="$0.00" FontSize="11" FontWeight="Bold" Foreground="#E67E22" HorizontalAlignment="Right"/>
-                                </DockPanel>
-                                <DockPanel Margin="0,1">
-                                    <TextBlock Text="🔴 Anticipo Guardado:" FontSize="11" Foreground="#5D6D7E"/>
-                                    <TextBlock x:Name="lblAnticipoRegistro" Text="$0.00" FontSize="11" FontWeight="Bold" Foreground="#CB4335" HorizontalAlignment="Right"/>
-                                </DockPanel>
+                                <TextBlock Text="Nombre del Cliente (Para Nuevos):" FontSize="11" Foreground="#5D6D7E"/>
+                                <TextBox x:Name="txtClientePedidoCaja" Height="25" Margin="0,2,0,5" VerticalContentAlignment="Center"/>
+
+                                <UniformGrid Columns="2">
+                                    <StackPanel Margin="0,0,3,0">
+                                        <TextBlock Text="Teléfono:" FontSize="11" Foreground="#5D6D7E"/>
+                                        <TextBox x:Name="txtTelPedidoCaja" Height="25" Margin="0,2" VerticalContentAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="3,0,0,0">
+                                        <TextBlock Text="Fecha Entrega:" FontSize="11" Foreground="#5D6D7E"/>
+                                        <DatePicker x:Name="dpFechaPedidoCaja" Height="25" Margin="0,2"/>
+                                    </StackPanel>
+                                </UniformGrid>
+
+                                <StackPanel Margin="0,5,0,0">
+                                    <TextBlock Text="Costo de Envío / Flete ($):" FontSize="11" Foreground="#D35400" FontWeight="SemiBold"/>
+                                    <TextBox x:Name="txtFleteNuevoPedido" Height="25" Margin="0,2" VerticalContentAlignment="Center" Text="0" TextChanged="txtFleteNuevoPedido_TextChanged"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid Margin="0,2,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                                <TextBlock Text="Método de Pago" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                                <ComboBox x:Name="cbMetodoPago" Height="32" SelectedIndex="0" SelectionChanged="cbMetodoPago_SelectionChanged">
+                                    <ComboBoxItem Content="Efectivo"/>
+                                    <ComboBoxItem Content="Tarjeta"/>
+                                    <ComboBoxItem Content="Transferencia"/>
+                                </ComboBox>
                             </StackPanel>
 
-                            <TextBlock x:Name="lblInfoNuevoCliente" Text="* Deja el combo en blanco para registrar como un NUEVO CLIENTE de mostrador." FontSize="10" Foreground="#7F8C8D" FontStyle="Italic" TextWrapping="Wrap" Margin="0,2,0,5"/>
-                            <TextBlock Text="Nombre del Cliente (Solo para Nuevos):" FontSize="11" Foreground="#5D6D7E"/>
-                            <TextBox x:Name="txtClientePedidoCaja" Height="25" Margin="0,2,0,5" VerticalContentAlignment="Center"/>
-                            <UniformGrid Columns="2">
-                                <StackPanel Margin="0,0,3,0">
-                                    <TextBlock Text="Teléfono:" FontSize="11" Foreground="#5D6D7E"/>
-                                    <TextBox x:Name="txtTelPedidoCaja" Height="25" Margin="0,2" VerticalContentAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel Margin="3,0,0,0">
-                                    <TextBlock Text="Fecha Entrega:" FontSize="11" Foreground="#5D6D7E"/>
-                                    <DatePicker x:Name="dpFechaPedidoCaja" Height="25" Margin="0,2"/>
-                                </StackPanel>
-                            </UniformGrid>
-                        </StackPanel>
-                    </Border>
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                                <TextBlock x:Name="lblTituloDineroIzquierda" Text="Descuento Aplicado (%)" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                                <TextBox x:Name="txtDescuento" Height="32" VerticalContentAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#E74C3C" Text="0" HorizontalContentAlignment="Center" TextChanged="txtDescuento_TextChanged"/>
+                            </StackPanel>
+                        </Grid>
 
-                    <Grid Margin="0,2,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" Margin="0,0,5,0">
-                            <TextBlock Text="Método de Pago" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
-                            <ComboBox x:Name="cbMetodoPago" Height="32" SelectedIndex="0" SelectionChanged="cbMetodoPago_SelectionChanged">
-                                <ComboBoxItem Content="Efectivo"/>
-                                <ComboBoxItem Content="Tarjeta"/>
-                                <ComboBoxItem Content="Transferencia"/>
-                                <ComboBoxItem Content="Liquidación de Pedido"/>
-                            </ComboBox>
+                        <StackPanel x:Name="panelCuentaTransferencia" Margin="0,0,0,8" Visibility="Collapsed">
+                            <TextBlock Text="Cuenta de Destino (Transferencia)" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                            <ComboBox x:Name="cbCuentaDestino" Height="32" SelectedIndex="0" />
                         </StackPanel>
 
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                            <TextBlock x:Name="lblTituloDineroIzquierda" Text="Descuento Aplicado (%)" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
-                            <TextBox x:Name="txtDescuento" Height="32" VerticalContentAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#E74C3C" Text="0" HorizontalContentAlignment="Center" TextChanged="txtDescuento_TextChanged"/>
+                        <StackPanel x:Name="panelNumeroReferencia" Margin="0,0,0,8" Visibility="Collapsed">
+                            <TextBlock Text="Número de Depósito / Referencia" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                            <TextBox x:Name="txtNumeroReferencia" Height="32" VerticalContentAlignment="Center" FontSize="14" HorizontalContentAlignment="Left" Padding="5,0,0,0"/>
                         </StackPanel>
-                    </Grid>
 
-                    <StackPanel x:Name="panelCuentaTransferencia" Margin="0,0,0,8" Visibility="Collapsed">
-                        <TextBlock Text="Cuenta de Destino (Transferencia)" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
-                        <ComboBox x:Name="cbCuentaDestino" Height="32" SelectedIndex="0" />
+                        <TextBlock x:Name="txtTotal" Text="Total del Arreglo: $0.00" FontSize="26" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Right"/>
+
+                        <UniformGrid Columns="2" Margin="0,5">
+                            <StackPanel Margin="0,0,5,0">
+                                <TextBlock x:Name="lblTxtRecibido" Text="Monto Recibido / Anticipo ($)" Foreground="#2E4053" FontSize="11" FontWeight="Bold"/>
+                                <TextBox x:Name="txtPagoCon" Height="38" FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center" TextChanged="txtPagoCon_TextChanged" HorizontalContentAlignment="Center" Background="#E8F8F5"/>
+                            </StackPanel>
+                            <StackPanel Margin="5,0,0,0">
+                                <TextBlock x:Name="lblTxtCambio" Text="Cambio ($)" Foreground="#7F8C8D" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="txtCambio" Text="$0.00" Height="38" FontSize="18" FontWeight="Bold" Foreground="#E74C3C" Padding="0,4,0,0" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </UniformGrid>
+
+                        <Button x:Name="btnConfirmarVenta" Content="FINALIZAR OPERACIÓN" Click="btnConfirmarVenta_Click" Height="50" Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="16" BorderThickness="0" Cursor="Hand" Margin="0,5,0,5">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="10"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
                     </StackPanel>
-
-                    <StackPanel x:Name="panelNumeroReferencia" Margin="0,0,0,8" Visibility="Collapsed">
-                        <TextBlock Text="Número de Depósito / Referencia" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
-                        <TextBox x:Name="txtNumeroReferencia" Height="32" VerticalContentAlignment="Center" FontSize="14" HorizontalContentAlignment="Left" Padding="5,0,0,0"/>
-                    </StackPanel>
-
-                    <TextBlock x:Name="txtTotal" Text="Total: $0.00" FontSize="30" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Right"/>
-
-                    <UniformGrid Columns="2" Margin="0,5">
-                        <StackPanel Margin="0,0,5,0">
-                            <TextBlock x:Name="lblTxtRecibido" Text="Recibido ($)" Foreground="#7F8C8D" FontSize="11" FontWeight="SemiBold"/>
-                            <TextBox x:Name="txtPagoCon" Height="38" FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center" TextChanged="txtPagoCon_TextChanged" HorizontalContentAlignment="Center"/>
-                        </StackPanel>
-                        <StackPanel Margin="5,0,0,0">
-                            <TextBlock x:Name="lblTxtCambio" Text="Cambio ($)" Foreground="#7F8C8D" FontSize="11" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtCambio" Text="$0.00" Height="38" FontSize="18" FontWeight="Bold" Foreground="#E74C3C" Padding="0,4,0,0" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </UniformGrid>
-
-                    <Button x:Name="btnConfirmarVenta" Content="FINALIZAR VENTA" Click="btnConfirmarVenta_Click" Height="55" Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="16" BorderThickness="0" Cursor="Hand">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="10"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                </StackPanel>
+                </ScrollViewer>
             </Grid>
         </Border>
     </Grid>

@@ -26,6 +26,33 @@ using iTextParagraph = iTextSharp.text.Paragraph;
 
 namespace PuntoFlower.Views
 {
+    // CLASES DE SOPORTE INTEGRADAS CORRECTAMENTE PARA EVITAR ERRORES DE ÁMBITO
+    public class PedidoComboClass
+    {
+        public int Id { get; set; }
+        public string ClienteNombre { get; set; }
+        public string Telefono { get; set; }
+        public DateTime FechaEntrega { get; set; }
+        public decimal Anticipo { get; set; }
+        public decimal CostoEnvio { get; set; }
+        public string MetodoPagoOriginal { get; set; }
+    }
+
+    public class ItemTicket
+    {
+        public string ProductoNombre { get; set; }
+        public decimal Total { get; set; }
+        public string DetalleVisual { get; set; }
+        public List<DetalleInsumo> InsumosADescontar { get; set; }
+    }
+
+    public class DetalleInsumo
+    {
+        public string Nombre { get; set; }
+        public int? Quantity { get; set; }
+        public int Cantidad { get; set; }
+    }
+
     public partial class SalesView : UserControl
     {
         public static ObservableCollection<ItemTicket> ProductosEnTicket { get; set; } = new ObservableCollection<ItemTicket>();
@@ -67,103 +94,6 @@ namespace PuntoFlower.Views
             ActualizarTotal();
         }
 
-        private void CargarPedidosAlComboBoxDesplegable()
-        {
-            List<PedidoComboClass> listaCombo = new List<PedidoComboClass>();
-            ConexionDB db = new ConexionDB();
-            try
-            {
-                using (SqlConnection con = db.OpenConnection())
-                {
-                    string query = "SELECT Id, ClienteNombre, Telefono, FechaEntrega, MetodoPago, Anticipo, ISNULL(CostoEnvio, 0) AS CostoEnvio FROM Pedidos WHERE Estado != 'Entregado' ORDER BY ClienteNombre ASC";
-                    SqlCommand cmd = new SqlCommand(query, con);
-                    using (SqlDataReader r = cmd.ExecuteReader())
-                    {
-                        while (r.Read())
-                        {
-                            listaCombo.Add(new PedidoComboClass
-                            {
-                                Id = (int)r["Id"],
-                                ClienteNombre = r["ClienteNombre"].ToString(),
-                                Telefono = r["Telefono"] != DBNull.Value ? r["Telefono"].ToString() : "",
-                                FechaEntrega = r["FechaEntrega"] != DBNull.Value ? Convert.ToDateTime(r["FechaEntrega"]) : (DateTime?)null,
-                                MetodoPagoOrigen = r["MetodoPago"] != DBNull.Value ? r["MetodoPago"].ToString() : "Efectivo",
-                                AnticipoOrigen = r["Anticipo"] != DBNull.Value ? Convert.ToDecimal(r["Anticipo"]) : 0,
-                                CostoEnvio = Convert.ToDecimal(r["CostoEnvio"])
-                            });
-                        }
-                    }
-                }
-                cbPedidosAgendaDesplegable.ItemsSource = listaCombo;
-            }
-            catch { }
-        }
-
-        private void cbPedidosAgendaDesplegable_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            var pedidoSeleccionado = cbPedidosAgendaDesplegable.SelectedItem as PedidoComboClass;
-
-            if (pedidoSeleccionado != null)
-            {
-                txtClientePedidoCaja.Text = pedidoSeleccionado.ClienteNombre;
-                txtTelPedidoCaja.Text = pedidoSeleccionado.Telefono;
-                dpFechaPedidoCaja.SelectedDate = pedidoSeleccionado.FechaEntrega;
-
-                // CORREGIDO: Mantenemos el porcentaje de descuento en 0 y pintamos las etiquetas informativas
-                txtDescuento.Text = "0";
-
-                if (panelFleteAuditoria != null && lblEnvioApartado != null && lblAnticipoRegistro != null)
-                {
-                    panelFleteAuditoria.Visibility = Visibility.Visible;
-                    lblEnvioApartado.Text = pedidoSeleccionado.CostoEnvio.ToString("C");
-                    lblAnticipoRegistro.Text = pedidoSeleccionado.AnticipoOrigen.ToString("C");
-                }
-
-                if (cbMetodoPago != null)
-                {
-                    string met = pedidoSeleccionado.MetodoPagoOrigen.Trim();
-                    bool encontrado = false;
-                    for (int i = 0; i < cbMetodoPago.Items.Count; i++)
-                    {
-                        var item = cbMetodoPago.Items[i] as ComboBoxItem;
-                        if (item != null && item.Content.ToString().Equals(met, StringComparison.OrdinalIgnoreCase))
-                        {
-                            cbMetodoPago.SelectedIndex = i;
-                            encontrado = true;
-                            break;
-                        }
-                    }
-                    if (!encontrado) cbMetodoPago.SelectedIndex = 0;
-                }
-
-                txtClientePedidoCaja.IsEnabled = false;
-                txtTelPedidoCaja.IsEnabled = false;
-                dpFechaPedidoCaja.IsEnabled = false;
-                txtDescuento.IsEnabled = false; // Bloqueado temporalmente solo para este modo
-
-                lblInfoNuevoCliente.Text = "* Información y montos recuperados de la agenda.";
-            }
-            else
-            {
-                txtClientePedidoCaja.Clear();
-                txtTelPedidoCaja.Clear();
-                dpFechaPedidoCaja.SelectedDate = null;
-                txtDescuento.Text = "0";
-
-                if (panelFleteAuditoria != null) panelFleteAuditoria.Visibility = Visibility.Collapsed;
-
-                txtClientePedidoCaja.IsEnabled = true;
-                txtTelPedidoCaja.IsEnabled = true;
-                dpFechaPedidoCaja.IsEnabled = true;
-                txtDescuento.IsEnabled = true;
-
-                if (cbMetodoPago != null) cbMetodoPago.SelectedIndex = 0;
-
-                lblInfoNuevoCliente.Text = "* Deja el combo en blanco para registrar como un NUEVO CLIENTE de mostrador.";
-            }
-            ActualizarTotal();
-        }
-
         private void ListarPedidosPendientesEnTabla()
         {
             List<object> lista = new List<object>();
@@ -199,6 +129,82 @@ namespace PuntoFlower.Views
             catch { }
         }
 
+        private void CargarPedidosAlComboBoxDesplegable()
+        {
+            List<PedidoComboClass> listaCombo = new List<PedidoComboClass>();
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    string q = "SELECT Id, ClienteNombre, Telefono, FechaEntrega, Anticipo, CostoEnvio, MetodoPago FROM Pedidos WHERE Estado = 'Pendiente' ORDER BY FechaEntrega ASC";
+                    SqlCommand cmd = new SqlCommand(q, con);
+                    using (SqlDataReader r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            listaCombo.Add(new PedidoComboClass
+                            {
+                                Id = (int)r["Id"],
+                                ClienteNombre = r["ClienteNombre"].ToString(),
+                                Telefono = r["Telefono"].ToString(),
+                                FechaEntrega = Convert.ToDateTime(r["FechaEntrega"]),
+                                Anticipo = r["Anticipo"] != DBNull.Value ? Convert.ToDecimal(r["Anticipo"]) : 0,
+                                CostoEnvio = r["CostoEnvio"] != DBNull.Value ? Convert.ToDecimal(r["CostoEnvio"]) : 0,
+                                MetodoPagoOriginal = r["MetodoPago"] != DBNull.Value ? r["MetodoPago"].ToString() : "Efectivo"
+                            });
+                        }
+                    }
+                }
+                cbPedidosAgendaDesplegable.ItemsSource = listaCombo;
+            }
+            catch { }
+        }
+
+        private void cbPedidosAgendaDesplegable_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var ped = cbPedidosAgendaDesplegable.SelectedItem as PedidoComboClass;
+            if (ped != null)
+            {
+                txtClientePedidoCaja.Text = ped.ClienteNombre;
+                txtTelPedidoCaja.Text = ped.Telefono;
+                dpFechaPedidoCaja.SelectedDate = ped.FechaEntrega;
+                txtFleteNuevoPedido.Text = ped.CostoEnvio.ToString("F2");
+                txtPagoCon.Text = ped.Anticipo.ToString("F2");
+
+                if (cbMetodoPago != null)
+                {
+                    string metodoOriginal = ped.MetodoPagoOriginal.Trim();
+                    bool encontrado = false;
+
+                    for (int i = 0; i < cbMetodoPago.Items.Count; i++)
+                    {
+                        var item = cbMetodoPago.Items[i] as ComboBoxItem;
+                        if (item != null && (item.Content.ToString().Equals(metodoOriginal, StringComparison.OrdinalIgnoreCase) ||
+                            metodoOriginal.Contains(item.Content.ToString()) || item.Content.ToString().Contains(metodoOriginal)))
+                        {
+                            cbMetodoPago.SelectedIndex = i;
+                            encontrado = true;
+                            break;
+                        }
+                    }
+                    if (!encontrado) cbMetodoPago.SelectedIndex = 0;
+
+                    cbMetodoPago.UpdateLayout();
+                }
+            }
+            else
+            {
+                txtClientePedidoCaja.Clear();
+                txtTelPedidoCaja.Clear();
+                dpFechaPedidoCaja.SelectedDate = null;
+                txtFleteNuevoPedido.Text = "0";
+                txtPagoCon.Clear();
+                if (cbMetodoPago != null) cbMetodoPago.SelectedIndex = 0;
+            }
+            ActualizarTotal();
+        }
+
         private void btnRefrescarPedidosAbono_Click(object sender, RoutedEventArgs e)
         {
             ListarPedidosPendientesEnTabla();
@@ -218,18 +224,19 @@ namespace PuntoFlower.Views
 
             ProductosEnTicket.Add(new ItemTicket
             {
-                ProductoNombre = $"Abono/Liq. de Pedido: {ped.ClienteNombre}",
+                ProductoNombre = $"Liquidación / Abono: {ped.ClienteNombre}",
                 Total = ped.SaldoPendiente,
-                DetalleVisual = "Cobro de cuenta pendiente - Agenda",
+                DetalleVisual = "Cobrar saldo remanente de la agenda",
                 InsumosADescontar = new List<DetalleInsumo>()
             });
 
             cbMetodoPago.SelectedIndex = 0;
             chkEsPedidoApartado.IsChecked = false;
             chkEsPedidoApartado.IsEnabled = false;
+            txtDescuento.Text = "0";
+            // CORREGIDO: Eliminado el bloqueo del descuento para permitir ajustes manuales libres
 
             ActualizarTotal();
-            MessageBox.Show($"Saldo de {ped.ClienteNombre} cargado a la caja registradora. Elige el método de pago.", "Pedido Cargado");
         }
 
         private void CargarEncargadosCuentasDinamicos()
@@ -417,9 +424,9 @@ namespace PuntoFlower.Views
         {
             if (panelCamposPedidoCaja == null) return;
             panelCamposPedidoCaja.Visibility = Visibility.Collapsed;
-            txtDescuento.Text = "0";
             txtDescuento.IsEnabled = true;
-            cbPedidosAgendaDesplegable.SelectedItem = null;
+            if (txtFleteNuevoPedido != null) txtFleteNuevoPedido.Text = "0";
+            if (cbPedidosAgendaDesplegable != null) cbPedidosAgendaDesplegable.SelectedItem = null;
             ActualizarTotal();
         }
 
@@ -428,7 +435,7 @@ namespace PuntoFlower.Views
             if (panelCuentaTransferencia == null || panelNumeroReferencia == null) return;
 
             var item = cbMetodoPago.SelectedItem as ComboBoxItem;
-            if (item != null && item.Content.ToString() == "Transferencia")
+            if (item != null && item.Content.ToString().Equals("Transferencia", StringComparison.OrdinalIgnoreCase))
             {
                 panelCuentaTransferencia.Visibility = Visibility.Visible;
                 panelNumeroReferencia.Visibility = Visibility.Visible;
@@ -444,14 +451,16 @@ namespace PuntoFlower.Views
 
         private void txtDescuento_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // CORREGIDO: El descuento vuelve a ser un porcentaje limpio (%) para ventas normales
-            if (cbPedidosAgendaDesplegable != null && cbPedidosAgendaDesplegable.SelectedItem != null) return;
-
             if (txtDescuento != null && float.TryParse(txtDescuento.Text, out float porc))
             {
                 if (porc < 0) txtDescuento.Text = "0";
                 if (porc > 100) txtDescuento.Text = "100";
             }
+            ActualizarTotal();
+        }
+
+        private void txtFleteNuevoPedido_TextChanged(object sender, TextChangedEventArgs e)
+        {
             ActualizarTotal();
         }
 
@@ -463,22 +472,21 @@ namespace PuntoFlower.Views
         private decimal ObtenerTotalConDescuento()
         {
             decimal subtotal = ProductosEnTicket.Sum(x => x.Total);
-            if (esCobroDeAbonoExistente) return subtotal;
 
-            // CORREGIDO: Si liquidamos un pedido desde el ComboBox de la derecha, el total es el Saldo Pendiente de la agenda
-            var pedidoSeleccionado = cbPedidosAgendaDesplegable.SelectedItem as PedidoComboClass;
-            if (chkEsPedidoApartado != null && chkEsPedidoApartado.IsChecked == true && pedidoSeleccionado != null)
+            // CORREGIDO CONTABLE: Ahora permitimos que el descuento aplique también a las liquidaciones viejas de agenda
+            decimal flete = 0;
+            if (chkEsPedidoApartado != null && chkEsPedidoApartado.IsChecked == true && txtFleteNuevoPedido != null)
             {
-                return subtotal + pedidoSeleccionado.CostoEnvio - pedidoSeleccionado.AnticipoOrigen;
+                decimal.TryParse(txtFleteNuevoPedido.Text.Trim(), out flete);
             }
 
-            // Venta libre tradicional aplicando porcentaje %
-            decimal dineroDescontado = 0;
+            decimal dineroDescontated = 0;
             if (txtDescuento != null && float.TryParse(txtDescuento.Text, out float porcentaje) && porcentaje > 0)
             {
-                dineroDescontado = subtotal * (decimal)(porcentaje / 100.0);
+                dineroDescontated = subtotal * (decimal)(porcentaje / 100.0);
             }
-            return subtotal - dineroDescontado;
+
+            return (subtotal - dineroDescontated) + flete;
         }
 
         private void CalcularCambioMatematico()
@@ -489,6 +497,12 @@ namespace PuntoFlower.Views
             var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
             string metodo = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
 
+            if (chkEsPedidoApartado != null && chkEsPedidoApartado.IsChecked == true)
+            {
+                txtCambio.Text = "$0.00";
+                return;
+            }
+
             if (metodo != "Efectivo")
             {
                 txtPagoCon.Text = totalNeto.ToString("F2");
@@ -496,7 +510,6 @@ namespace PuntoFlower.Views
                 return;
             }
 
-            // CORREGIDO: Resta limpia tradicional para evitar el fallo de la foto
             if (decimal.TryParse(txtPagoCon.Text.Trim(), out decimal pago))
             {
                 txtCambio.Text = (pago >= totalNeto) ? (pago - totalNeto).ToString("C") : "$0.00";
@@ -514,12 +527,15 @@ namespace PuntoFlower.Views
             if (ProductosEnTicket.Count == 0) return;
 
             float porcText = 0;
-            if (cbPedidosAgendaDesplegable.SelectedItem == null) float.TryParse(txtDescuento.Text, out porcText);
+            float.TryParse(txtDescuento.Text, out porcText);
 
-            decimal totalDineroDescontado = 0;
-            if (chkEsPedidoApartado.IsChecked == false && !esCobroDeAbonoExistente)
+            // CORREGIDO CONTABLE: El descuento modificado aplica globalmente y se audita de forma limpia
+            decimal totalDineroDescontado = subtotalBase - (totalNetoArreglo - (chkEsPedidoApartado.IsChecked == true ? ProductosEnTicket.Sum(x => x.Total) : 0));
+            if (totalDineroDescontado < 0 || chkEsPedidoApartado.IsChecked == true || esCobroDeAbonoExistente)
             {
-                totalDineroDescontado = subtotalBase - totalNetoArreglo;
+                // Si es un abono, calculamos el descuento directo del subtotal base para guardarlo en la auditoría
+                if (porcText > 0) totalDineroDescontado = subtotalBase * (decimal)(porcText / 100.0);
+                else totalDineroDescontado = 0;
             }
 
             var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
@@ -534,15 +550,22 @@ namespace PuntoFlower.Views
                 if (txtNumeroReferencia != null && !string.IsNullOrWhiteSpace(txtNumeroReferencia.Text)) numeroRefValor = txtNumeroReferencia.Text.Trim();
             }
 
-            if (!decimal.TryParse(txtPagoCon.Text.Trim(), out decimal pagoRecibido) || pagoRecibido < totalNetoArreglo)
+            if (!decimal.TryParse(txtPagoCon.Text.Trim(), out decimal pagoRecibido) || pagoRecibido < 0)
             {
-                MessageBox.Show("Monto recibido insuficiente o formato de dinero incorrecto.", "Cobro Detenido", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Por favor, introduce el monto recibido o anticipo válido.", "Cobro Detenido", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            decimal cambioFinal = (metodoPago == "Efectivo") ? (pagoRecibido - totalNetoArreglo) : 0;
-
             PedidoComboClass pedidoEnlazadoCombo = cbPedidosAgendaDesplegable.SelectedItem as PedidoComboClass;
+
+            if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo == null && pagoRecibido > totalNetoArreglo)
+            {
+                MessageBox.Show("El anticipo no puede superar el costo total del pedido.", "Error Contable");
+                return;
+            }
+
+            decimal cambioFinal = (metodoPago == "Efectivo" && chkEsPedidoApartado.IsChecked == false) ? (pagoRecibido - totalNetoArreglo) : 0;
+
             ConexionDB db = new ConexionDB();
             btnConfirmarVenta.IsEnabled = false;
 
@@ -557,85 +580,25 @@ namespace PuntoFlower.Views
                             string detProdNombres = string.Join(", ", ProductosEnTicket.Select(x => x.ProductoNombre));
                             string detVisualConcat = string.Join(" | ", ProductosEnTicket.Select(x => x.DetalleVisual));
 
+                            bool registrarMovimientoVenta = true;
+
                             if (esCobroDeAbonoExistente)
                             {
                                 string actPedido = @"UPDATE Pedidos 
-                                                     SET SaldoPendiente = SaldoPendiente - @abono, 
+                                                     SET SaldoPendiente = CASE WHEN (SaldoPendiente - @abono) <= 0 THEN 0 ELSE (SaldoPendiente - @abono) END, 
                                                          Estado = CASE WHEN (SaldoPendiente - @abono) <= 0 THEN 'Entregado' ELSE Estado END 
                                                      WHERE Id = @id";
                                 using (SqlCommand cmdP = new SqlCommand(actPedido, con, tra))
                                 {
-                                    cmdP.Parameters.AddWithValue("@abono", totalNetoArreglo);
+                                    cmdP.Parameters.AddWithValue("@abono", totalNetoArreglo); // Consume el total con descuento aplicado
                                     cmdP.Parameters.AddWithValue("@id", idPedidoParaAbonar);
                                     cmdP.ExecuteNonQuery();
                                 }
-                            }
-                            else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo != null)
-                            {
-                                // Liquidación total de pedido existente
-                                string queryActualizarExistente = @"UPDATE Pedidos 
-                                                                    SET Descripcion = @des,
-                                                                        PrecioTotal = @totReal,
-                                                                        SaldoPendiente = 0,
-                                                                        MetodoPagoLiquidacion = @metLiqui,
-                                                                        Estado = 'Entregado'
-                                                                    WHERE Id = @id";
 
-                                using (SqlCommand cmdUp = new SqlCommand(queryActualizarExistente, con, tra))
-                                {
-                                    cmdUp.Parameters.AddWithValue("@id", pedidoEnlazadoCombo.Id);
-                                    cmdUp.Parameters.AddWithValue("@des", detProdNombres + " (" + detVisualConcat + ")");
-                                    cmdUp.Parameters.AddWithValue("@totReal", subtotalBase + pedidoEnlazadoCombo.CostoEnvio);
-                                    cmdUp.Parameters.AddWithValue("@metLiqui", metodoPago);
-                                    cmdUp.ExecuteNonQuery();
-                                }
-                            }
-                            else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo == null)
-                            {
-                                // Creación de un pedido apartado desde caja
-                                string insPed = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago, CostoEnvio) 
-                                                 VALUES (@nom, @tel, @fec, GETDATE(), 'Mostrador Caja', '', 'Pendiente', @des, @tot, @ant, @saldo, @met, 0)";
-                                using (SqlCommand cmdPed = new SqlCommand(insPed, con, tra))
-                                {
-                                    cmdPed.Parameters.AddWithValue("@nom", txtClientePedidoCaja.Text.Trim());
-                                    cmdPed.Parameters.AddWithValue("@tel", txtTelPedidoCaja.Text.Trim());
-                                    cmdPed.Parameters.AddWithValue("@fec", dpFechaPedidoCaja.SelectedDate.Value);
-                                    cmdPed.Parameters.AddWithValue("@des", detProdNombres + " (" + detVisualConcat + ")");
-                                    cmdPed.Parameters.AddWithValue("@tot", subtotalBase);
-                                    cmdPed.Parameters.AddWithValue("@ant", pagoRecibido);
-                                    cmdPed.Parameters.AddWithValue("@saldo", subtotalBase - pagoRecibido);
-                                    cmdPed.Parameters.AddWithValue("@met", metodoPago);
-                                    cmdPed.ExecuteNonQuery();
-                                }
-                            }
-
-                            string nombreConceptoVenta = esCobroDeAbonoExistente ? ProductosEnTicket[0].ProductoNombre : $"Liquidación Pedido: {(pedidoEnlazadoCombo != null ? pedidoEnlazadoCombo.ClienteNombre : txtClientePedidoCaja.Text.Trim())} ({detProdNombres})";
-
-                            if (!esCobroDeAbonoExistente && chkEsPedidoApartado.IsChecked == false)
-                            {
-                                foreach (var item in ProductosEnTicket)
-                                {
-                                    string q = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia) 
-                                               VALUES (GETDATE(), @n, @t, 1, @metodo, @rec, @cam, @cuenta, @desc, @numRef)";
-                                    using (SqlCommand cmdV = new SqlCommand(q, con, tra))
-                                    {
-                                        cmdV.Parameters.AddWithValue("@n", item.ProductoNombre);
-                                        cmdV.Parameters.AddWithValue("@t", item.Total);
-                                        cmdV.Parameters.AddWithValue("@metodo", metodoPago);
-                                        cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
-                                        cmdV.Parameters.AddWithValue("@cam", cambioFinal);
-                                        cmdV.Parameters.AddWithValue("@cuenta", cuentaDestino);
-                                        cmdV.Parameters.AddWithValue("@desc", totalDineroDescontado / ProductosEnTicket.Count);
-                                        cmdV.Parameters.AddWithValue("@numRef", numeroRefValor);
-                                        cmdV.ExecuteNonQuery();
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                string insVenAnt = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia) 
-                                                     VALUES (GETDATE(), @n, @t, 1, @metodo, @rec, @cam, @cuenta, 0, @numRef)";
-                                using (SqlCommand cmdV = new SqlCommand(insVenAnt, con, tra))
+                                string nombreConceptoVenta = $"Liquidación / Abono: {txtClientePedidoCaja.Text.Trim()}";
+                                string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia) 
+                                           VALUES (GETDATE(), @n, @t, 1, @metodo, @rec, @cam, @cuenta, @desc, @numRef)";
+                                using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
                                 {
                                     cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
                                     cmdV.Parameters.AddWithValue("@t", totalNetoArreglo);
@@ -643,12 +606,99 @@ namespace PuntoFlower.Views
                                     cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
                                     cmdV.Parameters.AddWithValue("@cam", cambioFinal);
                                     cmdV.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                                    cmdV.Parameters.AddWithValue("@desc", totalDineroDescontado);
+                                    cmdV.Parameters.AddWithValue("@numRef", numeroRefValor);
+                                    cmdV.ExecuteNonQuery();
+                                }
+                            }
+                            else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo != null)
+                            {
+                                string queryActualizarExistente = @"UPDATE Pedidos 
+                                                                    SET Descripcion = @des,
+                                                                        PrecioTotal = @tot,
+                                                                        SaldoPendiente = @tot - Anticipo
+                                                                    WHERE Id = @id";
+
+                                using (SqlCommand cmdUp = new SqlCommand(queryActualizarExistente, con, tra))
+                                {
+                                    cmdUp.Parameters.AddWithValue("@id", pedidoEnlazadoCombo.Id);
+                                    cmdUp.Parameters.AddWithValue("@des", detProdNombres + " (" + detVisualConcat + ")");
+                                    cmdUp.Parameters.AddWithValue("@tot", totalNetoArreglo);
+                                    cmdUp.ExecuteNonQuery();
+                                }
+
+                                string conceptoAnticipo = $"Abono/Anticipo Pedido: {pedidoEnlazadoCombo.ClienteNombre} ({detProdNombres})";
+                                string qAnt = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia) 
+                                           VALUES (GETDATE(), @n, @t, 1, @metodo, @rec, @cam, @cuenta, @desc, @numRef)";
+                                using (SqlCommand cmdAnt = new SqlCommand(qAnt, con, tra))
+                                {
+                                    cmdAnt.Parameters.AddWithValue("@n", conceptoAnticipo);
+                                    cmdAnt.Parameters.AddWithValue("@t", pedidoEnlazadoCombo.Anticipo);
+                                    cmdAnt.Parameters.AddWithValue("@metodo", metodoPago);
+                                    cmdAnt.Parameters.AddWithValue("@rec", pedidoEnlazadoCombo.Anticipo);
+                                    cmdAnt.Parameters.AddWithValue("@cam", 0);
+                                    cmdAnt.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                                    cmdAnt.Parameters.AddWithValue("@desc", totalDineroDescontado);
+                                    cmdAnt.Parameters.AddWithValue("@numRef", numeroRefValor);
+                                    cmdAnt.ExecuteNonQuery();
+                                }
+                                registrarMovimientoVenta = false;
+                            }
+                            else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo == null)
+                            {
+                                decimal.TryParse(txtFleteNuevoPedido.Text.Trim(), out decimal fleteNeto);
+
+                                string insPed = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago, CostoEnvio) 
+                                                 VALUES (@nom, @tel, @fec, GETDATE(), 'Mostrador Caja', '', 'Pendiente', @des, @tot, @ant, @saldo, @met, @flete)";
+                                using (SqlCommand cmdPed = new SqlCommand(insPed, con, tra))
+                                {
+                                    cmdPed.Parameters.AddWithValue("@nom", txtClientePedidoCaja.Text.Trim());
+                                    cmdPed.Parameters.AddWithValue("@tel", txtTelPedidoCaja.Text.Trim());
+                                    cmdPed.Parameters.AddWithValue("@fec", dpFechaPedidoCaja.SelectedDate.HasValue ? dpFechaPedidoCaja.SelectedDate.Value : DateTime.Now.AddDays(1));
+                                    cmdPed.Parameters.AddWithValue("@des", detProdNombres + " (" + detVisualConcat + ")");
+                                    cmdPed.Parameters.AddWithValue("@tot", totalNetoArreglo);
+                                    cmdPed.Parameters.AddWithValue("@ant", pagoRecibido);
+                                    cmdPed.Parameters.AddWithValue("@saldo", totalNetoArreglo - pagoRecibido);
+                                    cmdPed.Parameters.AddWithValue("@met", metodoPago);
+                                    cmdPed.Parameters.AddWithValue("@flete", fleteNeto);
+                                    cmdPed.ExecuteNonQuery();
+                                }
+
+                                string nombreConceptoVenta = $"Abono/Anticipo Pedido: {txtClientePedidoCaja.Text.Trim()} ({detProdNombres})";
+                                string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia) 
+                                           VALUES (GETDATE(), @n, @t, 1, @metodo, @rec, @cam, @cuenta, @desc, @numRef)";
+                                using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
+                                {
+                                    cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
+                                    cmdV.Parameters.AddWithValue("@t", pagoRecibido);
+                                    cmdV.Parameters.AddWithValue("@metodo", metodoPago);
+                                    cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
+                                    cmdV.Parameters.AddWithValue("@cam", cambioFinal);
+                                    cmdV.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                                    cmdV.Parameters.AddWithValue("@desc", totalDineroDescontado);
+                                    cmdV.Parameters.AddWithValue("@numRef", numeroRefValor);
+                                    cmdV.ExecuteNonQuery();
+                                }
+                            }
+                            else if (chkEsPedidoApartado.IsChecked == false && esCobroDeAbonoExistente == false)
+                            {
+                                string nombreConceptoVenta = $"Venta Mostrador: {txtClientePedidoCaja.Text.Trim()} ({detProdNombres})";
+                                string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia) 
+                                           VALUES (GETDATE(), @n, @t, 1, @metodo, @rec, @cam, @cuenta, @desc, @numRef)";
+                                using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
+                                {
+                                    cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
+                                    cmdV.Parameters.AddWithValue("@t", totalNetoArreglo);
+                                    cmdV.Parameters.AddWithValue("@metodo", metodoPago);
+                                    cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
+                                    cmdV.Parameters.AddWithValue("@cam", cambioFinal);
+                                    cmdV.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                                    cmdV.Parameters.AddWithValue("@desc", totalDineroDescontado);
                                     cmdV.Parameters.AddWithValue("@numRef", numeroRefValor);
                                     cmdV.ExecuteNonQuery();
                                 }
                             }
 
-                            // Descuento de Almacén Floral
                             if (!esCobroDeAbonoExistente)
                             {
                                 foreach (var item in ProductosEnTicket)
@@ -668,7 +718,7 @@ namespace PuntoFlower.Views
                             tra.Commit();
 
                             productosParaImprimir = ProductosEnTicket.ToList();
-                            ticketTotal = totalNetoArreglo;
+                            ticketTotal = totalNetoArreglo; // Mapea de forma directa el total con descuento para el ticket físico
                             ticketPagado = pagoRecibido;
                             ticketCambio = cambioFinal;
                             ticketDescuentoDinero = totalDineroDescontado;
@@ -682,7 +732,6 @@ namespace PuntoFlower.Views
                                 ImprimirTicketTermico();
                             }
 
-                            // RESET TOTAL DE UI
                             ProductosEnTicket.Clear();
                             txtPagoCon.Clear();
                             txtDescuento.Text = "0";
@@ -768,14 +817,12 @@ namespace PuntoFlower.Views
             }
 
             g.DrawString("==================================", fontNormal, brush, 5, y); y += 15;
-            g.DrawString($"TOTAL LIQUIDADO: {ticketTotal:C}", fontBold, brush, 5, y); y += 15;
-            g.DrawString($"EFECTIVO RECIBIDO: {ticketPagado:C}", fontNormal, brush, 5, y); y += 15;
+            g.DrawString($"TOTAL EN OPERACIÓN: {ticketTotal:C}", fontBold, brush, 5, y); y += 15;
+            g.DrawString($"EFECTIVO DISPUESTO: {ticketPagado:C}", fontNormal, brush, 5, y); y += 15;
             g.DrawString($"CAMBIO ENTREGADO: {ticketCambio:C}", fontBold, brush, 5, y); y += 25;
 
             g.DrawString("¡Gracias por su preferencia!", fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center });
         }
-
-        private void RimujarConfiguradorRamo() => LimpiarConfiguradorRamo();
 
         private void LimpiarConfiguradorRamo()
         {
@@ -791,7 +838,7 @@ namespace PuntoFlower.Views
         {
             if (txtTotal == null) return;
             decimal totalNeto = ObtenerTotalConDescuento();
-            txtTotal.Text = $"Total: {totalNeto:C}";
+            txtTotal.Text = $"Total del Arreglo: {totalNeto:C}";
             CalcularCambioMatematico();
         }
 
@@ -804,28 +851,15 @@ namespace PuntoFlower.Views
             txtDescuento.IsEnabled = true;
             esCobroDeAbonoExistente = false;
             idPedidoParaAbonar = 0;
-            cbPedidosAgendaDesplegable.SelectedItem = null;
             ActualizarTotal();
         }
+
+        private void btnItemEliminar_Click(object sender, RoutedEventArgs e) { }
 
         private void btnEliminarItem_Click(object sender, RoutedEventArgs e)
         {
             var item = (sender as Button).DataContext as ItemTicket;
             if (item != null) { ProductosEnTicket.Remove(item); ActualizarTotal(); }
-        }
-
-        public class ItemTicket { public string ProductoNombre { get; set; } public decimal Total { get; set; } public string DetalleVisual { get; set; } public List<DetalleInsumo> InsumosADescontar { get; set; } }
-        public class DetalleInsumo { public string Nombre { get; set; } public int? Quantity { get; set; } public int Cantidad { get; set; } }
-
-        public class PedidoComboClass
-        {
-            public int Id { get; set; }
-            public string ClienteNombre { get; set; }
-            public string Telefono { get; set; }
-            public DateTime? FechaEntrega { get; set; }
-            public string MetodoPagoOrigen { get; set; }
-            public decimal AnticipoOrigen { get; set; }
-            public decimal CostoEnvio { get; set; }
         }
     }
 }
