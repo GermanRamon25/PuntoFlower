@@ -5,8 +5,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="1000"
-             Background="#F5F5F5">
-
+             Background="#F5F5F5"
+             Loaded="UserControl_Loaded">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -14,7 +14,6 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- ENCABEZADO CON FILTRO GERENCIAL -->
         <DockPanel Grid.Row="0" Margin="0,0,0,20">
             <StackPanel>
                 <TextBlock x:Name="txtTituloCorte" Text="Corte de Caja Diario" FontSize="26" FontWeight="Bold" Foreground="#2C3E50"/>
@@ -22,7 +21,6 @@
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
-                <!-- Selector de Periodo de tiempo -->
                 <TextBlock Text="Periodo:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" FontWeight="SemiBold" Foreground="#5D6D7E"/>
                 <ComboBox x:Name="cmbPeriodo" Width="150" Height="35" VerticalContentAlignment="Center" Margin="0,0,15,0" SelectionChanged="cmbPeriodo_SelectionChanged">
                     <ComboBoxItem Content="Hoy" IsSelected="True"/>
@@ -43,7 +41,6 @@
             </StackPanel>
         </DockPanel>
 
-        <!-- TARJETAS DE ACUMULADOS -->
         <UniformGrid Grid.Row="1" Columns="3" Height="120" Margin="0,0,0,20">
             <Border Background="#EAFAF1" Margin="5" CornerRadius="10" Padding="15">
                 <StackPanel VerticalAlignment="Center">
@@ -65,7 +62,6 @@
             </Border>
         </UniformGrid>
 
-        <!-- TABLA DE MOVIMIENTOS AUDITADOS -->
         <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="15">
             <DockPanel>
                 <TextBlock x:Name="txtSubtituloTabla" Text="Auditoría de Movimientos (Hoy)" DockPanel.Dock="Top" FontWeight="Bold" Margin="0,0,0,10" Foreground="#5D6D7E"/>
@@ -73,8 +69,7 @@
                           HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                           Background="Transparent" BorderThickness="0">
                     <DataGrid.Columns>
-                        <!-- Formato de fecha modificado a G para mostrar día/mes en rangos amplios -->
-                        <DataGridTextColumn Header="Fecha/Hora" Binding="{Binding Fecha, StringFormat={}{0:dd/MM HH:mm}}" Width="110"/>
+                        <DataGridTextColumn Header="Fecha/Hora" Binding="{Binding Fecha, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130"/>
                         <DataGridTextColumn Header="Producto/Servicio" Binding="{Binding ProductoNombre}" Width="*"/>
                         <DataGridTextColumn Header="Método Pago" Binding="{Binding MetodoPago}" Width="150"/>
                         <DataGridTextColumn Header="Ref/Depósito" Binding="{Binding NumeroReferencia}" Width="120"/>

@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="900">
+             d:DesignHeight="650" d:DesignWidth="1000">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
@@ -120,7 +120,6 @@
         </Border>
 
         <TabControl x:Name="tcInventarios" Grid.Row="1" Margin="10,0,10,10" Background="Transparent" BorderThickness="0">
-
             <TabItem Header="Stock en Mostrador (Venta)" Style="{StaticResource InventoryTabItemStyle}">
                 <Border Background="White" CornerRadius="0,8,8,8" Margin="0,5,0,0">
                     <Border.Effect>
@@ -194,6 +193,73 @@
                 </Border>
             </TabItem>
 
+            <TabItem Header="🚚 Traslado entre Sucursales" Style="{StaticResource InventoryTabItemStyle}">
+                <Grid Margin="0,5,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="380"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="20" Margin="0,0,10,0">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <TextBlock Text="Transferencia Regional de Flores" FontSize="16" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
+
+                            <UniformGrid Columns="2" Margin="0,0,0,15">
+                                <StackPanel Margin="0,0,5,0">
+                                    <TextBlock Text="Sucursal Origen" Foreground="#7F8C8D" Margin="0,0,0,5"/>
+                                    <TextBox x:Name="txtSucursalOrigen" Height="30" IsReadOnly="True" Background="#F4F6F7" VerticalContentAlignment="Center" FontWeight="Bold"/>
+                                </StackPanel>
+                                <StackPanel Margin="5,0,0,0">
+                                    <TextBlock Text="Sucursal Destino" Foreground="#2980B9" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                    <ComboBox x:Name="cbSucursalDestino" Height="30" VerticalContentAlignment="Center"/>
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <TextBlock Text="Seleccionar Flor a Trasladar:" Foreground="#7F8C8D" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="cbFlorTraslado" Height="35" DisplayMemberPath="Nombre" Margin="0,0,0,15" VerticalContentAlignment="Center"/>
+
+                            <TextBlock Text="Cantidad de Piezas / Tallos a Enviar:" Foreground="#7F8C8D" Margin="0,0,0,5"/>
+                            <TextBox x:Name="txtCantidadTraslado" Height="35" Text="1" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                            <Button Content="AUTORIZAR Y ENVIAR FLORES" Click="btnEjecutarTraslado_Click" Height="45" Background="#27AE60" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Background="White" CornerRadius="8" Padding="15">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
+                        </Border.Effect>
+                        <DockPanel>
+                            <TextBlock Text="Bitácora de Transferencias Emitidas (Auditoría)" DockPanel.Dock="Top" FontSize="15" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,10"/>
+                            <DataGrid x:Name="dgHistorialTraslados" Style="{StaticResource InventoryDataGridStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Fecha / Hora" Binding="{Binding Fecha, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130"/>
+                                    <DataGridTextColumn Header="Flor Enviada" Binding="{Binding ProductoNombre}" Width="*"/>
+                                    <DataGridTextColumn Header="Cant." Binding="{Binding Cantidad}" Width="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Destino" Binding="{Binding SucursalDestino}" Width="100"/>
+                                    <DataGridTextColumn Header="Autorizó" Binding="{Binding UsuarioResponsable}" Width="100"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
         </TabControl>
     </Grid>
 </UserControl>

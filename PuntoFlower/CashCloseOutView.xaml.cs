@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using Microsoft.Win32;
 
-// Alias para evitar conflictos con WPF
+// Alias para evitar conflictos con Wpf
 using iTextFont = iTextSharp.text.Font;
 using iTextParagraph = iTextSharp.text.Paragraph;
 using iTextDocument = iTextSharp.text.Document;
@@ -32,6 +32,34 @@ namespace PuntoFlower.Views
         {
             InitializeComponent();
             txtEmpleadoEnTurno.Text = $"Empleado en turno: {Session.UsuarioActual}";
+
+            // CORREGIDO: Forzamos de forma mandatoria la selección del índice 0 ("Hoy") en el arranque
+            if (cmbPeriodo != null)
+            {
+                cmbPeriodo.SelectedIndex = 0;
+            }
+
+            // Ejecuta la consulta contable de forma inmediata con el combo preestablecido en "Hoy"
+            ProcesarCorteFiltrado();
+
+            // Blindaje Multi-sucursal: Si cambian de pestaña y regresan, se restablece a "Hoy" automáticamente
+            this.IsVisibleChanged += (s, e) => {
+                if ((bool)e.NewValue)
+                {
+                    if (cmbPeriodo != null) cmbPeriodo.SelectedIndex = 0;
+                    ProcesarCorteFiltrado();
+                }
+            };
+        }
+
+        // Se mantiene vinculado al Loaded del XAML como respaldo de inicialización en el renderizado
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (cmbPeriodo != null && cmbPeriodo.SelectedIndex != 0)
+            {
+                cmbPeriodo.SelectedIndex = 0;
+            }
+            ProcesarCorteFiltrado();
         }
 
         private void cmbPeriodo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -59,7 +87,6 @@ namespace PuntoFlower.Views
             string condicionFecha = "";
             string seleccion = (cmbPeriodo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Hoy";
 
-            // NUEVA LÓGICA RECOMENDADA: Filtros basados en Calendario Comercial
             switch (seleccion)
             {
                 case "Hoy":
@@ -71,14 +98,12 @@ namespace PuntoFlower.Views
                 case "Esta Semana":
                     txtTituloCorte.Text = "Reporte Financiero Semanal (Natural)";
                     txtSubtituloTabla.Text = "Auditoría de Movimientos (Lunes a Domingo Actual)";
-                    // DATEDIFF con wk toma el inicio de la semana configurado en el servidor (Lunes por defecto)
                     condicionFecha = "WHERE DATEDIFF(wk, Fecha, GETDATE()) = 0 AND Fecha <= GETDATE()";
                     break;
 
                 case "Este Mes":
                     txtTituloCorte.Text = "Reporte Financiero Mensual (Calendario)";
                     txtSubtituloTabla.Text = "Auditoría de Movimientos (Mes en Curso)";
-                    // DATEDIFF con mm asegura que solo tome los días que compartan el mismo mes y año actual
                     condicionFecha = "WHERE DATEDIFF(mm, Fecha, GETDATE()) = 0 AND Fecha <= GETDATE()";
                     break;
             }
@@ -114,11 +139,11 @@ namespace PuntoFlower.Views
                             {
                                 acumuladoEfectivo += (recibido - cambio);
                             }
-                            else if (metodo == "Tarjeta")
+                            else if (metodo == "Tarjeta" || metodo.Contains("Tarjeta"))
                             {
                                 acumuladoTarjeta += totalVenta;
                             }
-                            else if (metodo == "Transferencia")
+                            else if (metodo == "Transferencia" || metodo.Contains("Transferencia"))
                             {
                                 if (cuenta == nombreEncargado1 || cuenta == "Cuenta Encargado 1")
                                     acumuladoTransfCuenta1 += totalVenta;
@@ -154,6 +179,32 @@ namespace PuntoFlower.Views
             }
         }
 
+        // CORREGIDO: Calcula dinámicamente el rango de fechas en base al filtro seleccionado para auditoría gerencial
+        private string ObtenerRangoFechasTexto(string seleccion)
+        {
+            DateTime hoy = DateTime.Now;
+            switch (seleccion)
+            {
+                case "Hoy":
+                    return hoy.ToString("dd/MM/yyyy");
+
+                case "Esta Semana":
+                    int diasAlLunes = (int)hoy.DayOfWeek - (int)DayOfWeek.Monday;
+                    if (diasAlLunes < 0) diasAlLunes += 7;
+                    DateTime lunesS = hoy.AddDays(-diasAlLunes);
+                    DateTime domingoS = lunesS.AddDays(6);
+                    return $"del {lunesS:dd/MM/yyyy} al {domingoS:dd/MM/yyyy}";
+
+                case "Este Mes":
+                    DateTime primerDiaM = new DateTime(hoy.Year, hoy.Month, 1);
+                    DateTime ultimoDiaM = primerDiaM.AddMonths(1).AddDays(-1);
+                    return $"del {primerDiaM:dd/MM/yyyy} al {ultimoDiaM:dd/MM/yyyy}";
+
+                default:
+                    return hoy.ToString("dd/MM/yyyy");
+            }
+        }
+
         private void btnFinalizarCorte_Click(object sender, RoutedEventArgs e)
         {
             if (dgCorte.ItemsSource == null || !dgCorte.ItemsSource.Cast<object>().Any())
@@ -163,6 +214,9 @@ namespace PuntoFlower.Views
             }
 
             string periodoSeleccionado = (cmbPeriodo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Hoy";
+
+            // RECUPERADO: Rango formal de fechas calculadas
+            string rangoFechasTexto = ObtenerRangoFechasTexto(periodoSeleccionado);
 
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "PDF Files (*.pdf)|*.pdf";
@@ -188,8 +242,10 @@ namespace PuntoFlower.Views
 
                     BaseColor azulMarino = new BaseColor(44, 62, 80);
 
-                    doc.Add(new iTextParagraph($"PUNTO FLOWER - REPORTE DE AUDITORÍA ({periodoSeleccionado.ToUpper()})", fTitulo));
-                    doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fBold));
+                    // IMPRESIÓN DEL RANGO REAL: Ahora el dueño sabrá con precisión milimétrica los días evaluados
+                    doc.Add(new iTextParagraph($"PUNTO FLOWER - REPORTE DE AUDITORÍA FINANCIERA", fTitulo));
+                    doc.Add(new iTextParagraph($"Periodo Evaluado: {periodoSeleccionado.ToUpper()} ({rangoFechasTexto})", fBold));
+                    doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fCuerpo));
                     doc.Add(new iTextParagraph($"Fecha de Emisión: {DateTime.Now:g}", fCuerpo));
                     doc.Add(new iTextParagraph($"Generado por: {Session.UsuarioActual}", fCuerpo));
                     doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
@@ -238,17 +294,18 @@ namespace PuntoFlower.Views
                     PdfPCell celdaDerecha = new PdfPCell(tablaMetodos) { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_TOP };
                     tablaEstructuraHorizontal.AddCell(celdaDerecha);
 
+                    tablaEstructuraHorizontal.HorizontalAlignment = Element.ALIGN_CENTER;
                     doc.Add(tablaEstructuraHorizontal);
                     doc.Add(new iTextParagraph(" "));
 
-                    doc.Add(new iTextParagraph($"HISTORIAL DE MOVIMIENTOS ({periodoSeleccionado.ToUpper()})", fSub));
+                    doc.Add(new iTextParagraph($"HISTORIAL DETALLADO DE TRANSACCIONES", fSub));
                     doc.Add(new iTextParagraph(" "));
 
                     PdfPTable tablaVentas = new PdfPTable(7);
                     tablaVentas.WidthPercentage = 100;
-                    tablaVentas.SetWidths(new float[] { 14f, 24f, 15f, 15f, 12f, 10f, 10f });
+                    tablaVentas.SetWidths(new float[] { 16f, 22f, 15f, 15f, 12f, 10f, 10f });
 
-                    string[] headers = { "Fecha/Hora", "Producto", "Método Pago", "Ref/Depósito", "Importe", "Descuento", "Cambio" };
+                    string[] headers = { "Fecha/Hora", "Producto/Servicio", "Método Pago", "Ref/Depósito", "Importe", "Descuento", "Cambio" };
                     foreach (string h in headers)
                     {
                         PdfPCell cell = new PdfPCell(new Phrase(h, fTablaHead)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = azulMarino, Padding = 5 };
@@ -257,7 +314,7 @@ namespace PuntoFlower.Views
 
                     foreach (dynamic item in dgCorte.ItemsSource)
                     {
-                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.Fecha.ToString("dd/MM HH:mm"), fCuerpo)) { Padding = 4 });
+                        tablaVentas.AddCell(new PdfPCell(new Phrase(item.Fecha.ToString("dd/MM/yyyy HH:mm"), fCuerpo)) { Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.ProductoNombre, fCuerpo)) { Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.MetodoPago, fCuerpo)) { Padding = 4 });
                         tablaVentas.AddCell(new PdfPCell(new Phrase(item.NumeroReferencia, fCuerpo)) { Padding = 4, HorizontalAlignment = Element.ALIGN_CENTER });

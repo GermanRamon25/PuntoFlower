@@ -10,7 +10,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
 
-// Alias de iTextSharp para control estricto de fuentes y elementos
 using iTextFont = iTextSharp.text.Font;
 using iTextParagraph = iTextSharp.text.Paragraph;
 using iTextDocument = iTextSharp.text.Document;
@@ -25,10 +24,88 @@ namespace PuntoFlower.Views
         {
             InitializeComponent();
             CargarDesdeSQL();
+            InicializarModuloTraslados();
 
             this.IsVisibleChanged += (s, e) => {
-                if ((bool)e.NewValue) CargarDesdeSQL();
+                if ((bool)e.NewValue)
+                {
+                    CargarDesdeSQL();
+                    CargarHistorialTraslados();
+                }
             };
+        }
+
+        // CORREGIDO: Filtro de exclusión inteligente por aproximación de texto para el ComboBox
+        private void InicializarModuloTraslados()
+        {
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                // 1. Detección automática del origen de la app
+                string origenLocal = db.ObtenerNombreSucursal();
+                txtSucursalOrigen.Text = string.IsNullOrEmpty(origenLocal) ? "Guasave" : origenLocal;
+
+                // 2. Carga dinámica de destinos con exclusión inteligente basada en coincidencia de subcadenas
+                List<string> sucursalesDestino = new List<string>();
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    string query = "SELECT Nombre FROM Sucursales ORDER BY Nombre ASC";
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        using (SqlDataReader r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                string nombreSucursalBD = r["Nombre"].ToString();
+
+                                // Si el nombre de la BD (ej: 'Guasave') está inyectado dentro del identificador largo de la app, lo saltamos
+                                if (txtSucursalOrigen.Text.ToUpper().Contains(nombreSucursalBD.ToUpper()))
+                                {
+                                    continue;
+                                }
+
+                                sucursalesDestino.Add(nombreSucursalBD);
+                            }
+                        }
+                    }
+                }
+                cbSucursalDestino.ItemsSource = sucursalesDestino;
+                if (sucursalesDestino.Count > 0) cbSucursalDestino.SelectedIndex = 0;
+
+                CargarHistorialTraslados();
+            }
+            catch { }
+        }
+
+        // Cláusula SQL unificada estrictamente en plural apuntando a 'HistorialTraslados'
+        private void CargarHistorialTraslados()
+        {
+            List<object> logs = new List<object>();
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    string query = "SELECT Fecha, ProductoNombre, Cantidad, SucursalDestino, UsuarioResponsable FROM HistorialTraslados ORDER BY Fecha DESC";
+                    SqlCommand cmd = new SqlCommand(query, con);
+                    using (SqlDataReader r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            logs.Add(new
+                            {
+                                Fecha = (DateTime)r["Fecha"],
+                                ProductoNombre = r["ProductoNombre"].ToString(),
+                                Cantidad = Convert.ToInt32(r["Cantidad"]),
+                                SucursalDestino = r["SucursalDestino"].ToString(),
+                                UsuarioResponsable = r["UsuarioResponsable"].ToString()
+                            });
+                        }
+                    }
+                }
+                dgHistorialTraslados.ItemsSource = logs;
+            }
+            catch { }
         }
 
         private void CargarDesdeSQL(string filtro = "")
@@ -81,10 +158,76 @@ namespace PuntoFlower.Views
 
                 dgInventarioBodega.ItemsSource = null;
                 dgInventarioBodega.ItemsSource = listaBodega;
+
+                cbFlorTraslado.ItemsSource = listaVenta;
+                if (listaVenta.Count > 0) cbFlorTraslado.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al sincronizar las tablas de inventario segmentado: " + ex.Message, "Fallo de Enlace");
+                MessageBox.Show("Error al sincronizar las tablas de inventario: " + ex.Message, "Fallo de Enlace");
+            }
+        }
+
+        private void btnEjecutarTraslado_Click(object sender, RoutedEventArgs e)
+        {
+            var florSeleccionada = cbFlorTraslado.SelectedItem as Producto;
+            string destino = cbSucursalDestino.SelectedItem as string;
+
+            if (florSeleccionada == null || string.IsNullOrEmpty(destino))
+            {
+                MessageBox.Show("Por favor, selecciona la flor y la sucursal de destino.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!int.TryParse(txtCantidadTraslado.Text.Trim(), out int cantMover) || cantMover <= 0)
+            {
+                MessageBox.Show("Por favor, introduce una cantidad numérica válida mayor a cero.", "Cantidad Inválida");
+                return;
+            }
+
+            if (cantMover > florSeleccionada.StockActual)
+            {
+                MessageBox.Show($"Inventario insuficiente. Solo quedan {florSeleccionada.StockActual} unidades disponibles en mostrador.", "Salida Bloqueada", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    // 1. Restamos la flor de la sucursal que emite el flete local
+                    string qUpdate = "UPDATE Productos SET StockActual = StockActual - @cant WHERE Id = @id";
+                    using (SqlCommand cmdUp = new SqlCommand(qUpdate, con))
+                    {
+                        cmdUp.Parameters.AddWithValue("@cant", cantMover);
+                        cmdUp.Parameters.AddWithValue("@id", florSeleccionada.Id);
+                        cmdUp.ExecuteNonQuery();
+                    }
+
+                    // 2. Guardado limpio apuntando correctamente a 'HistorialTraslados' (Plural)
+                    string qInsert = @"INSERT INTO HistorialTraslados (ProductoNombre, Cantidad, SucursalOrigen, SucursalDestino, UsuarioResponsable, Fecha) 
+                                     VALUES (@prod, @cant, @orig, @dest, @user, GETDATE())";
+                    using (SqlCommand cmdIn = new SqlCommand(qInsert, con))
+                    {
+                        cmdIn.Parameters.AddWithValue("@prod", florSeleccionada.Nombre);
+                        cmdIn.Parameters.AddWithValue("@cant", cantMover);
+                        cmdIn.Parameters.AddWithValue("@orig", txtSucursalOrigen.Text);
+                        cmdIn.Parameters.AddWithValue("@dest", destino);
+                        cmdIn.Parameters.AddWithValue("@user", Session.UsuarioActual);
+                        cmdIn.ExecuteNonQuery();
+                    }
+                }
+
+                MessageBox.Show($"¡Traslado de {cantMover} '{florSeleccionada.Nombre}' hacia sucursal {destino} registrado con éxito!", "Transferencia Concluida", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                txtCantidadTraslado.Text = "1";
+                CargarDesdeSQL();
+                CargarHistorialTraslados();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error de red local al procesar el traslado: " + ex.Message, "Error Crítico");
             }
         }
 
@@ -92,8 +235,9 @@ namespace PuntoFlower.Views
         {
             if (tcInventarios.SelectedIndex == 0)
                 return dgInventarioVenta.SelectedItem as Producto;
-            else
+            else if (tcInventarios.SelectedIndex == 1)
                 return dgInventarioBodega.SelectedItem as Producto;
+            return null;
         }
 
         private void btnMerma_Click(object sender, RoutedEventArgs e)
@@ -196,7 +340,6 @@ namespace PuntoFlower.Views
             if (ventana.ShowDialog() == true) CargarDesdeSQL();
         }
 
-        // NUEVO MÉTODO: Compila de forma matemática el PDF Ejecutivo de Inventario General
         private void btnReporte_Click(object sender, RoutedEventArgs e)
         {
             var itemsVenta = dgInventarioVenta.ItemsSource as List<Producto> ?? new List<Producto>();
@@ -219,7 +362,6 @@ namespace PuntoFlower.Views
                     ConexionDB db = new ConexionDB();
                     string sucursalNombre = db.ObtenerNombreSucursal();
 
-                    // Cálculos Financieros Globales para los KPIs superiores
                     int totalVariedades = itemsVenta.Select(x => x.Nombre).Union(itemsBodega.Select(y => y.Nombre)).Distinct().Count();
                     int piezasTotales = itemsVenta.Sum(x => x.StockActual) + itemsBodega.Sum(y => y.StockActual);
                     decimal inversionBodega = itemsBodega.Sum(x => x.StockActual * x.PrecioCompra);
@@ -238,7 +380,6 @@ namespace PuntoFlower.Views
 
                     BaseColor azulMarino = new BaseColor(44, 62, 80);
 
-                    // Header Institucional
                     doc.Add(new iTextParagraph("PUNTO FLOWER - AUDITORÍA DE INVENTARIO GENERAL", fTitulo));
                     doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fBold));
                     doc.Add(new iTextParagraph($"Fecha de Emisión: {DateTime.Now:g}", fCuerpo));
@@ -246,7 +387,6 @@ namespace PuntoFlower.Views
                     doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
                     doc.Add(new iTextParagraph(" "));
 
-                    // 1. CUADRO DE RESUMEN ANALÍTICO (KPIs)
                     doc.Add(new iTextParagraph("RESUMEN VALORATIVO FINANCIERO", fSub));
                     doc.Add(new iTextParagraph(" "));
 
@@ -269,8 +409,7 @@ namespace PuntoFlower.Views
                     doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph(" "));
 
-                    // 2. TABLA SECRETA A: BALANCE EN MOSTRADOR (VENTA)
-                    doc.Add(new iTextParagraph("SECCIÓN A: MERCCANCÍA DISPONIBLE EN MOSTRADOR (VENTA)", fSub));
+                    doc.Add(new iTextParagraph("SECCIÓN A: MERCANCÍA DISPONIBLE EN MOSTRADOR (VENTA)", fSub));
                     doc.Add(new iTextParagraph(" "));
 
                     PdfPTable tVenta = new PdfPTable(4);
@@ -291,7 +430,6 @@ namespace PuntoFlower.Views
                     doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph(" "));
 
-                    // 3. TABLA SECRETA B: BALANCE EN RESERVA (BODEGA)
                     doc.Add(new iTextParagraph("SECCIÓN B: RESERVA EN CÁMARA FRÍA (BODEGA)", fSub));
                     doc.Add(new iTextParagraph(" "));
 
@@ -313,7 +451,6 @@ namespace PuntoFlower.Views
                     doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph(" "));
 
-                    // 4. SECCIÓN C: REPORTE DE HISTORIAL DE MERMAS REGISTRADAS
                     doc.Add(new iTextParagraph("SECCIÓN C: HISTORIAL DE MERMAS Y PÉRDIDAS DETECTADAS", fSub));
                     doc.Add(new iTextParagraph(" "));
 
@@ -341,7 +478,7 @@ namespace PuntoFlower.Views
                     doc.Add(tMermas);
 
                     doc.Close();
-                    MessageBox.Show("Reporte integral de inventario exportado a PDF con éxito.", "Auditoría Concluida", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Reporte de inventario exportado a PDF con éxito.", "Auditoría Concluida", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
