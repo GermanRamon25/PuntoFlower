@@ -22,36 +22,68 @@ namespace PuntoFlower.Views
             lblDireccion.Text = pedido.Direccion;
             txtNota.Text = pedido.NotaTarjeta;
 
-            // Mostrar montos financieros
+            // Mostrar montos financieros tradicionales
             lblTotal.Text = string.Format("{0:C}", pedido.PrecioTotal);
             lblAnticipo.Text = string.Format("{0:C}", pedido.Anticipo);
             lblSaldo.Text = string.Format("{0:C}", _saldoPendienteNum);
 
-            // NUEVO: Ocultamos el contenedor del método de pago de liquidación en esta ventana 
-            // ya que el cobro financiero y la salida de stock se realizarán directamente desde el Punto de Venta (SalesView)
+            // NUEVO: Recuperar de forma dinámica el costo del envío directo del objeto agenda
+            decimal envioMonto = 0;
+            try
+            {
+                // Intentamos leer la propiedad si viene cargada dinámicamente
+                envioMonto = pedido.CostoEnvio;
+            }
+            catch
+            {
+                // Consulta de seguridad complementaria en texto plano por si el objeto anónimo no trae la columna
+                envioMonto = ConsultarCostoEnvioDeSeguridad(_pedidoId);
+            }
+
+            lblCostoEnvio.Text = string.Format("{0:C}", envioMonto);
+
             if (panelMetodoLiquidacion != null)
             {
                 panelMetodoLiquidacion.Visibility = Visibility.Collapsed;
             }
         }
 
-        // Método para poner el pedido en preparación (Naranja en Agenda)
+        // Método auxiliar para salvaguardar la lectura de datos del costo de traslado
+        private decimal ConsultarCostoEnvioDeSeguridad(int idPedido)
+        {
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    string query = "SELECT ISNULL(CostoEnvio, 0) FROM Pedidos WHERE Id = @id";
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        cmd.Parameters.AddWithValue("@id", idPedido);
+                        return Convert.ToDecimal(cmd.ExecuteScalar());
+                    }
+                }
+            }
+            catch
+            {
+                return 0; // Fallback por integridad
+            }
+        }
+
         private void btnPreparar_Click(object sender, RoutedEventArgs e)
         {
             ActualizarEstado("En Preparación");
-            MessageBox.Show("El pedido ahora aparece 'En Preparación'.", "Estatus Actualizado");
+            MessageBox.Show("El pedido ahora aparece 'En Preparación'.", "Estatus Actualizado", MessageBoxButton.OK, MessageBoxImage.Information);
             this.DialogResult = true;
         }
 
-        // Método para poner el pedido como listo (Verde en Agenda)
         private void btnListo_Click(object sender, RoutedEventArgs e)
         {
             ActualizarEstado("Listo para Entregar");
-            MessageBox.Show("El pedido ahora aparece como 'Listo'.", "Estatus Actualizado");
+            MessageBox.Show("El pedido ahora aparece como 'Listo para Entregar'.", "Estatus Actualizado", MessageBoxButton.OK, MessageBoxImage.Information);
             this.DialogResult = true;
         }
 
-        // Método genérico para ahorrar código al actualizar estados
         private void ActualizarEstado(string nuevoEstado)
         {
             ConexionDB db = new ConexionDB();
@@ -68,12 +100,10 @@ namespace PuntoFlower.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al actualizar estado: " + ex.Message);
+                MessageBox.Show("Error al actualizar el estado: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        // CORREGIDO: Procesa la entrega física de la agenda, elimina la inyección redundante de dinero
-        // para cederle el control absoluto al Punto de Venta tradicional.
         private void btnEntregar_Click(object sender, RoutedEventArgs e)
         {
             ConexionDB db = new ConexionDB();
@@ -81,7 +111,6 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Al entregar desde la agenda, el estatus cambia y el saldo pendiente se vuelve 0 para cerrar el expediente del cliente
                     string query = "UPDATE Pedidos SET Estado = 'Entregado', SaldoPendiente = 0, MetodoPagoLiquidacion = 'Mostrador POS' WHERE Id = @id";
 
                     using (SqlCommand cmd = new SqlCommand(query, con))

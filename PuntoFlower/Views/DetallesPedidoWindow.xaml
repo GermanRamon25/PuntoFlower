@@ -1,7 +1,7 @@
 ﻿<Window x:Class="PuntoFlower.Views.DetallesPedidoWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Detalles del Pedido" Height="680" Width="400"
+        Title="Detalles del Pedido" Height="690" Width="400"
         WindowStartupLocation="CenterOwner" Background="#FDFEFE">
     <Grid Margin="20">
         <StackPanel>
@@ -27,6 +27,12 @@
                         <TextBlock Text="Total del Arreglo:" Foreground="#7B241C"/>
                         <TextBlock x:Name="lblTotal" Text="$0.00" HorizontalAlignment="Right" FontWeight="SemiBold"/>
                     </DockPanel>
+
+                    <DockPanel Margin="0,0,0,5">
+                        <TextBlock Text="Costo de Envío:" Foreground="#E67E22" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="lblCostoEnvio" Text="$0.00" HorizontalAlignment="Right" Foreground="#E67E22" FontWeight="Bold"/>
+                    </DockPanel>
+
                     <DockPanel Margin="0,0,0,5">
                         <TextBlock Text="Anticipo dejado:" Foreground="#7B241C"/>
                         <TextBlock x:Name="lblAnticipo" Text="$0.00" HorizontalAlignment="Right" Foreground="#27AE60" FontWeight="SemiBold"/>
@@ -41,8 +47,8 @@
 
             <TextBlock Text="GESTIÓN DE ARMADO:" FontWeight="Bold" FontSize="10" Foreground="#7F8C8D" Margin="0,0,0,5"/>
             <UniformGrid Columns="2" Margin="0,0,0,15">
-                <Button Content="EMPEZAR A ARMAR" Click="btnPreparar_Click" Margin="0,0,5,0" Height="35" Background="#F39C12" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
-                <Button Content="MARCAR LISTO" Click="btnListo_Click" Margin="5,0,0,0" Height="35" Background="#27AE60" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
+                <Button Content="EMPEZAR A ARMAR" Click="btnPreparar_Click" Margin="0,0,5,0" Height="35" Background="#F39C12" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                <Button Content="MARCAR LISTO" Click="btnListo_Click" Margin="5,0,0,0" Height="35" Background="#27AE60" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
             </UniformGrid>
 
             <Separator Margin="0,0,0,10"/>

@@ -52,7 +52,7 @@ namespace PuntoFlower
             // Caso 2: Si el usuario es Administrador o Dueño
             else if (Session.RolActual == "Admin")
             {
-                // El sistema habilita de forma transparente todas las funciones de auditoría y configuración
+                // El sistema habilita todas las funciones de auditoría y configuración
                 btnDashboard.Visibility = Visibility.Visible;
                 btnInventario.Visibility = Visibility.Visible;
                 btnReportes.Visibility = Visibility.Visible;
@@ -84,7 +84,8 @@ namespace PuntoFlower
 
         private void btnAgenda_Click(object sender, RoutedEventArgs e) => MainContent.Content = new AgendaView();
 
-        private void btnGastos_Click(object sender, RoutedEventArgs e) => MainContent.Content = new ProveedoresView();
+        // MODIFICADO: Ahora carga correctamente la vista ExpensesView en lugar de ProveedoresView
+        private void btnGastos_Click(object sender, RoutedEventArgs e) => MainContent.Content = new ExpensesView();
 
         private void btnReportes_Click(object sender, RoutedEventArgs e) => MainContent.Content = new ReportsView();
 

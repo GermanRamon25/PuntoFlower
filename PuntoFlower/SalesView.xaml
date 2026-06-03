@@ -56,7 +56,6 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="15">
                             <TextBlock Text="Configurador de Ramos" FontSize="24" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,15"/>
-
                             <GroupBox Header="1. Elegir Tamaño" Margin="0,0,0,15">
                                 <WrapPanel Orientation="Horizontal">
                                     <RadioButton x:Name="rbRamo6" Content="6 pz" Tag="6" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="80" Height="40"/>
@@ -71,7 +70,6 @@
                                     <RadioButton x:Name="rbRamo250" Content="250 pz" Tag="250" Checked="Ramo_Checked" Margin="5" Style="{StaticResource {x:Type ToggleButton}}" Width="80" Height="40"/>
                                 </WrapPanel>
                             </GroupBox>
-
                             <GroupBox Header="2. Composición" Padding="10">
                                 <StackPanel>
                                     <Grid Margin="0,0,0,10">
@@ -85,7 +83,6 @@
                                         <Button Grid.Column="2" Content="Añadir" Click="btnAgregarAlRamo_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" Height="30"/>
                                     </Grid>
                                     <TextBlock x:Name="lblProgresoRamo" Text="Seleccionadas: 0 / 0" FontSize="14" FontWeight="Bold" Foreground="#E67E22" Margin="0,5"/>
-
                                     <Button Content="Finalizar y Agregar al Ticket" Click="btnFinalizarRamo_Click" Background="#27AE60" Foreground="White" Height="45" Margin="0,5" FontWeight="Bold"/>
                                 </StackPanel>
                             </GroupBox>
@@ -134,10 +131,8 @@
                                 <StackPanel>
                                     <TextBlock Text="Nombre del Servicio / Arreglo" Foreground="#7F8C8D" FontWeight="SemiBold"/>
                                     <TextBox x:Name="txtNombreEspecial" Height="40" Margin="0,5,0,12" VerticalContentAlignment="Center" FontSize="15"/>
-
                                     <TextBlock Text="Precio Acordado con el Cliente ($)" Foreground="#7F8C8D" FontWeight="SemiBold"/>
                                     <TextBox x:Name="txtPrecioEspecial" Height="40" Margin="0,5,0,15" VerticalContentAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="#27AE60"/>
-
                                     <Border BorderThickness="0,1,0,0" BorderBrush="#D5DBDB" Margin="0,5,0,10" Padding="0,10,0,0">
                                         <StackPanel>
                                             <TextBlock Text="Flores Utilizadas en este Arreglo (Para Inventario)" FontSize="13" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,8"/>
@@ -151,11 +146,9 @@
                                                 <TextBox x:Name="txtCantFlorEspecial" Grid.Column="1" VerticalContentAlignment="Center" Text="0" Margin="0,0,8,0" HorizontalContentAlignment="Center" Height="32" FontSize="14"/>
                                                 <Button Grid.Column="2" Content="Asociar Flor" Click="btnAgregarFlorEspecial_Click" Background="#3498DB" Foreground="White" FontWeight="Bold" Height="32"/>
                                             </Grid>
-
                                             <TextBlock x:Name="lblProgresoEspecial" Text="Flores añadidas: Ninguna" FontSize="12" FontWeight="SemiBold" Foreground="#E67E22" Margin="2,3,0,12" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
-
                                     <Button Content="Agregar Pedido Especial al Ticket" Click="btnAgregarEspecial_Click" Background="#27AE60" Foreground="White" FontWeight="Bold" Height="50"/>
                                 </StackPanel>
                             </Border>
@@ -178,7 +171,6 @@
                             <TextBlock Text="Cobrar Saldo / Abono de Agenda" FontSize="20" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,5"/>
                             <Button Content="🔄 Cargar / Refrescar Pedidos con Saldo Pendiente" Click="btnRefrescarPedidosAbono_Click" Height="35" Background="#3498DB" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
                         </StackPanel>
-
                         <DataGrid x:Name="dgPedidosPendientes" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" Background="Transparent" BorderThickness="0">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*"/>
@@ -246,8 +238,18 @@
                             <TextBlock Text="Asociar a Pedido Existente de Agenda:" FontSize="11" FontWeight="Bold" Foreground="#2E4053" Margin="0,0,0,3"/>
                             <ComboBox x:Name="cbPedidosAgendaDesplegable" Height="30" DisplayMemberPath="ClienteNombre" SelectionChanged="cbPedidosAgendaDesplegable_SelectionChanged" Margin="0,0,0,5"/>
 
-                            <TextBlock x:Name="lblInfoNuevoCliente" Text="* Deja el combo en blanco para registrar como un NUEVO CLIENTE de mostrador." FontSize="10" Foreground="#7F8C8D" FontStyle="Italic" TextWrapping="Wrap" Margin="0,2,0,5"/>
+                            <StackPanel x:Name="panelFleteAuditoria" Orientation="Vertical" Margin="0,2,0,5" Visibility="Collapsed">
+                                <DockPanel Margin="0,1">
+                                    <TextBlock Text="🚚 Costo de Flete:" FontSize="11" Foreground="#5D6D7E"/>
+                                    <TextBlock x:Name="lblEnvioApartado" Text="$0.00" FontSize="11" FontWeight="Bold" Foreground="#E67E22" HorizontalAlignment="Right"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,1">
+                                    <TextBlock Text="🔴 Anticipo Guardado:" FontSize="11" Foreground="#5D6D7E"/>
+                                    <TextBlock x:Name="lblAnticipoRegistro" Text="$0.00" FontSize="11" FontWeight="Bold" Foreground="#CB4335" HorizontalAlignment="Right"/>
+                                </DockPanel>
+                            </StackPanel>
 
+                            <TextBlock x:Name="lblInfoNuevoCliente" Text="* Deja el combo en blanco para registrar como un NUEVO CLIENTE de mostrador." FontSize="10" Foreground="#7F8C8D" FontStyle="Italic" TextWrapping="Wrap" Margin="0,2,0,5"/>
                             <TextBlock Text="Nombre del Cliente (Solo para Nuevos):" FontSize="11" Foreground="#5D6D7E"/>
                             <TextBox x:Name="txtClientePedidoCaja" Height="25" Margin="0,2,0,5" VerticalContentAlignment="Center"/>
                             <UniformGrid Columns="2">
@@ -308,7 +310,7 @@
                         </StackPanel>
                     </UniformGrid>
 
-                    <Button x:Name="btnConfirmarVenta" Content="FINALIZAR VENTA" Click="btnConfirmarVenta_Click" Height="55" Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="16" BorderThickness="0">
+                    <Button x:Name="btnConfirmarVenta" Content="FINALIZAR VENTA" Click="btnConfirmarVenta_Click" Height="55" Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="16" BorderThickness="0" Cursor="Hand">
                         <Button.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="10"/>
