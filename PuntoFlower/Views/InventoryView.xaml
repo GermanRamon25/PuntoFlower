@@ -85,36 +85,36 @@
                              Tag="Buscar flor..."/>
 
                     <Button Content="Buscar" Width="80" Background="#3498DB" 
-                            Foreground="White" BorderThickness="0" 
-                            Click="btnBuscar_Click" Cursor="Hand"/>
+                             Foreground="White" BorderThickness="0" 
+                             Click="btnBuscar_Click" Cursor="Hand"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                     <Button Content="+ Nueva Flor" x:Name="btnNuevaFlor" 
-                            Click="btnNuevaFlor_Click" Width="110" Height="35" 
-                            Background="#27AE60" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                             Click="btnNuevaFlor_Click" Width="110" Height="35" 
+                             Background="#27AE60" Foreground="White" 
+                             FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
 
                     <Button Content="Eliminar" x:Name="btnEliminar" 
-                            Click="btnEliminar_Click" Width="100" Height="35" 
-                            Background="#E74C3C" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Cursor="Hand" Margin="5,0"/>
+                             Click="btnEliminar_Click" Width="100" Height="35" 
+                             Background="#E74C3C" Foreground="White" 
+                             FontWeight="Bold" BorderThickness="0" Cursor="Hand" Margin="5,0"/>
 
                     <Button Content="Traspasar a Venta" Width="130" Height="35" 
-                            x:Name="btnSurtirStock"
-                            Click="btnSurtirStock_Click" 
-                            Background="#2980B9" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                             x:Name="btnSurtirStock"
+                             Click="btnSurtirStock_Click" 
+                             Background="#2980B9" Foreground="White" 
+                             FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
 
                     <Button Content="Registrar Merma" x:Name="btnMerma" 
-                            Click="btnMerma_Click" Width="120" Height="35" 
-                            Background="#922B21" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Margin="0,0,5,0" Cursor="Hand"/>
+                             Click="btnMerma_Click" Width="120" Height="35" 
+                             Background="#922B21" Foreground="White" 
+                             FontWeight="Bold" BorderThickness="0" Margin="0,0,5,0" Cursor="Hand"/>
 
                     <Button Content="PDF Reporte" x:Name="btnReporte" 
-                            Click="btnReporte_Click" Width="100" Height="35" 
-                            Background="#34495E" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                             Click="btnReporte_Click" Width="100" Height="35" 
+                             Background="#34495E" Foreground="White" 
+                             FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -146,7 +146,7 @@
                                                 <TextBlock x:Name="StatusText" Text="Disponible" Foreground="#27AE60" FontWeight="SemiBold" FontSize="11"/>
                                             </Border>
                                             <DataTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding NecesitaSurtir}" Value="True">
+                                                <DataTrigger Binding="{Binding NecisitaSurtir}" Value="True">
                                                     <Setter TargetName="StatusBorder" Property="Background" Value="#FDEDEC"/>
                                                     <Setter TargetName="StatusText" Property="Text" Value="Reabastecer"/>
                                                     <Setter TargetName="StatusText" Property="Foreground" Value="#E74C3C"/>
@@ -239,7 +239,17 @@
                             <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
                         </Border.Effect>
                         <DockPanel>
-                            <TextBlock Text="Bitácora de Transferencias Emitidas (Auditoría)" DockPanel.Dock="Top" FontSize="15" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,10"/>
+                            <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                                <TextBlock Text="Bitácora de Transferencias Emitidas (Auditoría)" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="15" FontWeight="Bold" Foreground="#34495E"/>
+                                <Button Content="📄 IMPRIMIR BITÁCORA PDF" x:Name="btnReporteTraslados" Click="btnReporteTraslados_Click" HorizontalAlignment="Right" Height="32" Padding="12,0" Background="#2980B9" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="4"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+                            </Grid>
+
                             <DataGrid x:Name="dgHistorialTraslados" Style="{StaticResource InventoryDataGridStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Fecha / Hora" Binding="{Binding Fecha, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130"/>

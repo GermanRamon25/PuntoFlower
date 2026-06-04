@@ -18,6 +18,16 @@ using iTextSharp.text.pdf;
 
 namespace PuntoFlower.Views
 {
+    // Clase auxiliar interna para leer los elementos tipados del historial sin usar tipos anónimos en LINQ
+    public class HistorialTrasladoClass
+    {
+        public DateTime Fecha { get; set; }
+        public string ProductoNombre { get; set; }
+        public int Cantidad { get; set; }
+        public string SucursalDestino { get; set; }
+        public string UsuarioResponsable { get; set; }
+    }
+
     public partial class InventoryView : UserControl
     {
         public InventoryView()
@@ -35,17 +45,14 @@ namespace PuntoFlower.Views
             };
         }
 
-        // CORREGIDO: Filtro de exclusión inteligente por aproximación de texto para el ComboBox
         private void InicializarModuloTraslados()
         {
             ConexionDB db = new ConexionDB();
             try
             {
-                // 1. Detección automática del origen de la app
                 string origenLocal = db.ObtenerNombreSucursal();
                 txtSucursalOrigen.Text = string.IsNullOrEmpty(origenLocal) ? "Guasave" : origenLocal;
 
-                // 2. Carga dinámica de destinos con exclusión inteligente basada en coincidencia de subcadenas
                 List<string> sucursalesDestino = new List<string>();
                 using (SqlConnection con = db.OpenConnection())
                 {
@@ -58,7 +65,6 @@ namespace PuntoFlower.Views
                             {
                                 string nombreSucursalBD = r["Nombre"].ToString();
 
-                                // Si el nombre de la BD (ej: 'Guasave') está inyectado dentro del identificador largo de la app, lo saltamos
                                 if (txtSucursalOrigen.Text.ToUpper().Contains(nombreSucursalBD.ToUpper()))
                                 {
                                     continue;
@@ -77,10 +83,9 @@ namespace PuntoFlower.Views
             catch { }
         }
 
-        // Cláusula SQL unificada estrictamente en plural apuntando a 'HistorialTraslados'
         private void CargarHistorialTraslados()
         {
-            List<object> logs = new List<object>();
+            List<HistorialTrasladoClass> logs = new List<HistorialTrasladoClass>();
             ConexionDB db = new ConexionDB();
             try
             {
@@ -92,7 +97,7 @@ namespace PuntoFlower.Views
                     {
                         while (r.Read())
                         {
-                            logs.Add(new
+                            logs.Add(new HistorialTrasladoClass
                             {
                                 Fecha = (DateTime)r["Fecha"],
                                 ProductoNombre = r["ProductoNombre"].ToString(),
@@ -196,7 +201,6 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // 1. Restamos la flor de la sucursal que emite el flete local
                     string qUpdate = "UPDATE Productos SET StockActual = StockActual - @cant WHERE Id = @id";
                     using (SqlCommand cmdUp = new SqlCommand(qUpdate, con))
                     {
@@ -205,7 +209,6 @@ namespace PuntoFlower.Views
                         cmdUp.ExecuteNonQuery();
                     }
 
-                    // 2. Guardado limpio apuntando correctamente a 'HistorialTraslados' (Plural)
                     string qInsert = @"INSERT INTO HistorialTraslados (ProductoNombre, Cantidad, SucursalOrigen, SucursalDestino, UsuarioResponsable, Fecha) 
                                      VALUES (@prod, @cant, @orig, @dest, @user, GETDATE())";
                     using (SqlCommand cmdIn = new SqlCommand(qInsert, con))
@@ -371,12 +374,12 @@ namespace PuntoFlower.Views
                     PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
                     doc.Open();
 
-                    BaseFont bf = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
-                    iTextFont fTitulo = new iTextFont(bf, 14, iTextFont.BOLD, new BaseColor(44, 62, 80));
-                    iTextFont fSub = new iTextFont(bf, 11, iTextFont.BOLD, BaseColor.DARK_GRAY);
-                    iTextFont fCuerpo = new iTextFont(bf, 9);
-                    iTextFont fBold = new iTextFont(bf, 9, iTextFont.BOLD);
-                    iTextFont fTablaHead = new iTextFont(bf, 9, iTextFont.BOLD, BaseColor.WHITE);
+                    // CORRECCIÓN DE FUENTES: Uso directo de FontFactory para evitar errores de conversión y estilos
+                    iTextFont fTitulo = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 14, new BaseColor(44, 62, 80));
+                    iTextFont fSub = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.DARK_GRAY);
+                    iTextFont fCuerpo = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
+                    iTextFont fBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.BLACK);
+                    iTextFont fTablaHead = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
 
                     BaseColor azulMarino = new BaseColor(44, 62, 80);
 
@@ -482,7 +485,96 @@ namespace PuntoFlower.Views
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error al estructurar el reporte PDF: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("Error al anunciar el reporte PDF: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        // NUEVO MÉTODO: Compilación y exportación de la Bitácora de Traslados Emitidos a Sucursales
+        private void btnReporteTraslados_Click(object sender, RoutedEventArgs e)
+        {
+            var listaTraslados = dgHistorialTraslados.ItemsSource as List<HistorialTrasladoClass>;
+            if (listaTraslados == null || !listaTraslados.Any())
+            {
+                MessageBox.Show("No se registran transferencias o traslados emitidos en la bitácora actual para exportar.", "Atención", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "PDF Files (*.pdf)|*.pdf";
+            sfd.FileName = $"Bitacora_Traslados_Sucursales_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+            sfd.Title = "Exportar Bitácora de Traslados";
+
+            if (sfd.ShowDialog() == true)
+            {
+                try
+                {
+                    ConexionDB db = new ConexionDB();
+                    string sucursalOrigenNombre = txtSucursalOrigen.Text;
+
+                    iTextDocument doc = new iTextDocument(PageSize.A4, 30, 30, 35, 35);
+                    PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
+                    doc.Open();
+
+                    // CORRECCIÓN DE FUENTES TAMBIÉN AQUÍ: Formato homogéneo sin fallos de casteo
+                    iTextFont fTitulo = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 15, new BaseColor(31, 97, 141));
+                    iTextFont fCuerpo = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
+                    iTextFont fBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.BLACK);
+                    iTextFont fTablaHead = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
+
+                    // Encabezado Corporativo del Reporte de Fletes
+                    doc.Add(new iTextParagraph("PUNTO FLOWER - MANIFESTO DE TRASLADO ENTRE SUCURSALES", fTitulo));
+                    doc.Add(new iTextParagraph($"Planta / Sucursal Emisora (Origen): {sucursalOrigenNombre}", fBold));
+                    doc.Add(new iTextParagraph($"Fecha de Reporte: {DateTime.Now:dd/MM/yyyy HH:mm:ss}", fCuerpo));
+                    doc.Add(new iTextParagraph($"Auditor a Cargo: {Session.UsuarioActual}", fCuerpo));
+                    doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
+                    doc.Add(new iTextParagraph(" "));
+
+                    // Estructura de la Tabla del Manifiesto de Carga
+                    PdfPTable tTraslados = new PdfPTable(5);
+                    tTraslados.WidthPercentage = 100;
+                    tTraslados.SetWidths(new float[] { 20f, 40f, 12f, 14f, 14f });
+
+                    string[] headers = { "Fecha / Hora", "Flor / Variedad Enviada", "Cant.", "Suc. Destino", "Autorizó" };
+                    BaseColor azulGrisaceo = new BaseColor(52, 73, 94);
+
+                    foreach (string h in headers)
+                    {
+                        tTraslados.AddCell(new PdfPCell(new Phrase(h, fTablaHead)) { BackgroundColor = azulGrisaceo, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 6 });
+                    }
+
+                    // Llenado dinámico de las filas con las celdas alineadas
+                    foreach (var t in listaTraslados)
+                    {
+                        tTraslados.AddCell(new PdfPCell(new Phrase(t.Fecha.ToString("dd/MM/yyyy HH:mm"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 5 });
+                        tTraslados.AddCell(new PdfPCell(new Phrase(t.ProductoNombre, fCuerpo)) { Padding = 5 });
+                        tTraslados.AddCell(new PdfPCell(new Phrase(t.Cantidad.ToString(), fBold)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 5 });
+                        tTraslados.AddCell(new PdfPCell(new Phrase(t.SucursalDestino, fCuerpo)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 5 });
+                        tTraslados.AddCell(new PdfPCell(new Phrase(t.UsuarioResponsable, fCuerpo)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 5 });
+                    }
+
+                    doc.Add(tTraslados);
+                    doc.Add(new iTextParagraph(" "));
+                    doc.Add(new iTextParagraph("\n\n\n"));
+
+                    // Firmas físicas obligatorias de validación para control logístico regional
+                    PdfPTable tablaFirmas = new PdfPTable(2);
+                    tablaFirmas.WidthPercentage = 100;
+                    tablaFirmas.SetWidths(new float[] { 50f, 50f });
+
+                    PdfPCell cellFirma1 = new PdfPCell(new Phrase("___________________________\nFirma de Despacho (Origen)", fBold)) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER };
+                    PdfPCell cellFirma2 = new PdfPCell(new Phrase("___________________________\nFirma de Recibido (Destino)", fBold)) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER };
+
+                    tablaFirmas.AddCell(cellFirma1);
+                    tablaFirmas.AddCell(cellFirma2);
+                    doc.Add(tablaFirmas);
+
+                    doc.Close();
+                    MessageBox.Show("La bitácora de transferencias regionales ha sido compilada y guardada en PDF exitosamente.", "Manifiesto Concluido", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al compilar el documento logístico de traslados: " + ex.Message, "Error de Compilación", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
