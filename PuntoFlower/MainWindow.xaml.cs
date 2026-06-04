@@ -3,6 +3,7 @@ using System.Windows;
 using PuntoFlower.Views;
 using System.Globalization;
 using PuntoFlower.Data;
+using PuntoFlower.Models;
 
 namespace PuntoFlower
 {
@@ -42,22 +43,32 @@ namespace PuntoFlower
             // Caso 1: Si el usuario es un Empleado operativo en mostrador
             if (Session.RolActual == "Empleado")
             {
-                // Ocultamos los módulos gerenciales clásicos
-                btnDashboard.Visibility = Visibility.Collapsed;
-                btnInventario.Visibility = Visibility.Collapsed;
-                btnReportes.Visibility = Visibility.Collapsed;
-                btnGastos.Visibility = Visibility.Collapsed;
-                btnConfiguracion.Visibility = Visibility.Collapsed;
+                // Ocultamos los módulos gerenciales clásicos administrativos
+                if (btnDashboard != null) btnDashboard.Visibility = Visibility.Collapsed;
+                if (btnInventario != null) btnInventario.Visibility = Visibility.Collapsed;
+                if (btnReportes != null) btnReportes.Visibility = Visibility.Collapsed;
+                if (btnConfiguracion != null) btnConfiguracion.Visibility = Visibility.Collapsed;
+
+                // CORRECCIÓN: El módulo de gastos se mantiene visible pero adaptado a servicios operativos
+                if (btnGastos != null)
+                {
+                    btnGastos.Visibility = Visibility.Visible;
+                    txtTextoGastosButton.Text = "Gastos de Servicios"; // Contextualiza la etiqueta para el empleado
+                }
             }
             // Caso 2: Si el usuario es Administrador o Dueño
-            else if (Session.RolActual == "Admin")
+            else
             {
-                // El sistema habilita todas las funciones de auditoría y configuración
-                btnDashboard.Visibility = Visibility.Visible;
-                btnInventario.Visibility = Visibility.Visible;
-                btnReportes.Visibility = Visibility.Visible;
-                btnGastos.Visibility = Visibility.Visible;
-                btnConfiguracion.Visibility = Visibility.Visible;
+                // El sistema habilita todas las funciones de auditoría y configuración al 100%
+                if (btnDashboard != null) btnDashboard.Visibility = Visibility.Visible;
+                if (btnInventario != null) btnInventario.Visibility = Visibility.Visible;
+                if (btnReportes != null) btnReportes.Visibility = Visibility.Visible;
+                if (btnGastos != null)
+                {
+                    btnGastos.Visibility = Visibility.Visible;
+                    txtTextoGastosButton.Text = "Gastos y Surtido"; // Restaura la etiqueta administrativa para gerencia
+                }
+                if (btnConfiguracion != null) btnConfiguracion.Visibility = Visibility.Visible;
             }
         }
 
@@ -84,7 +95,6 @@ namespace PuntoFlower
 
         private void btnAgenda_Click(object sender, RoutedEventArgs e) => MainContent.Content = new AgendaView();
 
-        // MODIFICADO: Ahora carga correctamente la vista ExpensesView en lugar de ProveedoresView
         private void btnGastos_Click(object sender, RoutedEventArgs e) => MainContent.Content = new ExpensesView();
 
         private void btnReportes_Click(object sender, RoutedEventArgs e) => MainContent.Content = new ReportsView();

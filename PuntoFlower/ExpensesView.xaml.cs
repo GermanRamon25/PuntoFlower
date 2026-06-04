@@ -7,8 +7,9 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using PuntoFlower.Data;
+using PuntoFlower.Models;
 
-// Alias para evitar conflictos con WPF
+// Alias para iTextSharp (Uso seguro sin fallos de casteo)
 using iTextFont = iTextSharp.text.Font;
 using iTextParagraph = iTextSharp.text.Paragraph;
 using iTextDocument = iTextSharp.text.Document;
@@ -19,10 +20,62 @@ namespace PuntoFlower.Views
 {
     public partial class ExpensesView : UserControl
     {
+        private bool esPerfilEmpleado = false;
+
         public ExpensesView()
         {
             InitializeComponent();
-            // La carga inicial se ejecuta automáticamente mediante el SelectionChanged del ComboBox
+        }
+
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            EvaluarPerfilYRestringirAcceso();
+            CargarGastosDeLaBase();
+        }
+
+        private void EvaluarPerfilYRestringirAcceso()
+        {
+            string rolUsuario = "";
+            try { rolUsuario = Session.RolActual?.ToString() ?? ""; } catch { rolUsuario = Session.UsuarioActual?.ToString() ?? ""; }
+
+            // Evaluamos si es un empleado operativo
+            if (rolUsuario.Equals("Empleado", StringComparison.OrdinalIgnoreCase) ||
+                rolUsuario.Equals("User", StringComparison.OrdinalIgnoreCase) ||
+                (!rolUsuario.Equals("Administrador", StringComparison.OrdinalIgnoreCase) &&
+                 !rolUsuario.Equals("Admin", StringComparison.OrdinalIgnoreCase) &&
+                 !Session.UsuarioActual.Equals("leticia", StringComparison.OrdinalIgnoreCase)))
+            {
+                esPerfilEmpleado = true;
+
+                // 1. Ocultar la pestaña de Compras a Proveedores (Surtido mayorista)
+                if (tiComprasProveedores != null) tiComprasProveedores.Visibility = Visibility.Collapsed;
+
+                // 2. Forzar el método de pago estrictamente a Efectivo
+                if (cbiTarjeta != null) cbiTarjeta.Visibility = Visibility.Collapsed;
+                if (cbiTransferencia != null) cbiTransferencia.Visibility = Visibility.Collapsed;
+                if (cbMetodoGasto != null)
+                {
+                    cbMetodoGasto.SelectedIndex = 0;
+                    cbMetodoGasto.IsEnabled = false;
+                }
+
+                // 3. Forzar Categoría a Renta / Servicios predeterminada para el empleado
+                if (cbCategoria != null) cbCategoria.SelectedIndex = 0;
+                if (panelCategoria != null) panelCategoria.Visibility = Visibility.Collapsed;
+
+                // Cambiar títulos para contextualizar la pantalla del empleado
+                if (lblTituloGastos != null) lblTituloGastos.Text = "Registro Operativo de Gastos de Servicios";
+            }
+            else
+            {
+                esPerfilEmpleado = false;
+                if (tiComprasProveedores != null) tiComprasProveedores.Visibility = Visibility.Visible;
+                if (cbiTarjeta != null) cbiTarjeta.Visibility = Visibility.Visible;
+                if (cbiTransferencia != null) cbiTransferencia.Visibility = Visibility.Visible;
+                if (cbMetodoGasto != null) cbMetodoGasto.IsEnabled = true;
+                if (panelCategoria != null) panelCategoria.Visibility = Visibility.Visible;
+                if (lblTituloGastos != null) lblTituloGastos.Text = "Gastos y Surtido de Mercancía";
+            }
         }
 
         private void cbConceptoServicio_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -42,7 +95,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // Evento que escucha el selector de periodos de tiempo
         private void cmbPeriodoGastos_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (dgGastos == null) return;
@@ -55,9 +107,8 @@ namespace PuntoFlower.Views
             ConexionDB db = new ConexionDB();
 
             string condicionFecha = "";
-            string seleccion = (cmbPeriodoGastos.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Este Mes";
+            string seleccion = (cmbPeriodoGastos?.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Este Mes";
 
-            // Estructura de filtrado inteligente en SQL Server
             switch (seleccion)
             {
                 case "Hoy":
@@ -70,7 +121,7 @@ namespace PuntoFlower.Views
                     condicionFecha = "WHERE DATEDIFF(mm, Fecha, GETDATE()) = 0 AND Fecha <= GETDATE()";
                     break;
                 case "Historial Completo":
-                    condicionFecha = ""; // Sin restricciones, jala todo el historial
+                    condicionFecha = "";
                     break;
             }
 
@@ -103,7 +154,7 @@ namespace PuntoFlower.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al cargar el historial de egresos: " + ex.Message, "Fallo Operativo");
+                MessageBox.Show("Error al cargar el historial de egresos: " + ex.Message, "Fallo de Lectura");
             }
         }
 
@@ -140,21 +191,52 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago) 
-                                     VALUES (@desc, @monto, GETDATE(), @cat, @metodo)";
-
-                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    using (SqlTransaction transaccion = con.BeginTransaction())
                     {
-                        cmd.Parameters.AddWithValue("@desc", descripcionFinal);
-                        cmd.Parameters.AddWithValue("@monto", montoValidado);
-                        cmd.Parameters.AddWithValue("@cat", SampleCategory);
-                        cmd.Parameters.AddWithValue("@metodo", metodoPago);
+                        try
+                        {
+                            // 1. Insertamos el gasto de servicios
+                            string queryGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago) 
+                                                 VALUES (@desc, @monto, GETDATE(), @cat, @metodo)";
 
-                        cmd.ExecuteNonQuery();
+                            using (SqlCommand cmdGasto = new SqlCommand(queryGasto, con, transaccion))
+                            {
+                                cmdGasto.Parameters.AddWithValue("@desc", descripcionFinal);
+                                cmdGasto.Parameters.AddWithValue("@monto", montoValidado);
+                                cmdGasto.Parameters.AddWithValue("@cat", SampleCategory);
+                                cmdGasto.Parameters.AddWithValue("@metodo", metodoPago);
+                                cmdGasto.ExecuteNonQuery();
+                            }
+
+                            // 2. CONTROL DE FLUJO DE CAJA: Si es en Efectivo, impacta directamente la caja restando el dinero
+                            if (metodoPago == "Efectivo")
+                            {
+                                string queryCajaSalida = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado) 
+                                                          VALUES (GETDATE(), @conceptoSalida, 1, @totalNegativo, 'Efectivo', 0, 0, 0)";
+
+                                using (SqlCommand cmdCaja = new SqlCommand(queryCajaSalida, con, transaccion))
+                                {
+                                    cmdCaja.Parameters.AddWithValue("@conceptoSalida", $"Salida de Caja (Gasto): {descripcionFinal}");
+                                    // Pasamos el valor directamente multiplicado por -1 para restar el importe de la caja diaria
+                                    cmdCaja.Parameters.AddWithValue("@totalNegativo", montoValidado * -1);
+                                    cmdCaja.ExecuteNonQuery();
+                                }
+                            }
+
+                            transaccion.Commit();
+                        }
+                        catch
+                        {
+                            transaccion.Rollback();
+                            throw;
+                        }
                     }
                 }
 
-                MessageBox.Show($"¡Gasto por '{descripcionFinal}' guardado exitosamente!", "Egreso Confirmado", MessageBoxButton.OK, MessageBoxImage.Information);
+                string msgExito = $"¡Gasto por '{descripcionFinal}' guardado exitosamente!";
+                if (metodoPago == "Efectivo") msgExito += "\nEl importe fue descontado automáticamente de la caja del turno.";
+
+                MessageBox.Show(msgExito, "Egreso Confirmado", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 txtMonto.Clear();
                 txtDesc.Clear();
@@ -164,7 +246,7 @@ namespace PuntoFlower.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al guardar el gasto en la base de datos: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Error al registrar el gasto e impactar la caja: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -195,22 +277,18 @@ namespace PuntoFlower.Views
                     foreach (dynamic item in dgGastos.ItemsSource)
                     {
                         totalGeneral += item.Monto;
-                        if (item.MetodoPago == "Efectivo")
-                        {
-                            totalEfectivoPuro += item.Monto;
-                        }
+                        if (item.MetodoPago == "Efectivo") totalEfectivoPuro += item.Monto;
                     }
 
                     iTextDocument doc = new iTextDocument(PageSize.A4, 25, 25, 30, 30);
                     PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
                     doc.Open();
 
-                    BaseFont bf = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
-                    iTextFont fTitulo = new iTextFont(bf, 15, iTextFont.BOLD);
-                    iTextFont fSub = new iTextFont(bf, 11, iTextFont.BOLD, BaseColor.DARK_GRAY);
-                    iTextFont fCuerpo = new iTextFont(bf, 9);
-                    iTextFont fBold = new iTextFont(bf, 9, iTextFont.BOLD);
-                    iTextFont fTablaHead = new iTextFont(bf, 9, iTextFont.BOLD, BaseColor.WHITE);
+                    iTextFont fTitulo = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 15, BaseColor.BLACK);
+                    iTextFont fSub = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.DARK_GRAY);
+                    iTextFont fCuerpo = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
+                    iTextFont fBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.BLACK);
+                    iTextFont fTablaHead = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
 
                     BaseColor azulMarino = new BaseColor(44, 62, 80);
 
@@ -232,7 +310,6 @@ namespace PuntoFlower.Views
                     tablaResumenEstructura.AddCell(cellEf);
                     doc.Add(tablaResumenEstructura);
                     doc.Add(new iTextParagraph(" "));
-                    doc.Add(new iTextParagraph(" "));
 
                     doc.Add(new iTextParagraph($"DETALLE CRONOLÓGICO DEL PERIODO ({periodoSeleccionado.ToUpper()})", fSub));
                     doc.Add(new iTextParagraph(" "));
@@ -244,8 +321,7 @@ namespace PuntoFlower.Views
                     string[] headers = { "Fecha/Hora", "Descripción / Concepto", "Categoría", "Método Pago", "Monto" };
                     foreach (string h in headers)
                     {
-                        PdfPCell cell = new PdfPCell(new Phrase(h, fTablaHead)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = azulMarino, Padding = 5 };
-                        tablaHistorial.AddCell(cell);
+                        tablaHistorial.AddCell(new PdfPCell(new Phrase(h, fTablaHead)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = azulMarino, Padding = 5 });
                     }
 
                     foreach (dynamic item in dgGastos.ItemsSource)
@@ -258,7 +334,6 @@ namespace PuntoFlower.Views
                     }
 
                     doc.Add(tablaHistorial);
-                    doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph($"Firma de Supervisor / Administrador: ___________________________", fCuerpo));
 

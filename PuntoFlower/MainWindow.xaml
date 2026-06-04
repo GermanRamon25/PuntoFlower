@@ -95,7 +95,7 @@
                 <Button x:Name="btnGastos" Style="{StaticResource MenuButtonStyle}" Click="btnGastos_Click">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="Gastos y Surtido" VerticalAlignment="Center" FontSize="14"/>
+                        <TextBlock x:Name="txtTextoGastosButton" Text="Gastos y Surtido" VerticalAlignment="Center" FontSize="14"/>
                     </StackPanel>
                 </Button>
 
@@ -131,6 +131,9 @@
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0" Background="White" Padding="30,0" Margin="15,10,15,5" CornerRadius="15">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="5" ShadowDepth="1" Color="#DDD"/>
+                </Border.Effect>
                 <DockPanel LastChildFill="False">
                     <TextBlock Text="Bienvenido al Sistema" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"/>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">

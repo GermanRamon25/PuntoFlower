@@ -5,7 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="650" d:DesignWidth="1000">
+             d:DesignHeight="650" d:DesignWidth="1000"
+             Loaded="UserControl_Loaded">
 
     <UserControl.Resources>
         <Style x:Key="SubTabItemStyle" TargetType="TabItem">
@@ -33,7 +34,7 @@
                                 <Setter TargetName="Border" Property="Background" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#FADBD8"/>
+                                <Setter TargetName="Border" Property="Background" Value="#F8F9FA"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -44,15 +45,13 @@
 
     <Grid Background="#F5F5F5">
         <StackPanel Margin="20">
-            <TextBlock Text="Gastos y Surtido de Mercancía" FontSize="24" FontWeight="Bold" Margin="0,0,0,15" Foreground="#2C3E50"/>
+            <TextBlock x:Name="lblTituloGastos" Text="Gastos y Surtido de Mercancía" FontSize="24" FontWeight="Bold" Margin="0,0,0,15" Foreground="#2C3E50"/>
 
-            <TabControl Background="Transparent" BorderThickness="0">
+            <TabControl x:Name="tcGastosPrincipal" Background="Transparent" BorderThickness="0">
 
-                <!-- SUB-PESTAÑA 1: PAGO DE SERVICIOS -->
                 <TabItem Header="Pago de Servicios" Style="{StaticResource SubTabItemStyle}">
                     <StackPanel Margin="0,15,0,0">
 
-                        <!-- Formulario de Registro -->
                         <Border Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,15">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
@@ -81,7 +80,7 @@
                                     <TextBox x:Name="txtMonto" Width="90" Height="30" VerticalContentAlignment="Center"/>
                                 </StackPanel>
 
-                                <StackPanel Margin="0,0,15,0">
+                                <StackPanel x:Name="panelCategoria" Margin="0,0,15,0">
                                     <TextBlock Text="Categoría" Margin="0,0,0,5" Foreground="#7F8C8D"/>
                                     <ComboBox x:Name="cbCategoria" Width="150" Height="30" VerticalContentAlignment="Center">
                                         <ComboBoxItem Content="Renta / Servicios" IsSelected="True"/>
@@ -95,9 +94,9 @@
                                 <StackPanel Margin="0,0,15,0">
                                     <TextBlock Text="Método Pago" Margin="0,0,0,5" Foreground="#7F8C8D"/>
                                     <ComboBox x:Name="cbMetodoGasto" Width="120" Height="30" VerticalContentAlignment="Center">
-                                        <ComboBoxItem Content="Efectivo" IsSelected="True"/>
-                                        <ComboBoxItem Content="Tarjeta"/>
-                                        <ComboBoxItem Content="Transferencia"/>
+                                        <ComboBoxItem x:Name="cbiEfectivo" Content="Efectivo" IsSelected="True"/>
+                                        <ComboBoxItem x:Name="cbiTarjeta" Content="Tarjeta"/>
+                                        <ComboBoxItem x:Name="cbiTransferencia" Content="Transferencia"/>
                                     </ComboBox>
                                 </StackPanel>
 
@@ -112,7 +111,6 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Tabla de Historial con Menú de Filtro de Tiempo para el Dueño -->
                         <Border Background="White" CornerRadius="10" Padding="15">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
@@ -121,7 +119,6 @@
                                 <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
                                     <TextBlock Text="Historial de Egresos Aplicados" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#5D6D7E"/>
 
-                                    <!-- FILTRO DE TIEMPO + BOTÓN PDF ALINEADOS A LA DERECHA -->
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                         <TextBlock Text="Periodo:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="13" FontWeight="SemiBold" Foreground="#5D6D7E"/>
                                         <ComboBox x:Name="cmbPeriodoGastos" Width="160" Height="32" VerticalContentAlignment="Center" Margin="0,0,15,0" SelectionChanged="cmbPeriodoGastos_SelectionChanged">
@@ -131,7 +128,7 @@
                                             <ComboBoxItem Content="Historial Completo"/>
                                         </ComboBox>
 
-                                        <Button Content="🖨️ IMPRIMIR REPORTE PDF" Click="btnImprimirPDF_Click" Background="#3498DB" Foreground="White" Padding="15,0" Height="32" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                        <Button x:Name="btnImprimirPDF" Content="🖨️ REPORTE PDF" Click="btnImprimirPDF_Click" Background="#3498DB" Foreground="White" Padding="15,0" Height="32" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
                                             <Button.Resources>
                                                 <Style TargetType="Border">
                                                     <Setter Property="CornerRadius" Value="6"/>
@@ -158,8 +155,7 @@
                     </StackPanel>
                 </TabItem>
 
-                <!-- SUB-PESTAÑA 2: SURTIDO A PROVEEDORES -->
-                <TabItem Header="Compras a Proveedores" Style="{StaticResource SubTabItemStyle}">
+                <TabItem x:Name="tiComprasProveedores" Header="Compras a Proveedores" Style="{StaticResource SubTabItemStyle}">
                     <Grid Margin="0,15,0,0">
                         <views:ProveedoresView />
                     </Grid>
