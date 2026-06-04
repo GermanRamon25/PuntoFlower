@@ -53,19 +53,28 @@
             </StackPanel>
         </DockPanel>
 
-        <UniformGrid Grid.Row="1" Columns="3" Height="120" Margin="0,0,0,20">
+        <UniformGrid Grid.Row="1" Columns="4" Height="120" Margin="0,0,0,20">
             <Border Background="#EAFAF1" Margin="5" CornerRadius="10" Padding="15">
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="Efectivo Recibido (+)" Foreground="#1D8348" FontSize="14"/>
                     <TextBlock x:Name="txtTotalRecibido" Text="$0.00" FontSize="24" FontWeight="Bold"/>
                 </StackPanel>
             </Border>
+
+            <Border Background="#FEF9E7" Margin="5" CornerRadius="10" Padding="15">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Gastos de Turno (-)" Foreground="#B7950B" FontSize="14"/>
+                    <TextBlock x:Name="txtTotalGastosTurno" Text="$0.00" FontSize="24" FontWeight="Bold" Foreground="#9A7D0A"/>
+                </StackPanel>
+            </Border>
+
             <Border Background="#FDEDEC" Margin="5" CornerRadius="10" Padding="15">
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="Cambio Entregado (-)" Foreground="#CB4335" FontSize="14"/>
                     <TextBlock x:Name="txtTotalCambio" Text="$0.00" FontSize="24" FontWeight="Bold"/>
                 </StackPanel>
             </Border>
+
             <Border Background="#EBF5FB" Margin="5" CornerRadius="10" Padding="15">
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="Efectivo en Caja (=)" Foreground="#2E86C1" FontSize="14" FontWeight="Bold"/>

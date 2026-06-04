@@ -38,7 +38,6 @@ namespace PuntoFlower.Views
             string rolUsuario = "";
             try { rolUsuario = Session.RolActual?.ToString() ?? ""; } catch { rolUsuario = Session.UsuarioActual?.ToString() ?? ""; }
 
-            // Evaluamos si es un empleado operativo
             if (rolUsuario.Equals("Empleado", StringComparison.OrdinalIgnoreCase) ||
                 rolUsuario.Equals("User", StringComparison.OrdinalIgnoreCase) ||
                 (!rolUsuario.Equals("Administrador", StringComparison.OrdinalIgnoreCase) &&
@@ -47,10 +46,8 @@ namespace PuntoFlower.Views
             {
                 esPerfilEmpleado = true;
 
-                // 1. Ocultar la pestaña de Compras a Proveedores (Surtido mayorista)
                 if (tiComprasProveedores != null) tiComprasProveedores.Visibility = Visibility.Collapsed;
 
-                // 2. Forzar el método de pago estrictamente a Efectivo
                 if (cbiTarjeta != null) cbiTarjeta.Visibility = Visibility.Collapsed;
                 if (cbiTransferencia != null) cbiTransferencia.Visibility = Visibility.Collapsed;
                 if (cbMetodoGasto != null)
@@ -59,11 +56,9 @@ namespace PuntoFlower.Views
                     cbMetodoGasto.IsEnabled = false;
                 }
 
-                // 3. Forzar Categoría a Renta / Servicios predeterminada para el empleado
                 if (cbCategoria != null) cbCategoria.SelectedIndex = 0;
                 if (panelCategoria != null) panelCategoria.Visibility = Visibility.Collapsed;
 
-                // Cambiar títulos para contextualizar la pantalla del empleado
                 if (lblTituloGastos != null) lblTituloGastos.Text = "Registro Operativo de Gastos de Servicios";
             }
             else
@@ -195,7 +190,7 @@ namespace PuntoFlower.Views
                     {
                         try
                         {
-                            // 1. Insertamos el gasto de servicios
+                            // 1. REGISTRO EN BITÁCORA DE GASTOS: Guarda el monto en positivo de forma normal
                             string queryGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago) 
                                                  VALUES (@desc, @monto, GETDATE(), @cat, @metodo)";
 
@@ -208,17 +203,17 @@ namespace PuntoFlower.Views
                                 cmdGasto.ExecuteNonQuery();
                             }
 
-                            // 2. CONTROL DE FLUJO DE CAJA: Si es en Efectivo, impacta directamente la caja restando el dinero
+                            // 2. REFLEJO EN FLUJO DE CAJA: Si es en Efectivo, inyecta un contra-registro negativo en Ventas
                             if (metodoPago == "Efectivo")
                             {
+                                // Ponemos el monto en negativo en la columna Total y MontoRecibido para que la fórmula del Corte Diario lo reste
                                 string queryCajaSalida = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado) 
-                                                          VALUES (GETDATE(), @conceptoSalida, 1, @totalNegativo, 'Efectivo', 0, 0, 0)";
+                                                          VALUES (GETDATE(), @conceptoSalida, 1, @montoNegativo, 'Efectivo', @montoNegativo, 0, 0)";
 
                                 using (SqlCommand cmdCaja = new SqlCommand(queryCajaSalida, con, transaccion))
                                 {
                                     cmdCaja.Parameters.AddWithValue("@conceptoSalida", $"Salida de Caja (Gasto): {descripcionFinal}");
-                                    // Pasamos el valor directamente multiplicado por -1 para restar el importe de la caja diaria
-                                    cmdCaja.Parameters.AddWithValue("@totalNegativo", montoValidado * -1);
+                                    cmdCaja.Parameters.AddWithValue("@montoNegativo", montoValidado * -1);
                                     cmdCaja.ExecuteNonQuery();
                                 }
                             }
@@ -234,13 +229,13 @@ namespace PuntoFlower.Views
                 }
 
                 string msgExito = $"¡Gasto por '{descripcionFinal}' guardado exitosamente!";
-                if (metodoPago == "Efectivo") msgExito += "\nEl importe fue descontado automáticamente de la caja del turno.";
+                if (metodoPago == "Efectivo") msgExito += "\nEl importe fue descontado del corte de caja diario y del acumulado mensual de ventas.";
 
                 MessageBox.Show(msgExito, "Egreso Confirmado", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 txtMonto.Clear();
                 txtDesc.Clear();
-                cbConceptoServicio.SelectedIndex = 0;
+                if (cbConceptoServicio != null) cbConceptoServicio.SelectedIndex = 0;
 
                 CargarGastosDeLaBase();
             }

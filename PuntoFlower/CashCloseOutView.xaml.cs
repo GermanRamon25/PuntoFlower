@@ -2,6 +2,7 @@
 using iTextSharp.text.pdf;
 using Microsoft.Win32;
 using PuntoFlower.Data;
+using PuntoFlower.Models;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -37,6 +38,7 @@ namespace PuntoFlower.Views
         private decimal acumuladoTransfCuenta1 = 0;
         private decimal acumuladoTransfCuenta2 = 0;
         private decimal acumuladoDescuentos = 0;
+        private decimal acumuladoGastosEfectivo = 0; // Indicador global de control
 
         private string nombreEncargado1 = "Encargado 1";
         private string nombreEncargado2 = "Encargado 2";
@@ -104,6 +106,7 @@ namespace PuntoFlower.Views
             acumuladoTransfCuenta1 = 0;
             acumuladoTransfCuenta2 = 0;
             acumuladoDescuentos = 0;
+            acumuladoGastosEfectivo = 0;
 
             ConexionDB db = new ConexionDB();
             nombreEncargado1 = db.ObtenerEncargadoCuenta1();
@@ -151,11 +154,26 @@ namespace PuntoFlower.Views
                             decimal desc = r["DescuentoAplicado"] != DBNull.Value ? Convert.ToDecimal(r["DescuentoAplicado"]) : 0;
                             string referencia = r["NumeroReferencia"] != DBNull.Value ? r["NumeroReferencia"].ToString() : "";
 
-                            sumaRecibido += recibido;
-                            sumaCambio += cambio;
+                            // Evaluamos si el movimiento es una venta ordinaria o un egreso por gasto
+                            if (recibido < 0)
+                            {
+                                // Multiplicamos por -1 para mostrar el acumulado en positivo en su tarjeta naranja independiente
+                                acumuladoGastosEfectivo += (recibido * -1);
+                            }
+                            else
+                            {
+                                // Mantiene las ventas brutas intactas en el bloque verde de Ingresos
+                                sumaRecibido += recibido;
+                            }
+
+                            if (cambio > 0) sumaCambio += cambio;
                             acumuladoDescuentos += desc;
 
-                            if (metodo == "Efectivo") acumuladoEfectivo += (recibido - cambio);
+                            if (metodo == "Efectivo")
+                            {
+                                // Suma ingresos ordinarios y resta salidas por gastos (-monto - 0 = -monto)
+                                acumuladoEfectivo += (recibido - cambio);
+                            }
                             else if (metodo == "Tarjeta" || metodo.Contains("Tarjeta")) acumuladoTarjeta += totalVenta;
                             else if (metodo == "Transferencia" || metodo.Contains("Transferencia"))
                             {
@@ -182,6 +200,7 @@ namespace PuntoFlower.Views
                 }
                 dgCorte.ItemsSource = ventasFiltradas;
                 txtTotalRecibido.Text = sumaRecibido.ToString("C");
+                txtTotalGastosTurno.Text = acumuladoGastosEfectivo.ToString("C"); // Pintar Tarjeta Naranja
                 txtTotalCambio.Text = sumaCambio.ToString("C");
                 txtEfectivoReal.Text = acumuladoEfectivo.ToString("C");
             }
@@ -305,7 +324,7 @@ namespace PuntoFlower.Views
                         iTextFont fontTitulo = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 20, BaseColor.BLACK);
                         iTextFont fontSubtitulo = FontFactory.GetFont(FontFactory.HELVETICA, 11, BaseColor.DARK_GRAY);
                         iTextFont fontSeccion = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 13, BaseColor.BLACK);
-                        iTextFont fontDiaHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 11, new BaseColor(31, 97, 141)); // Azul para resaltar el día
+                        iTextFont fontDiaHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 11, new BaseColor(31, 97, 141));
                         iTextFont fontTablaHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
                         iTextFont fontTablaBody = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
                         iTextFont fontResumenBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.BLACK);
@@ -319,7 +338,7 @@ namespace PuntoFlower.Views
                         pMeta.SpacingAfter = 20;
                         doc.Add(pMeta);
 
-                        // SECCIÓN 1: RESUMEN FINANCIERO MÉTODOS DE PAGO (ACUMULADO TOTAL DEL PERIODO)
+                        // SECCIÓN 1: RESUMEN FINANCIERO MÉTODOS DE PAGO
                         iTextParagraph secFinanzas = new iTextParagraph("1. Resumen Acumulado de Balances y Cuentas", fontSeccion);
                         secFinanzas.SpacingAfter = 8;
                         doc.Add(secFinanzas);
@@ -341,14 +360,19 @@ namespace PuntoFlower.Views
                             tabla.AddCell(cellValor);
                         };
 
-                        decimal totalIngresosCalculados = acumuladoEfectivo + acumuladoTarjeta + acumuladoTransfCuenta1 + acumuladoTransfCuenta2;
+                        // Las ventas brutas mostradas arriba corresponden exactamente a la suma de ingresos
+                        decimal totalVentasBrutasEfectivo = acumuladoEfectivo + acumuladoGastosEfectivo;
+                        decimal totalIngresosCalculados = totalVentasBrutasEfectivo + acumuladoTarjeta + acumuladoTransfCuenta1 + acumuladoTransfCuenta2;
 
-                        agregarCeldaResumen(tablaResumen, "Efectivo Físico Neto Real en Caja:", acumuladoEfectivo.ToString("C"), true);
+                        // Desglose Contable Homogéneo para el Reporte Impreso del Dueño
+                        agregarCeldaResumen(tablaResumen, "Ingresos Brutos en Efectivo (Ventas de Mostrador):", totalVentasBrutasEfectivo.ToString("C"), false);
+                        agregarCeldaResumen(tablaResumen, "Gastos de Turno Pagados en Efectivo (-):", acumuladoGastosEfectivo.ToString("C"), false);
+                        agregarCeldaResumen(tablaResumen, "EFECTIVO FÍSICO NETO REAL EN CAJA (=):", acumuladoEfectivo.ToString("C"), true);
                         agregarCeldaResumen(tablaResumen, "Ventas Cobradas en Tarjeta:", acumuladoTarjeta.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, $"Transferencias de Cuenta - {nombreEncargado1}:", acumuladoTransfCuenta1.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, $"Transferencias de Cuenta - {nombreEncargado2}:", acumuladoTransfCuenta2.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "Total Descuentos Otorgados en el Periodo:", acumuladoDescuentos.ToString("C"), false);
-                        agregarCeldaResumen(tablaResumen, "Gran Total Ingresos Brutos (Suma de Todos los Canales):", totalIngresosCalculados.ToString("C"), false);
+                        agregarCeldaResumen(tablaResumen, "Gran Total Ingresos Brutos Combinados (Todos los Canales):", totalIngresosCalculados.ToString("C"), false);
 
                         doc.Add(tablaResumen);
 
@@ -357,7 +381,6 @@ namespace PuntoFlower.Views
                         secAuditoria.SpacingAfter = 12;
                         doc.Add(secAuditoria);
 
-                        // CORRECCIÓN AQUÍ: Usamos .OrderBy para que ordene cronológicamente de la fecha más vieja a la más nueva
                         var movimientosAgrupadosPorDia = listaMovimientos
                             .GroupBy(m => m.Fecha.Date)
                             .OrderBy(g => g.Key);
@@ -365,9 +388,10 @@ namespace PuntoFlower.Views
                         foreach (var grupoDia in movimientosAgrupadosPorDia)
                         {
                             string nombreDiaTexto = grupoDia.Key.ToString("dddd dd 'de' MMMM 'de' yyyy").ToUpper();
+                            // El total de ventas del día neto toma ingresos y egresos
                             decimal totalVendidoDelDia = grupoDia.Sum(v => v.Total);
 
-                            iTextParagraph pDiaHeader = new iTextParagraph($"■ {nombreDiaTexto} — (Total del Día: {totalVendidoDelDia:C})", fontDiaHeader);
+                            iTextParagraph pDiaHeader = new iTextParagraph($"■ {nombreDiaTexto} — (Balance de Jornada: {totalVendidoDelDia:C})", fontDiaHeader);
                             pDiaHeader.SpacingBefore = 10;
                             pDiaHeader.SpacingAfter = 6;
                             doc.Add(pDiaHeader);
@@ -389,15 +413,16 @@ namespace PuntoFlower.Views
                                 tablaVentasDia.AddCell(cellHeader);
                             }
 
-                            // Ordenar internamente los movimientos de cada día por hora cronológica (de mañana a noche)
                             foreach (var v in grupoDia.OrderBy(m => m.Fecha.TimeOfDay))
                             {
+                                string importeTexto = v.Total < 0 ? $"-{Math.Abs(v.Total):C}" : v.Total.ToString("C");
+
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.Id.ToString(), fontTablaBody)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 });
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.Fecha.ToString("HH:mm:ss"), fontTablaBody)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 });
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.ProductoNombre, fontTablaBody)) { Padding = 4 });
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.MetodoPagoVisual, fontTablaBody)) { Padding = 4 });
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.Descuento > 0 ? v.Descuento.ToString("C") : "—", fontTablaBody)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
-                                tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.Total.ToString("C"), fontTablaBody)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
+                                tablaVentasDia.AddCell(new PdfPCell(new Phrase(importeTexto, fontTablaBody)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                             }
 
                             doc.Add(tablaVentasDia);
@@ -425,7 +450,7 @@ namespace PuntoFlower.Views
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ocurrió un error al intentar compilar e agrupar el PDF: {ex.Message}", "Error de Exportación", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Ocurrió un error al intentar compilar el PDF: {ex.Message}", "Error de Exportación", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
