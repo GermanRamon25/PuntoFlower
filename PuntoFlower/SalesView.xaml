@@ -268,9 +268,10 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                            <StackPanel Grid.Column="0" Margin="0,0,4,0">
                                 <TextBlock Text="Método de Pago" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
                                 <ComboBox x:Name="cbMetodoPago" Height="32" SelectedIndex="0" SelectionChanged="cbMetodoPago_SelectionChanged">
                                     <ComboBoxItem Content="Efectivo"/>
@@ -279,8 +280,13 @@
                                 </ComboBox>
                             </StackPanel>
 
-                            <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                                <TextBlock x:Name="lblTituloDineroIzquierda" Text="Descuento Aplicado (%)" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                            <StackPanel Grid.Column="1" Margin="3,0,3,0">
+                                <TextBlock Text="Flete Rápido ($)" Foreground="#D35400" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                                <TextBox x:Name="txtFleteManualRapido" Height="32" VerticalContentAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#D35400" Text="0" HorizontalContentAlignment="Center" TextChanged="txtFleteManualRapido_TextChanged"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                <TextBlock x:Name="lblTituloDineroIzquierda" Text="Descuento (%)" Foreground="#5D6D7E" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
                                 <TextBox x:Name="txtDescuento" Height="32" VerticalContentAlignment="Center" FontSize="14" FontWeight="Bold" Foreground="#E74C3C" Text="0" HorizontalContentAlignment="Center" TextChanged="txtDescuento_TextChanged"/>
                             </StackPanel>
                         </Grid>

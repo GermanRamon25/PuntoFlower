@@ -458,8 +458,12 @@ namespace PuntoFlower.Views
             ActualizarTotal();
         }
 
-        // RE-CORREGIDO: Nombre del método sincronizado exactamente con el archivo XAML visual
         private void txtFleteNuevoPedido_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ActualizarTotal();
+        }
+
+        private void txtFleteManualRapido_TextChanged(object sender, TextChangedEventArgs e)
         {
             ActualizarTotal();
         }
@@ -472,11 +476,17 @@ namespace PuntoFlower.Views
         private decimal ObtenerTotalConDescuento()
         {
             decimal subtotal = ProductosEnTicket.Sum(x => x.Total);
+            decimal fleteTotalAcumulado = 0;
 
-            decimal flete = 0;
             if (chkEsPedidoApartado != null && chkEsPedidoApartado.IsChecked == true && txtFleteNuevoPedido != null)
             {
-                decimal.TryParse(txtFleteNuevoPedido.Text.Trim(), out flete);
+                decimal.TryParse(txtFleteNuevoPedido.Text.Trim(), out decimal fleteAgenda);
+                fleteTotalAcumulado += fleteAgenda;
+            }
+
+            if (txtFleteManualRapido != null && decimal.TryParse(txtFleteManualRapido.Text.Trim(), out decimal fleteManual))
+            {
+                if (fleteManual > 0) fleteTotalAcumulado += fleteManual;
             }
 
             decimal dineroDescontated = 0;
@@ -485,7 +495,7 @@ namespace PuntoFlower.Views
                 dineroDescontated = subtotal * (decimal)(porcentaje / 100.0);
             }
 
-            return (subtotal - dineroDescontated) + flete;
+            return (subtotal - dineroDescontated) + fleteTotalAcumulado;
         }
 
         private void CalcularCambioMatematico()
@@ -529,6 +539,11 @@ namespace PuntoFlower.Views
             float.TryParse(txtDescuento.Text, out porcText);
 
             decimal totalDineroDescontado = subtotalBase - (totalNetoArreglo - (chkEsPedidoApartado.IsChecked == true ? ProductosEnTicket.Sum(x => x.Total) : 0));
+            if (txtFleteManualRapido != null && decimal.TryParse(txtFleteManualRapido.Text.Trim(), out decimal fManual) && fManual > 0)
+            {
+                totalDineroDescontado += fManual;
+            }
+
             if (totalDineroDescontado < 0 || chkEsPedidoApartado.IsChecked == true || esCobroDeAbonoExistente)
             {
                 if (porcText > 0) totalDineroDescontado = subtotalBase * (decimal)(porcText / 100.0);
@@ -576,6 +591,11 @@ namespace PuntoFlower.Views
                         {
                             string detProdNombres = string.Join(", ", ProductosEnTicket.Select(x => x.ProductoNombre));
                             string detVisualConcat = string.Join(" | ", ProductosEnTicket.Select(x => x.DetalleVisual));
+
+                            if (txtFleteManualRapido != null && decimal.TryParse(txtFleteManualRapido.Text.Trim(), out decimal fExt) && fExt > 0)
+                            {
+                                detVisualConcat += $" | Con Envío Rápido de: {fExt:C}";
+                            }
 
                             int? firstProductoIdDB = null;
                             int totalPiezasContadas = 1;
@@ -760,6 +780,7 @@ namespace PuntoFlower.Views
                             ProductosEnTicket.Clear();
                             txtPagoCon.Clear();
                             txtDescuento.Text = "0";
+                            if (txtFleteManualRapido != null) txtFleteManualRapido.Text = "0";
                             chkEsPedidoApartado.IsChecked = false;
                             chkEsPedidoApartado.IsEnabled = true;
                             txtDescuento.IsEnabled = true;
@@ -871,6 +892,7 @@ namespace PuntoFlower.Views
         {
             ProductosEnTicket.Clear();
             txtDescuento.Text = "0";
+            if (txtFleteManualRapido != null) txtFleteManualRapido.Text = "0";
             chkEsPedidoApartado.IsChecked = false;
             chkEsPedidoApartado.IsEnabled = true;
             txtDescuento.IsEnabled = true;
