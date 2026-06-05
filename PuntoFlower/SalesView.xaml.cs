@@ -498,6 +498,7 @@ namespace PuntoFlower.Views
             return (subtotal - dineroDescontated) + fleteTotalAcumulado;
         }
 
+        // CORREGIDO: Lógica de cálculo de feria reactivada para apartados rápidos liquidados al 100%
         private void CalcularCambioMatematico()
         {
             if (txtCambio == null || txtPagoCon == null) return;
@@ -505,12 +506,6 @@ namespace PuntoFlower.Views
             decimal totalNeto = ObtenerTotalConDescuento();
             var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
             string metodo = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
-
-            if (chkEsPedidoApartado != null && chkEsPedidoApartado.IsChecked == true)
-            {
-                txtCambio.Text = "$0.00";
-                return;
-            }
 
             if (metodo != "Efectivo")
             {
@@ -521,7 +516,16 @@ namespace PuntoFlower.Views
 
             if (decimal.TryParse(txtPagoCon.Text.Trim(), out decimal pago))
             {
-                txtCambio.Text = (pago >= totalNeto) ? (pago - totalNeto).ToString("C") : "$0.00";
+                // Si el pago es un apartado ordinario PERO el monto introducido cubre o supera el total de la nota, 
+                // mostramos el cambio real al usuario en lugar de congelar a ceros
+                if (chkEsPedidoApartado != null && chkEsPedidoApartado.IsChecked == true)
+                {
+                    txtCambio.Text = (pago > totalNeto) ? (pago - totalNeto).ToString("C") : "$0.00";
+                }
+                else
+                {
+                    txtCambio.Text = (pago >= totalNeto) ? (pago - totalNeto).ToString("C") : "$0.00";
+                }
             }
             else
             {
@@ -570,13 +574,7 @@ namespace PuntoFlower.Views
 
             PedidoComboClass pedidoEnlazadoCombo = cbPedidosAgendaDesplegable.SelectedItem as PedidoComboClass;
 
-            if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo == null && pagoRecibido > totalNetoArreglo)
-            {
-                MessageBox.Show("El anticipo no puede superar el costo total del pedido.", "Error Contable");
-                return;
-            }
-
-            decimal cambioFinal = (metodoPago == "Efectivo" && chkEsPedidoApartado.IsChecked == false) ? (pagoRecibido - totalNetoArreglo) : 0;
+            decimal cambioFinal = (metodoPago == "Efectivo" && pagoRecibido > totalNetoArreglo) ? (pagoRecibido - totalNetoArreglo) : 0;
 
             ConexionDB db = new ConexionDB();
             btnConfirmarVenta.IsEnabled = false;
@@ -619,11 +617,12 @@ namespace PuntoFlower.Views
                                 }
                             }
 
+                            // CAMINO A: COBRO DESDE LA PESTAÑA "ABONAR A PEDIDO"
                             if (esCobroDeAbonoExistente)
                             {
                                 string actPedido = @"UPDATE Pedidos 
                                                      SET SaldoPendiente = CASE WHEN (SaldoPendiente - @abono) <= 0 THEN 0 ELSE (SaldoPendiente - @abono) END, 
-                                                         Estado = 'Pendiente'
+                                                         Estado = CASE WHEN (SaldoPendiente - @abono) <= 0 THEN 'Entregado' ELSE 'Pendiente' END 
                                                      WHERE Id = @id";
                                 using (SqlCommand cmdP = new SqlCommand(actPedido, con, tra))
                                 {
@@ -650,12 +649,21 @@ namespace PuntoFlower.Views
                                     cmdV.ExecuteNonQuery();
                                 }
                             }
+                            // CAMINO B: COBRO POR VINCULACIÓN DE CASILLA (CASO EVALUADO)
                             else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo != null)
                             {
+                                // CORRECCIÓN DEFINITIVA DE MATEMÁTICAS:
+                                // El dinero real que el cliente abona a la deuda de la nota es el pago recibido MENOS el cambio físico que le regreses
+                                decimal abonoRealEfectivo = pagoRecibido - cambioFinal;
+                                decimal saldoRestanteCalculado = totalNetoArreglo - abonoRealEfectivo;
+                                string estadoFinalCalculado = (saldoRestanteCalculado <= 0) ? "Entregado" : "Pendiente";
+
                                 string queryActualizarExistente = @"UPDATE Pedidos 
                                                                     SET Descripcion = @des,
                                                                         PrecioTotal = @tot,
-                                                                        SaldoPendiente = @tot - Anticipo
+                                                                        Anticipo = Anticipo + @pagoActual,
+                                                                        SaldoPendiente = CASE WHEN @saldoCalc <= 0 THEN 0 ELSE @saldoCalc END,
+                                                                        Estado = @estFinal
                                                                     WHERE Id = @id";
 
                                 using (SqlCommand cmdUp = new SqlCommand(queryActualizarExistente, con, tra))
@@ -663,20 +671,23 @@ namespace PuntoFlower.Views
                                     cmdUp.Parameters.AddWithValue("@id", pedidoEnlazadoCombo.Id);
                                     cmdUp.Parameters.AddWithValue("@des", detProdNombres + " (" + detVisualConcat + ")");
                                     cmdUp.Parameters.AddWithValue("@tot", totalNetoArreglo);
+                                    cmdUp.Parameters.AddWithValue("@pagoActual", abonoRealEfectivo);
+                                    cmdUp.Parameters.AddWithValue("@saldoCalc", saldoRestanteCalculado);
+                                    cmdUp.Parameters.AddWithValue("@estFinal", estadoFinalCalculado);
                                     cmdUp.ExecuteNonQuery();
                                 }
 
-                                string conceptoAnticipo = $"Abono/Anticipo Pedido: {pedidoEnlazadoCombo.ClienteNombre} ({detProdNombres})";
+                                string conceptoAnticipo = $"Liquidación Pedido: {pedidoEnlazadoCombo.ClienteNombre} ({detProdNombres})";
                                 string qAnt = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId) 
                                            VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
                                 using (SqlCommand cmdAnt = new SqlCommand(qAnt, con, tra))
                                 {
                                     cmdAnt.Parameters.AddWithValue("@n", conceptoAnticipo);
-                                    cmdAnt.Parameters.AddWithValue("@t", pedidoEnlazadoCombo.Anticipo);
+                                    cmdAnt.Parameters.AddWithValue("@t", abonoRealEfectivo); // Guarda el dinero neto exacto que entra al cajón
                                     cmdAnt.Parameters.AddWithValue("@cant", totalPiezasContadas);
                                     cmdAnt.Parameters.AddWithValue("@metodo", metodoPago);
-                                    cmdAnt.Parameters.AddWithValue("@rec", pedidoEnlazadoCombo.Anticipo);
-                                    cmdAnt.Parameters.AddWithValue("@cam", 0);
+                                    cmdAnt.Parameters.AddWithValue("@rec", pagoRecibido);
+                                    cmdAnt.Parameters.AddWithValue("@cam", cambioFinal);
                                     cmdAnt.Parameters.AddWithValue("@cuenta", cuentaDestino);
                                     cmdAnt.Parameters.AddWithValue("@desc", totalDineroDescontado);
                                     cmdAnt.Parameters.AddWithValue("@numRef", numeroRefValor);
@@ -687,9 +698,11 @@ namespace PuntoFlower.Views
                             else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo == null)
                             {
                                 decimal.TryParse(txtFleteNuevoPedido.Text.Trim(), out decimal fleteNeto);
+                                decimal saldoPendienteNuevo = totalNetoArreglo - pagoRecibido;
+                                string estadoNuevoCalculado = (saldoPendienteNuevo <= 0) ? "Entregado" : "Pendiente";
 
                                 string insPed = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago, CostoEnvio) 
-                                                 VALUES (@nom, @tel, @fec, GETDATE(), 'Mostrador Caja', '', 'Pendiente', @des, @tot, @ant, @saldo, @met, @flete)";
+                                                 VALUES (@nom, @tel, @fec, GETDATE(), 'Mostrador Caja', '', @estFinal, @des, @tot, @ant, @saldo, @met, @flete)";
                                 using (SqlCommand cmdPed = new SqlCommand(insPed, con, tra))
                                 {
                                     cmdPed.Parameters.AddWithValue("@nom", txtClientePedidoCaja.Text.Trim());
@@ -698,7 +711,8 @@ namespace PuntoFlower.Views
                                     cmdPed.Parameters.AddWithValue("@des", detProdNombres + " (" + detVisualConcat + ")");
                                     cmdPed.Parameters.AddWithValue("@tot", totalNetoArreglo);
                                     cmdPed.Parameters.AddWithValue("@ant", pagoRecibido);
-                                    cmdPed.Parameters.AddWithValue("@saldo", totalNetoArreglo - pagoRecibido);
+                                    cmdPed.Parameters.AddWithValue("@saldo", saldoPendienteNuevo <= 0 ? 0 : saldoPendienteNuevo);
+                                    cmdPed.Parameters.AddWithValue("@estFinal", estadoNuevoCalculado);
                                     cmdPed.Parameters.AddWithValue("@met", metodoPago);
                                     cmdPed.Parameters.AddWithValue("@flete", fleteNeto);
                                     cmdPed.ExecuteNonQuery();
@@ -822,10 +836,7 @@ namespace PuntoFlower.Views
                 pd.PrintPage += new PrintPageEventHandler(DrawTicketPage);
                 pd.Print();
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("No se detectó una impresora activa: " + ex.Message, "Fallo de Impresión", MessageBoxButton.OK, MessageBoxImage.Exclamation);
-            }
+            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
 
         private void DrawTicketPage(object sender, PrintPageEventArgs e)
