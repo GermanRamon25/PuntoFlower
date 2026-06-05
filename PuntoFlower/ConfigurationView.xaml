@@ -153,7 +153,8 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Text="Usuarios Pendientes de Activar" FontSize="18" FontWeight="Bold" Foreground="#CF8282" Margin="0,0,0,10"/>
+
+                            <TextBlock Text="Usuarios Pendientes de Activar" Grid.Row="0" FontSize="18" FontWeight="Bold" Foreground="#CF8282" Margin="0,0,0,10"/>
                             <DataGrid x:Name="dgUsuariosPendientes" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" Background="White" Height="380">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Usuario" Binding="{Binding Username}" Width="*"/>

@@ -37,7 +37,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // ENLACE DIRECTO: Abre la ventana modal flotante
         private void btnAbrirPanelSeguridad_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -204,12 +203,21 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    SqlCommand cmd = new SqlCommand("SELECT Id, Nombre, PrecioCompra, PrecioVenta FROM Productos ORDER BY Nombre ASC", con);
+                    // CORRECCIÓN INTEGRADA: Añadido el filtro "WHERE Categoria = 'Venta'" para evitar 
+                    // que las flores destinadas a 'Bodega' dupliquen la tabla de márgenes comerciales.
+                    string query = "SELECT Id, Nombre, PrecioCompra, PrecioVenta FROM Productos WHERE Categoria = 'Venta' ORDER BY Nombre ASC";
+                    SqlCommand cmd = new SqlCommand(query, con);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
                         {
-                            listaFlores.Add(new FlorPrecio { Id = (int)r["Id"], Nombre = r["Nombre"].ToString(), PrecioCompra = Convert.ToDecimal(r["PrecioCompra"]), PrecioVenta = Convert.ToDecimal(r["PrecioVenta"]) });
+                            listaFlores.Add(new FlorPrecio
+                            {
+                                Id = (int)r["Id"],
+                                Nombre = r["Nombre"].ToString(),
+                                PrecioCompra = Convert.ToDecimal(r["PrecioCompra"]),
+                                PrecioVenta = Convert.ToDecimal(r["PrecioVenta"])
+                            });
                         }
                     }
                 }
@@ -266,7 +274,6 @@ namespace PuntoFlower.Views
         }
     }
 
-    // CLASE RESTAURADA: Esto corregirá los 6 errores de compilación de inmediato
     public class FlorPrecio
     {
         public int Id { get; set; }
