@@ -29,6 +29,8 @@ namespace PuntoFlower.Views
         public string MetodoPagoVisual { get; set; }
         public string NumeroReferencia { get; set; }
         public decimal Descuento { get; set; }
+        public int? ProductoId { get; set; } // Enlace directo por ID seguro
+        public int Cantidad { get; set; }     // Piezas originales vendidas
     }
 
     public partial class CashCloseOutView : UserControl
@@ -138,7 +140,9 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = $@"SELECT Id, Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, CuentaTransferencia, DescuentoAplicado, NumeroReferencia 
+                    // Modificado para inyectar ProductoId y Cantidad en la consulta
+                    string query = $@"SELECT Id, Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, 
+                                             CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId, Cantidad 
                                      FROM Ventas {condicionFecha} ORDER BY Fecha DESC";
 
                     SqlCommand cmd = new SqlCommand(query, con);
@@ -154,15 +158,12 @@ namespace PuntoFlower.Views
                             decimal desc = r["DescuentoAplicado"] != DBNull.Value ? Convert.ToDecimal(r["DescuentoAplicado"]) : 0;
                             string referencia = r["NumeroReferencia"] != DBNull.Value ? r["NumeroReferencia"].ToString() : "";
 
-                            // Evaluamos si el movimiento es una venta ordinaria o un egreso por gasto
                             if (recibido < 0)
                             {
-                                // Multiplicamos por -1 para mostrar el acumulado en positivo en su tarjeta naranja independiente
                                 acumuladoGastosEfectivo += (recibido * -1);
                             }
                             else
                             {
-                                // Mantiene las ventas brutas intactas en el bloque verde de Ingresos
                                 sumaRecibido += recibido;
                             }
 
@@ -171,7 +172,6 @@ namespace PuntoFlower.Views
 
                             if (metodo == "Efectivo")
                             {
-                                // Suma ingresos ordinarios y resta salidas por gastos (-monto - 0 = -monto)
                                 acumuladoEfectivo += (recibido - cambio);
                             }
                             else if (metodo == "Tarjeta" || metodo.Contains("Tarjeta")) acumuladoTarjeta += totalVenta;
@@ -193,14 +193,16 @@ namespace PuntoFlower.Views
                                 MetodoPagoPuro = metodo,
                                 MetodoPagoVisual = metodo + (string.IsNullOrEmpty(cuenta) ? "" : $" ({cuenta})"),
                                 NumeroReferencia = string.IsNullOrEmpty(referencia) ? "—" : referencia,
-                                Descuento = desc
+                                Descuento = desc,
+                                ProductoId = r["ProductoId"] != DBNull.Value ? (int?)Convert.ToInt32(r["ProductoId"]) : null,
+                                Cantidad = r["Cantidad"] != DBNull.Value ? Convert.ToInt32(r["Cantidad"]) : 1
                             });
                         }
                     }
                 }
                 dgCorte.ItemsSource = ventasFiltradas;
                 txtTotalRecibido.Text = sumaRecibido.ToString("C");
-                txtTotalGastosTurno.Text = acumuladoGastosEfectivo.ToString("C"); // Pintar Tarjeta Naranja
+                txtTotalGastosTurno.Text = acumuladoGastosEfectivo.ToString("C");
                 txtTotalCambio.Text = sumaCambio.ToString("C");
                 txtEfectivoReal.Text = acumuladoEfectivo.ToString("C");
             }
@@ -238,28 +240,57 @@ namespace PuntoFlower.Views
                                 }
                             }
 
-                            string queryInsumos = "SELECT Nombre, PrecioVenta FROM Productos WHERE Categoria = 'Venta'";
-                            using (SqlCommand cmdGet = new SqlCommand(queryInsumos, con, tra))
+                            // RESTAURACIÓN INTELIGENTE DE STOCK EN EL CATÁLOGO
+                            if (ventaSeleccionada.ProductoId.HasValue && ventaSeleccionada.ProductoId.Value > 0)
                             {
-                                using (SqlDataReader reader = cmdGet.ExecuteReader())
+                                // El camino seguro: Usar el ID guardado
+                                string qUpdateStockById = "UPDATE Productos SET StockActual = StockActual + @c WHERE Id = @prodId";
+                                using (SqlCommand cmdUpId = new SqlCommand(qUpdateStockById, con, tra))
                                 {
-                                    while (reader.Read())
-                                    {
-                                        string nombreProd = reader["Nombre"].ToString();
-                                        if (concepto.Contains(nombreProd))
-                                        {
-                                            decimal precioUnit = Convert.ToDecimal(reader["PrecioVenta"]);
-                                            int cantidad = (int)Math.Round(ventaSeleccionada.Total / precioUnit);
-                                            if (cantidad == 0) cantidad = 1;
+                                    cmdUpId.Parameters.AddWithValue("@c", ventaSeleccionada.Cantidad);
+                                    cmdUpId.Parameters.AddWithValue("@prodId", ventaSeleccionada.ProductoId.Value);
+                                    cmdUpId.ExecuteNonQuery();
+                                }
+                            }
+                            else
+                            {
+                                // Respaldo secundario por coincidencia de texto
+                                string queryInsumos = "SELECT Id, Nombre, PrecioVenta FROM Productos WHERE Categoria = 'Venta'";
+                                List<Tuple<int, string, decimal>> listaProductosConfig = new List<Tuple<int, string, decimal>>();
 
-                                            string qUpdate = "UPDATE Productos SET StockActual = StockActual + @c WHERE Nombre = @nom";
-                                            using (SqlCommand cmdUp = new SqlCommand(qUpdate, con, tra))
-                                            {
-                                                cmdUp.Parameters.AddWithValue("@c", cantidad);
-                                                cmdUp.Parameters.AddWithValue("@nom", nombreProd);
-                                                cmdUp.ExecuteNonQuery();
-                                            }
+                                using (SqlCommand cmdGet = new SqlCommand(queryInsumos, con, tra))
+                                {
+                                    using (SqlDataReader reader = cmdGet.ExecuteReader())
+                                    {
+                                        while (reader.Read())
+                                        {
+                                            listaProductosConfig.Add(new Tuple<int, string, decimal>(
+                                                Convert.ToInt32(reader["Id"]),
+                                                reader["Nombre"].ToString(),
+                                                Convert.ToDecimal(reader["PrecioVenta"])
+                                            ));
                                         }
+                                    }
+                                }
+
+                                foreach (var prod in listaProductosConfig)
+                                {
+                                    if (concepto.ToUpper().Contains(prod.Item2.ToUpper()) || prod.Item2.ToUpper().Contains(concepto.ToUpper()))
+                                    {
+                                        int piezasRegresar = ventaSeleccionada.Cantidad;
+                                        if (piezasRegresar <= 0 && prod.Item3 > 0)
+                                            piezasRegresar = (int)Math.Round(ventaSeleccionada.Total / prod.Item3);
+
+                                        if (piezasRegresar <= 0) piezasRegresar = 1;
+
+                                        string qUpdateStockByName = "UPDATE Productos SET StockActual = StockActual + @c WHERE Id = @nomId";
+                                        using (SqlCommand cmdUpName = new SqlCommand(qUpdateStockByName, con, tra))
+                                        {
+                                            cmdUpName.Parameters.AddWithValue("@c", piezasRegresar);
+                                            cmdUpName.Parameters.AddWithValue("@nomId", prod.Item1);
+                                            cmdUpName.ExecuteNonQuery();
+                                        }
+                                        break;
                                     }
                                 }
                             }
@@ -320,7 +351,6 @@ namespace PuntoFlower.Views
                         PdfWriter writer = PdfWriter.GetInstance(doc, fs);
                         doc.Open();
 
-                        // Fuentes corporativas
                         iTextFont fontTitulo = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 20, BaseColor.BLACK);
                         iTextFont fontSubtitulo = FontFactory.GetFont(FontFactory.HELVETICA, 11, BaseColor.DARK_GRAY);
                         iTextFont fontSeccion = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 13, BaseColor.BLACK);
@@ -330,7 +360,6 @@ namespace PuntoFlower.Views
                         iTextFont fontResumenBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.BLACK);
                         iTextFont fontResumenValue = FontFactory.GetFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
 
-                        // Encabezado Principal
                         iTextParagraph pTitulo = new iTextParagraph("PUNTO FLOWER - REPORTE DE CAJA", fontTitulo);
                         doc.Add(pTitulo);
 
@@ -338,7 +367,7 @@ namespace PuntoFlower.Views
                         pMeta.SpacingAfter = 20;
                         doc.Add(pMeta);
 
-                        // SECCIÓN 1: RESUMEN FINANCIERO MÉTODOS DE PAGO
+                        // RECORREGIDO: Tipo explícito iTextParagraph añadido para evitar errores de contexto
                         iTextParagraph secFinanzas = new iTextParagraph("1. Resumen Acumulado de Balances y Cuentas", fontSeccion);
                         secFinanzas.SpacingAfter = 8;
                         doc.Add(secFinanzas);
@@ -360,11 +389,9 @@ namespace PuntoFlower.Views
                             tabla.AddCell(cellValor);
                         };
 
-                        // Las ventas brutas mostradas arriba corresponden exactamente a la suma de ingresos
                         decimal totalVentasBrutasEfectivo = acumuladoEfectivo + acumuladoGastosEfectivo;
                         decimal totalIngresosCalculados = totalVentasBrutasEfectivo + acumuladoTarjeta + acumuladoTransfCuenta1 + acumuladoTransfCuenta2;
 
-                        // Desglose Contable Homogéneo para el Reporte Impreso del Dueño
                         agregarCeldaResumen(tablaResumen, "Ingresos Brutos en Efectivo (Ventas de Mostrador):", totalVentasBrutasEfectivo.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "Gastos de Turno Pagados en Efectivo (-):", acumuladoGastosEfectivo.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "EFECTIVO FÍSICO NETO REAL EN CAJA (=):", acumuladoEfectivo.ToString("C"), true);
@@ -376,7 +403,7 @@ namespace PuntoFlower.Views
 
                         doc.Add(tablaResumen);
 
-                        // SECCIÓN 2: AUDITORÍA DE MOVIMIENTOS - AGRUPADA POR DÍA (ORDEN CRONOLÓGICO)
+                        // RECORREGIDO: Tipo explícito iTextParagraph añadido para evitar errores de contexto
                         iTextParagraph secAuditoria = new iTextParagraph("2. Desglose de Ventas por Jornadas (Días)", fontSeccion);
                         secAuditoria.SpacingAfter = 12;
                         doc.Add(secAuditoria);
@@ -388,7 +415,6 @@ namespace PuntoFlower.Views
                         foreach (var grupoDia in movimientosAgrupadosPorDia)
                         {
                             string nombreDiaTexto = grupoDia.Key.ToString("dddd dd 'de' MMMM 'de' yyyy").ToUpper();
-                            // El total de ventas del día neto toma ingresos y egresos
                             decimal totalVendidoDelDia = grupoDia.Sum(v => v.Total);
 
                             iTextParagraph pDiaHeader = new iTextParagraph($"■ {nombreDiaTexto} — (Balance de Jornada: {totalVendidoDelDia:C})", fontDiaHeader);
@@ -428,7 +454,6 @@ namespace PuntoFlower.Views
                             doc.Add(tablaVentasDia);
                         }
 
-                        // Bloque de Firmas de Conformidad
                         iTextParagraph pFirmasSpace = new iTextParagraph("\n\n\n");
                         doc.Add(pFirmasSpace);
 
