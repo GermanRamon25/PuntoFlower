@@ -443,10 +443,18 @@ namespace PuntoFlower.Views
                             {
                                 string importeTexto = v.Total < 0 ? $"-{Math.Abs(v.Total):C}" : v.Total.ToString("C");
 
+                                // MEJORA AGREGADA: Concatenación del folio/número de depósito en la celda del método de pago
+                                string metodoPagoCelda = v.MetodoPagoVisual;
+                                if ((v.MetodoPagoPuro == "Transferencia" || v.MetodoPagoPuro.Contains("Transferencia")) &&
+                                    !string.IsNullOrEmpty(v.NumeroReferencia) && v.NumeroReferencia != "—")
+                                {
+                                    metodoPagoCelda += $"\n[Ref: {v.NumeroReferencia}]";
+                                }
+
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.Id.ToString(), fontTablaBody)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 });
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.Fecha.ToString("HH:mm:ss"), fontTablaBody)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 });
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.ProductoNombre, fontTablaBody)) { Padding = 4 });
-                                tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.MetodoPagoVisual, fontTablaBody)) { Padding = 4 });
+                                tablaVentasDia.AddCell(new PdfPCell(new Phrase(metodoPagoCelda, fontTablaBody)) { Padding = 4 });
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.Descuento > 0 ? v.Descuento.ToString("C") : "—", fontTablaBody)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(importeTexto, fontTablaBody)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                             }
