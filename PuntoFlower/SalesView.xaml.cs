@@ -514,6 +514,7 @@ namespace PuntoFlower.Views
             return (subtotal - dineroDescontated) + fleteTotalAcumulado;
         }
 
+        // LÓGICA DE AUDITORÍA MEJORADA: Protege los anticipos de tarjeta y transferencia al mapear desde la agenda
         private void CalcularCambioMatematico()
         {
             if (txtCambio == null || txtPagoCon == null) return;
@@ -522,10 +523,19 @@ namespace PuntoFlower.Views
             var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
             string metodo = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
 
+            // LOGICA RE-DISEÑADA SEGURO: Si es tarjeta o transferencia PERO está activa la casilla de apartado, NO borramos el anticipo de pantalla.
             if (metodo != "Efectivo")
             {
-                txtPagoCon.Text = totalNeto.ToString("F2");
-                txtCambio.Text = "$0.00";
+                if (chkEsPedidoApartado != null && chkEsPedidoApartado.IsChecked == true)
+                {
+                    // Dejamos que conserve la cifra del anticipo cargada desde el ComboBox de la agenda
+                    txtCambio.Text = "$0.00";
+                }
+                else
+                {
+                    txtPagoCon.Text = totalNeto.ToString("F2");
+                    txtCambio.Text = "$0.00";
+                }
                 return;
             }
 

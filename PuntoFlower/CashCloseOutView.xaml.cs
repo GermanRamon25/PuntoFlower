@@ -181,7 +181,8 @@ namespace PuntoFlower.Views
                             }
                             else
                             {
-                                sumaRecibido += recibido;
+                                // CORRECCIÓN DE LÓGICA DE AUDITORÍA: Se acumula el dinero neto exacto recibido restándole el cambio entregado
+                                sumaRecibido += (recibido - cambio);
                             }
 
                             if (cambio > 0) sumaCambio += cambio;
@@ -435,7 +436,6 @@ namespace PuntoFlower.Views
                         agregarCeldaResumen(tablaResumen, "EFECTIVO FÍSICO NETO REAL EN CAJA (=):", acumuladoEfectivo.ToString("C"), true);
                         agregarCeldaResumen(tablaResumen, "Ventas Cobradas en Tarjeta:", acumuladoTarjeta.ToString("C"), false);
 
-                        // OPTIMIZACIÓN LOGRADA: Ciclo dinámico que imprime un renglón limpio e independiente por persona
                         foreach (var encargado in listaEncargadosIdentificados)
                         {
                             decimal montoEncargado = balanceTransferenciasPorEncargado.ContainsKey(encargado) ? balanceTransferenciasPorEncargado[encargado] : 0;
