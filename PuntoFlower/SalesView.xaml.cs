@@ -242,16 +242,30 @@ namespace PuntoFlower.Views
         {
             try
             {
+                if (cbCuentaDestino == null) return;
+                cbCuentaDestino.Items.Clear();
+
                 ConexionDB db = new ConexionDB();
                 string e1 = db.ObtenerEncargadoCuenta1();
-                string e2 = db.ObtenerEncargadoCuenta2();
-                if (cbCuentaDestino != null)
+
+                if (!string.IsNullOrWhiteSpace(e1))
                 {
-                    cbCuentaDestino.Items.Clear();
-                    cbCuentaDestino.Items.Add(string.IsNullOrWhiteSpace(e1) ? "Encargado 1" : e1);
-                    cbCuentaDestino.Items.Add(string.IsNullOrWhiteSpace(e2) ? "Encargado 2" : e2);
-                    cbCuentaDestino.SelectedIndex = 0;
+                    string[] listaEncargados = e1.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var encargado in listaEncargados)
+                    {
+                        if (!string.IsNullOrWhiteSpace(encargado))
+                        {
+                            cbCuentaDestino.Items.Add(encargado.Trim());
+                        }
+                    }
                 }
+
+                if (cbCuentaDestino.Items.Count == 0)
+                {
+                    cbCuentaDestino.Items.Add("Encargado 1");
+                }
+
+                cbCuentaDestino.SelectedIndex = 0;
             }
             catch { }
         }
@@ -458,6 +472,8 @@ namespace PuntoFlower.Views
             ActualizarTotal();
         }
 
+        private void txtFactorManualRapido_TextChanged(object sender, TextChangedEventArgs e) { }
+
         private void txtFleteNuevoPedido_TextChanged(object sender, TextChangedEventArgs e)
         {
             ActualizarTotal();
@@ -498,7 +514,6 @@ namespace PuntoFlower.Views
             return (subtotal - dineroDescontated) + fleteTotalAcumulado;
         }
 
-        // CORREGIDO: Lógica de cálculo de feria reactivada para apartados rápidos liquidados al 100%
         private void CalcularCambioMatematico()
         {
             if (txtCambio == null || txtPagoCon == null) return;
@@ -516,8 +531,6 @@ namespace PuntoFlower.Views
 
             if (decimal.TryParse(txtPagoCon.Text.Trim(), out decimal pago))
             {
-                // Si el pago es un apartado ordinario PERO el monto introducido cubre o supera el total de la nota, 
-                // mostramos el cambio real al usuario en lugar de congelar a ceros
                 if (chkEsPedidoApartado != null && chkEsPedidoApartado.IsChecked == true)
                 {
                     txtCambio.Text = (pago > totalNeto) ? (pago - totalNeto).ToString("C") : "$0.00";
@@ -617,7 +630,6 @@ namespace PuntoFlower.Views
                                 }
                             }
 
-                            // CAMINO A: COBRO DESDE LA PESTAÑA "ABONAR A PEDIDO"
                             if (esCobroDeAbonoExistente)
                             {
                                 string actPedido = @"UPDATE Pedidos 
@@ -649,19 +661,16 @@ namespace PuntoFlower.Views
                                     cmdV.ExecuteNonQuery();
                                 }
                             }
-                            // CAMINO B: COBRO POR VINCULACIÓN DE CASILLA (CASO EVALUADO)
                             else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo != null)
                             {
-                                // CORRECCIÓN DEFINITIVA DE MATEMÁTICAS:
-                                // El dinero real que el cliente abona a la deuda de la nota es el pago recibido MENOS el cambio físico que le regreses
                                 decimal abonoRealEfectivo = pagoRecibido - cambioFinal;
                                 decimal saldoRestanteCalculado = totalNetoArreglo - abonoRealEfectivo;
                                 string estadoFinalCalculado = (saldoRestanteCalculado <= 0) ? "Entregado" : "Pendiente";
 
+                                // CORRECCIÓN INTEGRADA DE INTEGRIDAD: Se removió la sobreelevación "Anticipo = Anticipo + @pagoActual"
                                 string queryActualizarExistente = @"UPDATE Pedidos 
                                                                     SET Descripcion = @des,
                                                                         PrecioTotal = @tot,
-                                                                        Anticipo = Anticipo + @pagoActual,
                                                                         SaldoPendiente = CASE WHEN @saldoCalc <= 0 THEN 0 ELSE @saldoCalc END,
                                                                         Estado = @estFinal
                                                                     WHERE Id = @id";
@@ -671,7 +680,6 @@ namespace PuntoFlower.Views
                                     cmdUp.Parameters.AddWithValue("@id", pedidoEnlazadoCombo.Id);
                                     cmdUp.Parameters.AddWithValue("@des", detProdNombres + " (" + detVisualConcat + ")");
                                     cmdUp.Parameters.AddWithValue("@tot", totalNetoArreglo);
-                                    cmdUp.Parameters.AddWithValue("@pagoActual", abonoRealEfectivo);
                                     cmdUp.Parameters.AddWithValue("@saldoCalc", saldoRestanteCalculado);
                                     cmdUp.Parameters.AddWithValue("@estFinal", estadoFinalCalculado);
                                     cmdUp.ExecuteNonQuery();
@@ -683,7 +691,7 @@ namespace PuntoFlower.Views
                                 using (SqlCommand cmdAnt = new SqlCommand(qAnt, con, tra))
                                 {
                                     cmdAnt.Parameters.AddWithValue("@n", conceptoAnticipo);
-                                    cmdAnt.Parameters.AddWithValue("@t", abonoRealEfectivo); // Guarda el dinero neto exacto que entra al cajón
+                                    cmdAnt.Parameters.AddWithValue("@t", abonoRealEfectivo);
                                     cmdAnt.Parameters.AddWithValue("@cant", totalPiezasContadas);
                                     cmdAnt.Parameters.AddWithValue("@metodo", metodoPago);
                                     cmdAnt.Parameters.AddWithValue("@rec", pagoRecibido);

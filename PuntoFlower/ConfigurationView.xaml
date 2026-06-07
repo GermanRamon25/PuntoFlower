@@ -158,6 +158,7 @@
                             <DataGrid x:Name="dgUsuariosPendientes" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" Background="White" Height="380">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Usuario" Binding="{Binding Username}" Width="*"/>
+
                                     <DataGridTemplateColumn Header="Acción" Width="150">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
@@ -165,6 +166,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
+
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Grid>
@@ -176,32 +178,54 @@
                                 <TextBlock Text="Identidad de la Sucursal Local y Cuentas" FontSize="18" FontWeight="Bold" Foreground="#CF8282" Margin="0,5,0,15"/>
 
                                 <Border Background="#F8F9FA" Padding="20" CornerRadius="12" BorderThickness="1" BorderBrush="#E5E7E9">
-                                    <StackPanel>
-                                        <TextBlock Text="Nombre Comercial o Identificador de esta Sucursal" Foreground="#7F8C8D" Margin="0,0,0,6" FontWeight="SemiBold" FontSize="13"/>
-                                        <TextBox x:Name="txtNombreSucursalInput" Height="38" VerticalContentAlignment="Center" FontSize="14" Padding="8,0" Margin="0,0,0,15"/>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="380"/>
+                                        </Grid.ColumnDefinitions>
 
-                                        <UniformGrid Columns="2" Margin="0,0,0,20">
-                                            <StackPanel Margin="0,0,10,0">
-                                                <TextBlock Text="Nombre de Encargado de Cuenta 1 (Transferencia)" Foreground="#7F8C8D" Margin="0,0,0,6" FontWeight="SemiBold" FontSize="13"/>
-                                                <TextBox x:Name="txtEncargado1Input" Height="38" VerticalContentAlignment="Center" FontSize="14" Padding="8,0"/>
-                                            </StackPanel>
-                                            <StackPanel Margin="10,0,0,0">
-                                                <TextBlock Text="Nombre de Encargado de Cuenta 2 (Transferencia)" Foreground="#7F8C8D" Margin="0,0,0,6" FontWeight="SemiBold" FontSize="13"/>
-                                                <TextBox x:Name="txtEncargado2Input" Height="38" VerticalContentAlignment="Center" FontSize="14" Padding="8,0"/>
-                                            </StackPanel>
-                                        </UniformGrid>
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Top">
+                                            <TextBlock Text="Nombre Comercial o Identificador de esta Sucursal" Foreground="#7F8C8D" Margin="0,0,0,6" FontWeight="SemiBold" FontSize="13"/>
+                                            <TextBox x:Name="txtNombreSucursalInput" Height="38" VerticalContentAlignment="Center" FontSize="14" Padding="8,0" Margin="0,0,0,15"/>
 
-                                        <Button Content="GUARDAR DATOS DE SUCURSAL" Click="btnGuardarSucursal_Click" Height="45" Background="#3498DB" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right" Width="260" Cursor="Hand">
-                                            <Button.Resources>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="CornerRadius" Value="6"/>
-                                                </Style>
-                                            </Button.Resources>
-                                        </Button>
-                                    </StackPanel>
+                                            <Button Content="GUARDAR CONFIGURACIÓN GENERAL" Click="btnGuardarSucursal_Click" Height="45" Background="#3498DB" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left" Width="280" Cursor="Hand" Margin="0,15,0,0">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="6"/>
+                                                    </Style>
+                                                </Button.Resources>
+                                            </Button>
+                                        </StackPanel>
+
+                                        <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Background="White" BorderThickness="1" BorderBrush="#BDC3C7" CornerRadius="8" Padding="15">
+                                            <StackPanel>
+                                                <DockPanel Margin="0,0,0,8">
+                                                    <TextBlock Text="Dueños de Cuenta Registrados" FontWeight="Bold" FontSize="13" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="txtContadorEncargados" Text="(0 personas)" FontWeight="SemiBold" FontSize="12" Foreground="#E74C3C" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                </DockPanel>
+
+                                                <ListBox x:Name="lbEncargadosCuentas" Height="150" Margin="0,0,0,10" Background="#FDFEFE" BorderThickness="1" BorderBrush="#D5DBDB"/>
+
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="80"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox x:Name="txtNuevoEncargadoInput" Grid.Column="0" Height="32" VerticalContentAlignment="Center" Padding="5,0"/>
+                                                    <Button Content="Añadir" Click="btnAñadirEncargado_Click" Grid.Column="1" Height="32" Margin="5,0,0,0" Background="#27AE60" Foreground="White" FontWeight="Bold" Cursor="Hand"/>
+                                                </Grid>
+
+                                                <Button Content="Quitar Seleccionado" Click="btnQuitarEncargado_Click" Height="28" Margin="0,8,0,0" Background="#E74C3C" Foreground="White" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Right" Width="130" Cursor="Hand"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
                                 </Border>
 
-                                <TextBlock Text="* Los nombres de los encargados alimentarán automáticamente los selectores de transferencia en el módulo de ventas." Foreground="#95A5A6" FontStyle="Italic" Margin="5,15,0,0" FontSize="12"/>
+                                <TextBlock Text="* Los nombres de los encargados alimentarán dinámicamente los selectores de transferencia en el módulo de ventas y balances." Foreground="#95A5A6" FontStyle="Italic" Margin="5,15,0,0" FontSize="12"/>
                             </StackPanel>
                         </Grid>
                     </TabItem>

@@ -37,10 +37,12 @@ namespace PuntoFlower.Views
     {
         private decimal acumuladoEfectivo = 0;
         private decimal acumuladoTarjeta = 0;
-        private decimal acumuladoTransfCuenta1 = 0;
-        private decimal acumuladoTransfCuenta2 = 0;
         private decimal acumuladoDescuentos = 0;
         private decimal acumuladoGastosEfectivo = 0; // Indicador global de control
+
+        // Diccionario dinámico para calcular totales por encargado sin importar cuántos agregues
+        private Dictionary<string, decimal> balanceTransferenciasPorEncargado = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        private List<string> listaEncargadosIdentificados = new List<string>();
 
         private string nombreEncargado1 = "Encargado 1";
         private string nombreEncargado2 = "Encargado 2";
@@ -105,14 +107,30 @@ namespace PuntoFlower.Views
 
             acumuladoEfectivo = 0;
             acumuladoTarjeta = 0;
-            acumuladoTransfCuenta1 = 0;
-            acumuladoTransfCuenta2 = 0;
             acumuladoDescuentos = 0;
             acumuladoGastosEfectivo = 0;
+
+            balanceTransferenciasPorEncargado.Clear();
+            listaEncargadosIdentificados.Clear();
 
             ConexionDB db = new ConexionDB();
             nombreEncargado1 = db.ObtenerEncargadoCuenta1();
             nombreEncargado2 = db.ObtenerEncargadoCuenta2();
+
+            // Desglosamos la lista dinámica de encargados separados por comas para auditoría limpia
+            if (!string.IsNullOrWhiteSpace(nombreEncargado1))
+            {
+                string[] depto = nombreEncargado1.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var n in depto)
+                {
+                    string limpio = n.Trim();
+                    if (!string.IsNullOrWhiteSpace(limpio) && !listaEncargadosIdentificados.Contains(limpio, StringComparer.OrdinalIgnoreCase))
+                    {
+                        listaEncargadosIdentificados.Add(limpio);
+                        balanceTransferenciasPorEncargado[limpio] = 0;
+                    }
+                }
+            }
 
             string condicionFecha = "";
             string seleccion = (cmbPeriodo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Hoy";
@@ -140,7 +158,6 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Modificado para inyectar ProductoId y Cantidad en la consulta
                     string query = $@"SELECT Id, Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, 
                                              CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId, Cantidad 
                                      FROM Ventas {condicionFecha} ORDER BY Fecha DESC";
@@ -154,7 +171,7 @@ namespace PuntoFlower.Views
                             decimal cambio = r["MontoCambio"] != DBNull.Value ? Convert.ToDecimal(r["MontoCambio"]) : 0;
                             decimal totalVenta = Convert.ToDecimal(r["Total"]);
                             string metodo = r["MetodoPago"]?.ToString() ?? "Efectivo";
-                            string cuenta = r["CuentaTransferencia"] != DBNull.Value ? r["CuentaTransferencia"].ToString() : "";
+                            string cuenta = r["CuentaTransferencia"] != DBNull.Value ? r["CuentaTransferencia"].ToString().Trim() : "";
                             decimal desc = r["DescuentoAplicado"] != DBNull.Value ? Convert.ToDecimal(r["DescuentoAplicado"]) : 0;
                             string referencia = r["NumeroReferencia"] != DBNull.Value ? r["NumeroReferencia"].ToString() : "";
 
@@ -174,12 +191,32 @@ namespace PuntoFlower.Views
                             {
                                 acumuladoEfectivo += (recibido - cambio);
                             }
-                            else if (metodo == "Tarjeta" || metodo.Contains("Tarjeta")) acumuladoTarjeta += totalVenta;
+                            else if (metodo == "Tarjeta" || metodo.Contains("Tarjeta"))
+                            {
+                                acumuladoTarjeta += totalVenta;
+                            }
                             else if (metodo == "Transferencia" || metodo.Contains("Transferencia"))
                             {
-                                if (cuenta == nombreEncargado1 || cuenta == "Cuenta Encargado 1") acumuladoTransfCuenta1 += totalVenta;
-                                else if (cuenta == nombreEncargado2 || cuenta == "Cuenta Encargado 2") acumuladoTransfCuenta2 += totalVenta;
-                                else acumuladoEfectivo += totalVenta;
+                                if (!string.IsNullOrEmpty(cuenta))
+                                {
+                                    // Sumamos de manera dinámica e individual al encargado correspondiente
+                                    if (balanceTransferenciasPorEncargado.ContainsKey(cuenta))
+                                    {
+                                        balanceTransferenciasPorEncargado[cuenta] += totalVenta;
+                                    }
+                                    else
+                                    {
+                                        balanceTransferenciasPorEncargado[cuenta] = totalVenta;
+                                        if (!listaEncargadosIdentificados.Contains(cuenta, StringComparer.OrdinalIgnoreCase))
+                                        {
+                                            listaEncargadosIdentificados.Add(cuenta);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    acumuladoEfectivo += totalVenta;
+                                }
                             }
 
                             ventasFiltradas.Add(new MovimientoVentaClass
@@ -240,10 +277,8 @@ namespace PuntoFlower.Views
                                 }
                             }
 
-                            // RESTAURACIÓN INTELIGENTE DE STOCK EN EL CATÁLOGO
                             if (ventaSeleccionada.ProductoId.HasValue && ventaSeleccionada.ProductoId.Value > 0)
                             {
-                                // El camino seguro: Usar el ID guardado
                                 string qUpdateStockById = "UPDATE Productos SET StockActual = StockActual + @c WHERE Id = @prodId";
                                 using (SqlCommand cmdUpId = new SqlCommand(qUpdateStockById, con, tra))
                                 {
@@ -254,7 +289,6 @@ namespace PuntoFlower.Views
                             }
                             else
                             {
-                                // Respaldo secundario por coincidencia de texto
                                 string queryInsumos = "SELECT Id, Nombre, PrecioVenta FROM Productos WHERE Categoria = 'Venta'";
                                 List<Tuple<int, string, decimal>> listaProductosConfig = new List<Tuple<int, string, decimal>>();
 
@@ -367,7 +401,6 @@ namespace PuntoFlower.Views
                         pMeta.SpacingAfter = 20;
                         doc.Add(pMeta);
 
-                        // RECORREGIDO: Tipo explícito iTextParagraph añadido para evitar errores de contexto
                         iTextParagraph secFinanzas = new iTextParagraph("1. Resumen Acumulado de Balances y Cuentas", fontSeccion);
                         secFinanzas.SpacingAfter = 8;
                         doc.Add(secFinanzas);
@@ -390,20 +423,30 @@ namespace PuntoFlower.Views
                         };
 
                         decimal totalVentasBrutasEfectivo = acumuladoEfectivo + acumuladoGastosEfectivo;
-                        decimal totalIngresosCalculados = totalVentasBrutasEfectivo + acumuladoTarjeta + acumuladoTransfCuenta1 + acumuladoTransfCuenta2;
+
+                        // Calculamos la suma real de todas las transferencias dinámicas
+                        decimal totalTransferenciasAcumuladas = 0;
+                        foreach (var b in balanceTransferenciasPorEncargado.Values) totalTransferenciasAcumuladas += b;
+
+                        decimal totalIngresosCalculados = totalVentasBrutasEfectivo + acumuladoTarjeta + totalTransferenciasAcumuladas;
 
                         agregarCeldaResumen(tablaResumen, "Ingresos Brutos en Efectivo (Ventas de Mostrador):", totalVentasBrutasEfectivo.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "Gastos de Turno Pagados en Efectivo (-):", acumuladoGastosEfectivo.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "EFECTIVO FÍSICO NETO REAL EN CAJA (=):", acumuladoEfectivo.ToString("C"), true);
                         agregarCeldaResumen(tablaResumen, "Ventas Cobradas en Tarjeta:", acumuladoTarjeta.ToString("C"), false);
-                        agregarCeldaResumen(tablaResumen, $"Transferencias de Cuenta - {nombreEncargado1}:", acumuladoTransfCuenta1.ToString("C"), false);
-                        agregarCeldaResumen(tablaResumen, $"Transferencias de Cuenta - {nombreEncargado2}:", acumuladoTransfCuenta2.ToString("C"), false);
+
+                        // OPTIMIZACIÓN LOGRADA: Ciclo dinámico que imprime un renglón limpio e independiente por persona
+                        foreach (var encargado in listaEncargadosIdentificados)
+                        {
+                            decimal montoEncargado = balanceTransferenciasPorEncargado.ContainsKey(encargado) ? balanceTransferenciasPorEncargado[encargado] : 0;
+                            agregarCeldaResumen(tablaResumen, $"Transferencias de Cuenta - {encargado}:", montoEncargado.ToString("C"), false);
+                        }
+
                         agregarCeldaResumen(tablaResumen, "Total Descuentos Otorgados en el Periodo:", acumuladoDescuentos.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "Gran Total Ingresos Brutos Combinados (Todos los Canales):", totalIngresosCalculados.ToString("C"), false);
 
                         doc.Add(tablaResumen);
 
-                        // RECORREGIDO: Tipo explícito iTextParagraph añadido para evitar errores de contexto
                         iTextParagraph secAuditoria = new iTextParagraph("2. Desglose de Ventas por Jornadas (Días)", fontSeccion);
                         secAuditoria.SpacingAfter = 12;
                         doc.Add(secAuditoria);
@@ -443,7 +486,6 @@ namespace PuntoFlower.Views
                             {
                                 string importeTexto = v.Total < 0 ? $"-{Math.Abs(v.Total):C}" : v.Total.ToString("C");
 
-                                // MEJORA AGREGADA: Concatenación del folio/número de depósito en la celda del método de pago
                                 string metodoPagoCelda = v.MetodoPagoVisual;
                                 if ((v.MetodoPagoPuro == "Transferencia" || v.MetodoPagoPuro.Contains("Transferencia")) &&
                                     !string.IsNullOrEmpty(v.NumeroReferencia) && v.NumeroReferencia != "—")

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.SqlClient;
@@ -12,6 +13,7 @@ namespace PuntoFlower.Views
     public partial class ConfigurationView : UserControl
     {
         private ObservableCollection<FlorPrecio> listaFlores = new ObservableCollection<FlorPrecio>();
+        private ObservableCollection<string> coleccionEncargados = new ObservableCollection<string>();
         private FlorPrecio florSeleccionada;
 
         public ConfigurationView()
@@ -20,6 +22,9 @@ namespace PuntoFlower.Views
             CargarPreciosActuales();
             CargarTablaFlores();
             CargarUsuariosPendientes();
+
+            // Asignamos el origen de datos al ListBox dinámico
+            lbEncargadosCuentas.ItemsSource = coleccionEncargados;
         }
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
@@ -28,12 +33,102 @@ namespace PuntoFlower.Views
             {
                 ConexionDB db = new ConexionDB();
                 txtNombreSucursalInput.Text = db.ObtenerNombreSucursal();
-                txtEncargado1Input.Text = db.ObtenerEncargadoCuenta1();
-                txtEncargado2Input.Text = db.ObtenerEncargadoCuenta2();
+
+                // Leemos los encargados guardados en la BD
+                string encargadosRaw = db.ObtenerEncargadoCuenta1();
+                coleccionEncargados.Clear();
+
+                if (!string.IsNullOrWhiteSpace(encargadosRaw))
+                {
+                    string[] lista = encargadosRaw.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var nombre in lista)
+                    {
+                        coleccionEncargados.Add(nombre.Trim());
+                    }
+                }
+
+                ActualizarContadorVisual();
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error al cargar la configuración de la sucursal: " + ex.Message, "Fallo de Enlace");
+            }
+        }
+
+        private void ActualizarContadorVisual()
+        {
+            if (txtContadorEncargados != null)
+            {
+                txtContadorEncargados.Text = $"({coleccionEncargados.Count} personas)";
+            }
+        }
+
+        private void btnAñadirEncargado_Click(object sender, RoutedEventArgs e)
+        {
+            string nuevoNombre = txtNuevoEncargadoInput.Text.Trim();
+            if (string.IsNullOrWhiteSpace(nuevoNombre)) return;
+
+            if (coleccionEncargados.Contains(nuevoNombre))
+            {
+                MessageBox.Show("Esta persona ya se encuentra registrada en la lista.", "Atención");
+                return;
+            }
+
+            coleccionEncargados.Add(nuevoNombre);
+            txtNuevoEncargadoInput.Clear();
+            ActualizarContadorVisual();
+        }
+
+        private void btnQuitarEncargado_Click(object sender, RoutedEventArgs e)
+        {
+            string seleccionado = lbEncargadosCuentas.SelectedItem as string;
+            if (seleccionado == null)
+            {
+                MessageBox.Show("Selecciona una persona de la lista para removerla.", "Atención");
+                return;
+            }
+
+            coleccionEncargados.Remove(seleccionado);
+            ActualizarContadorVisual();
+        }
+
+        private void btnGuardarSucursal_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtNombreSucursalInput.Text))
+            {
+                MessageBox.Show("El nombre de la sucursal no puede quedar vacío.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!coleccionEncargados.Any())
+            {
+                MessageBox.Show("Debes agregar al menos a un dueño o encargado de cuenta en el recuadro.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                // Unificamos los encargados de la colección dinámica por comas para guardarlos
+                string encargadosUnificados = string.Join(", ", coleccionEncargados);
+
+                ConexionDB db = new ConexionDB();
+                db.GuardarDatosSucursal(
+                    txtNombreSucursalInput.Text.Trim(),
+                    encargadosUnificados,
+                    encargadosUnificados
+                );
+
+                MessageBox.Show("Identidad de la sucursal y lista de encargados guardados con éxito.", "Configuración Guardada", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                Window parentWindow = Window.GetWindow(this);
+                if (parentWindow is MainWindow main)
+                {
+                    main.Title = $"PuntoFlower - {txtNombreSucursalInput.Text.Trim().ToUpper()}";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al guardar la configuración: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -48,43 +143,6 @@ namespace PuntoFlower.Views
             catch (Exception ex)
             {
                 MessageBox.Show("No se pudo desplegar el panel de seguridad local: " + ex.Message, "Error de Sistema", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void btnGuardarSucursal_Click(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(txtNombreSucursalInput.Text))
-            {
-                MessageBox.Show("El nombre de la sucursal no puede quedar vacío.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(txtEncargado1Input.Text) || string.IsNullOrWhiteSpace(txtEncargado2Input.Text))
-            {
-                MessageBox.Show("Los nombres de los encargados de las cuentas no pueden quedar vacíos.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                ConexionDB db = new ConexionDB();
-                db.GuardarDatosSucursal(
-                    txtNombreSucursalInput.Text.Trim(),
-                    txtEncargado1Input.Text.Trim(),
-                    txtEncargado2Input.Text.Trim()
-                );
-
-                MessageBox.Show("Identidad de la sucursal y cuentas de encargados guardadas con éxito.", "Configuración Guardada", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                Window parentWindow = Window.GetWindow(this);
-                if (parentWindow is MainWindow main)
-                {
-                    main.Title = $"PuntoFlower - {txtNombreSucursalInput.Text.Trim().ToUpper()}";
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al guardar la configuración: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -203,8 +261,6 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // CORRECCIÓN INTEGRADA: Añadido el filtro "WHERE Categoria = 'Venta'" para evitar 
-                    // que las flores destinadas a 'Bodega' dupliquen la tabla de márgenes comerciales.
                     string query = "SELECT Id, Nombre, PrecioCompra, PrecioVenta FROM Productos WHERE Categoria = 'Venta' ORDER BY Nombre ASC";
                     SqlCommand cmd = new SqlCommand(query, con);
                     using (SqlDataReader r = cmd.ExecuteReader())
