@@ -514,7 +514,6 @@ namespace PuntoFlower.Views
             return (subtotal - dineroDescontated) + fleteTotalAcumulado;
         }
 
-        // LÓGICA DE AUDITORÍA MEJORADA: Protege los anticipos de tarjeta y transferencia al mapear desde la agenda
         private void CalcularCambioMatematico()
         {
             if (txtCambio == null || txtPagoCon == null) return;
@@ -523,12 +522,10 @@ namespace PuntoFlower.Views
             var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
             string metodo = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
 
-            // LOGICA RE-DISEÑADA SEGURO: Si es tarjeta o transferencia PERO está activa la casilla de apartado, NO borramos el anticipo de pantalla.
             if (metodo != "Efectivo")
             {
                 if (chkEsPedidoApartado != null && chkEsPedidoApartado.IsChecked == true)
                 {
-                    // Dejamos que conserve la cifra del anticipo cargada desde el ComboBox de la agenda
                     txtCambio.Text = "$0.00";
                 }
                 else
@@ -562,6 +559,22 @@ namespace PuntoFlower.Views
             decimal totalNetoArreglo = ObtenerTotalConDescuento();
             if (ProductosEnTicket.Count == 0) return;
 
+            if (!decimal.TryParse(txtPagoCon.Text.Trim(), out decimal pagoRecibido) || pagoRecibido < 0)
+            {
+                MessageBox.Show("Por favor, introduce el monto recibido o anticipo válido.", "Cobro Detenido", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // MEJORA REQUERIDA DE CONTROL: Bloqueo estricto contra cobros menores en mostrador directo
+            if (chkEsPedidoApartado.IsChecked == false && esCobroDeAbonoExistente == false)
+            {
+                if (pagoRecibido < totalNetoArreglo)
+                {
+                    MessageBox.Show($"La cantidad introducida ({pagoRecibido:C}) es menor al costo total del arreglo ({totalNetoArreglo:C}). Para ventas directas de mostrador se debe liquidar el monto completo.", "Cobro Insuficiente", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+
             float porcText = 0;
             float.TryParse(txtDescuento.Text, out porcText);
 
@@ -587,12 +600,6 @@ namespace PuntoFlower.Views
             {
                 if (cbCuentaDestino != null && cbCuentaDestino.SelectedItem != null) cuentaDestino = cbCuentaDestino.SelectedItem.ToString();
                 if (txtNumeroReferencia != null && !string.IsNullOrWhiteSpace(txtNumeroReferencia.Text)) numeroRefValor = txtNumeroReferencia.Text.Trim();
-            }
-
-            if (!decimal.TryParse(txtPagoCon.Text.Trim(), out decimal pagoRecibido) || pagoRecibido < 0)
-            {
-                MessageBox.Show("Por favor, introduce el monto recibido o anticipo válido.", "Cobro Detenido", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
             }
 
             PedidoComboClass pedidoEnlazadoCombo = cbPedidosAgendaDesplegable.SelectedItem as PedidoComboClass;
@@ -677,7 +684,6 @@ namespace PuntoFlower.Views
                                 decimal saldoRestanteCalculado = totalNetoArreglo - abonoRealEfectivo;
                                 string estadoFinalCalculado = (saldoRestanteCalculado <= 0) ? "Entregado" : "Pendiente";
 
-                                // CORRECCIÓN INTEGRADA DE INTEGRIDAD: Se removió la sobreelevación "Anticipo = Anticipo + @pagoActual"
                                 string queryActualizarExistente = @"UPDATE Pedidos 
                                                                     SET Descripcion = @des,
                                                                         PrecioTotal = @tot,
