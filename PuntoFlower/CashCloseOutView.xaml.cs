@@ -29,8 +29,8 @@ namespace PuntoFlower.Views
         public string MetodoPagoVisual { get; set; }
         public string NumeroReferencia { get; set; }
         public decimal Descuento { get; set; }
-        public int? ProductoId { get; set; } // Enlace directo por ID seguro
-        public int Cantidad { get; set; }     // Piezas originales vendidas
+        public int? ProductoId { get; set; }
+        public int Cantidad { get; set; }
     }
 
     public partial class CashCloseOutView : UserControl
@@ -38,14 +38,16 @@ namespace PuntoFlower.Views
         private decimal acumuladoEfectivo = 0;
         private decimal acumuladoTarjeta = 0;
         private decimal acumuladoDescuentos = 0;
-        private decimal acumuladoGastosEfectivo = 0; // Indicador global de control
+        private decimal acumuladoGastosEfectivo = 0;
 
-        // Diccionario dinámico para calcular totales por encargado sin importar cuántos agregues
         private Dictionary<string, decimal> balanceTransferenciasPorEncargado = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         private List<string> listaEncargadosIdentificados = new List<string>();
 
         private string nombreEncargado1 = "Encargado 1";
         private string nombreEncargado2 = "Encargado 2";
+
+        // Variable bandera para evitar bucles infinitos al cargar el componente
+        private bool esCargaInicial = true;
 
         public CashCloseOutView()
         {
@@ -58,15 +60,16 @@ namespace PuntoFlower.Views
                 if ((bool)e.NewValue)
                 {
                     EvaluarVisibilidadBotonEliminar();
-                    ProcesarCorteFiltrado(); // Recarga automática al cambiar entre pestañas del sistema
+
+                    // Al regresar a la pestaña, volvemos a leer el fondo desde la base de datos
+                    CargarFondoCajaDesdeBD();
+                    ProcesarCorteFiltrado();
                 }
             };
         }
 
-        // FUNCIONALIDAD AUTOMÁTICA RESTAURADA AL 100%
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
-            // Forzamos a que las cajas de fecha arranquen con el día actual (Hoy) por defecto
             if (dpDesdeCorte != null)
                 dpDesdeCorte.SelectedDate = DateTime.Today;
 
@@ -75,8 +78,20 @@ namespace PuntoFlower.Views
 
             EvaluarVisibilidadBotonEliminar();
 
-            // Llama en automático al cargador para que la lista no se muestre vacía al entrar
+            // Primera carga del fondo al iniciar la vista
+            CargarFondoCajaDesdeBD();
             ProcesarCorteFiltrado();
+        }
+
+        // Método auxiliar para recuperar de la BD y pintar en el TextBox sin disparar eventos erróneos
+        private void CargarFondoCajaDesdeBD()
+        {
+            if (txtFondoCaja == null) return;
+            esCargaInicial = true;
+            ConexionDB db = new ConexionDB();
+            decimal fondoGuardado = db.ObtenerFondoCaja();
+            txtFondoCaja.Text = fondoGuardado.ToString("F2");
+            esCargaInicial = false;
         }
 
         private void EvaluarVisibilidadBotonEliminar()
@@ -98,13 +113,11 @@ namespace PuntoFlower.Views
             }
         }
 
-        // Evento disparador del botón "GENERAR CORTE" (Por si desean auditar un día pasado)
         private void btnGenerarCorte_Click(object sender, RoutedEventArgs e)
         {
             ProcesarCorteFiltrado();
         }
 
-        // LÓGICA DE AUDITORÍA CRÍTICA: Filtrado contable por parámetros DatePicker de forma segura
         private void ProcesarCorteFiltrado()
         {
             List<MovimientoVentaClass> ventasFiltradas = new List<MovimientoVentaClass>();
@@ -137,15 +150,12 @@ namespace PuntoFlower.Views
                 }
             }
 
-            // Captura de rangos de fechas desde los selectores visuales o día de hoy por defecto
             DateTime fechaDesde = dpDesdeCorte?.SelectedDate ?? DateTime.Today;
             DateTime fechaHasta = dpHastaCorte?.SelectedDate ?? DateTime.Today;
 
-            // Mapeo dinámico del título descriptivo de la ventana
             if (txtTituloCorte != null)
                 txtTituloCorte.Text = $"Corte: {fechaDesde:dd/MM/yyyy} al {fechaHasta:dd/MM/yyyy}";
 
-            // Extendemos los parámetros hasta las 23:59:59 del último día para amarrar folios nocturnos
             fechaHasta = fechaHasta.Date.AddDays(1).AddTicks(-1);
 
             try
@@ -153,7 +163,7 @@ namespace PuntoFlower.Views
                 using (SqlConnection con = db.OpenConnection())
                 {
                     string query = @"SELECT Id, Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, 
-                                             CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId, Cantidad 
+                                            CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId, Cantidad 
                                      FROM Ventas 
                                      WHERE Fecha BETWEEN @desde AND @hasta
                                      ORDER BY Fecha DESC";
@@ -239,7 +249,17 @@ namespace PuntoFlower.Views
                 txtTotalRecibido.Text = sumaRecibido.ToString("C");
                 txtTotalGastosTurno.Text = acumuladoGastosEfectivo.ToString("C");
                 txtTotalCambio.Text = sumaCambio.ToString("C");
-                txtEfectivoReal.Text = acumuladoEfectivo.ToString("C");
+
+                // SE LEE EL FONDO DIRECTO DE LA INTERFAZ (EL CUAL YA SE CARGÓ DE LA BD)
+                decimal fondoActual = 0;
+                if (txtFondoCaja != null)
+                {
+                    string txtLimpio = txtFondoCaja.Text.Replace("$", "").Replace(",", "").Trim();
+                    decimal.TryParse(txtLimpio, out fondoActual);
+                }
+
+                decimal efectivoTotalConFondo = acumuladoEfectivo + fondoActual;
+                txtEfectivoReal.Text = efectivoTotalConFondo.ToString("C");
             }
             catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
@@ -379,6 +399,8 @@ namespace PuntoFlower.Views
                         iTextFont fontDiaHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 11, new BaseColor(31, 97, 141));
                         iTextFont fontTablaHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
                         iTextFont fontTablaBody = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
+                        // NUEVO: Fuente en cursiva/itálica para resaltar el fondo virtual en la tabla de abajo
+                        iTextFont fontTablaVirtual = FontFactory.GetFont(FontFactory.HELVETICA_OBLIQUE, 9, new BaseColor(46, 134, 193));
                         iTextFont fontResumenBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.BLACK);
                         iTextFont fontResumenValue = FontFactory.GetFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
 
@@ -410,16 +432,27 @@ namespace PuntoFlower.Views
                             tabla.AddCell(cellValor);
                         };
 
+                        // CAPTURAMOS EL FONDO DE CAJA ACTUAL DE LA INTERFAZ PARA EL PDF
+                        decimal fondoCajaPDF = 0;
+                        if (txtFondoCaja != null)
+                        {
+                            string txtLimpio = txtFondoCaja.Text.Replace("$", "").Replace(",", "").Trim();
+                            decimal.TryParse(txtLimpio, out fondoCajaPDF);
+                        }
+
                         decimal totalVentasBrutasEfectivo = acumuladoEfectivo + acumuladoGastosEfectivo;
 
                         decimal totalTransferenciasAcumuladas = 0;
                         foreach (var b in balanceTransferenciasPorEncargado.Values) totalTransferenciasAcumuladas += b;
 
+                        decimal efectivoNetoTotalConFondo = acumuladoEfectivo + fondoCajaPDF;
                         decimal totalIngresosCalculados = totalVentasBrutasEfectivo + acumuladoTarjeta + totalTransferenciasAcumuladas;
 
+                        // Sección Superior: Totales Acumulados
+                        agregarCeldaResumen(tablaResumen, "Fondo Inversión / Dinero Base de Caja Inicial (+):", fondoCajaPDF.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "Ingresos Brutos en Efectivo (Ventas de Mostrador):", totalVentasBrutasEfectivo.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "Gastos de Turno Pagados en Efectivo (-):", acumuladoGastosEfectivo.ToString("C"), false);
-                        agregarCeldaResumen(tablaResumen, "EFECTIVO FÍSICO NETO REAL EN CAJA (=):", acumuladoEfectivo.ToString("C"), true);
+                        agregarCeldaResumen(tablaResumen, "TOTAL ABSOLUTO FÍSICO NETO EN CAJA CON FONDO (=):", efectivoNetoTotalConFondo.ToString("C"), true);
                         agregarCeldaResumen(tablaResumen, "Ventas Cobradas en Tarjeta:", acumuladoTarjeta.ToString("C"), false);
 
                         foreach (var encargado in listaEncargadosIdentificados)
@@ -446,7 +479,10 @@ namespace PuntoFlower.Views
                             string nombreDiaTexto = grupoDia.Key.ToString("dddd dd 'de' MMMM 'de' yyyy").ToUpper();
                             decimal totalVendidoDelDia = grupoDia.Sum(v => v.Total);
 
-                            iTextParagraph pDiaHeader = new iTextParagraph($"■ {nombreDiaTexto} — (Balance de Jornada: {totalVendidoDelDia:C})", fontDiaHeader);
+                            // Ajuste contable del header por día: sumamos el fondo de caja al encabezado de la jornada si aplica
+                            decimal totalDiaConFondo = totalVendidoDelDia + fondoCajaPDF;
+
+                            iTextParagraph pDiaHeader = new iTextParagraph($"■ {nombreDiaTexto} — (Balance de Jornada + Fondo Inicial: {totalDiaConFondo:C})", fontDiaHeader);
                             pDiaHeader.SpacingBefore = 10;
                             pDiaHeader.SpacingAfter = 6;
                             doc.Add(pDiaHeader);
@@ -468,6 +504,29 @@ namespace PuntoFlower.Views
                                 tablaVentasDia.AddCell(cellHeader);
                             }
 
+                            // ==========================================================
+                            // INYECCIÓN VISUAL DEL FONDO DE CAJA COMO PRIMERA FILA DEL DESGLOSE
+                            // ==========================================================
+                            if (fondoCajaPDF > 0)
+                            {
+                                BaseColor fondoVirtualColor = new BaseColor(244, 246, 247); // Gris muy tenue para distinguirlo de las ventas puras
+
+                                PdfPCell cellId = new PdfPCell(new Phrase("INICIO", fontTablaVirtual)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4, BackgroundColor = fondoVirtualColor };
+                                PdfPCell cellHora = new PdfPCell(new Phrase("00:00:00", fontTablaVirtual)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4, BackgroundColor = fondoVirtualColor };
+                                PdfPCell cellConcepto = new PdfPCell(new Phrase("APERTURA: FONDO BASE DE CAJA DE RELEVACIÓN", fontTablaVirtual)) { Padding = 4, BackgroundColor = fondoVirtualColor };
+                                PdfPCell cellMetodo = new PdfPCell(new Phrase("Efectivo Fijo", fontTablaVirtual)) { Padding = 4, BackgroundColor = fondoVirtualColor };
+                                PdfPCell cellDesc = new PdfPCell(new Phrase("—", fontTablaVirtual)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4, BackgroundColor = fondoVirtualColor };
+                                PdfPCell cellImporte = new PdfPCell(new Phrase(fondoCajaPDF.ToString("C"), fontTablaVirtual)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4, BackgroundColor = fondoVirtualColor };
+
+                                tablaVentasDia.AddCell(cellId);
+                                tablaVentasDia.AddCell(cellHora);
+                                tablaVentasDia.AddCell(cellConcepto);
+                                tablaVentasDia.AddCell(cellMetodo);
+                                tablaVentasDia.AddCell(cellDesc);
+                                tablaVentasDia.AddCell(cellImporte);
+                            }
+
+                            // Renderizado ordenado del resto de las transacciones del día
                             foreach (var v in grupoDia.OrderBy(m => m.Fecha.TimeOfDay))
                             {
                                 string importeTexto = v.Total < 0 ? $"-{Math.Abs(v.Total):C}" : v.Total.ToString("C");
@@ -518,5 +577,30 @@ namespace PuntoFlower.Views
 
         private void ImprimirTicketTermico() { /* Lógica de impresión igual */ }
         private void DrawTicketPage(object sender, PrintPageEventArgs e) { /* Lógica de impresión igual */ }
+
+        // ========================================================
+        // MODIFICADO: PERSISTENCIA EN BD EN TIEMPO REAL
+        // ========================================================
+        private void txtFondoCaja_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (txtEfectivoReal == null || txtFondoCaja == null || esCargaInicial) return;
+
+            string textoLimpio = txtFondoCaja.Text.Trim();
+            decimal fondoIngresado = 0;
+
+            if (!string.IsNullOrEmpty(textoLimpio))
+            {
+                textoLimpio = textoLimpio.Replace("$", "").Replace(",", "");
+                decimal.TryParse(textoLimpio, out fondoIngresado);
+            }
+
+            // GUARDAR AUTOMÁTICAMENTE EN LA BASE DE DATOS
+            ConexionDB db = new ConexionDB();
+            db.GuardarFondoCaja(fondoIngresado);
+
+            // Actualizar la interfaz
+            decimal efectivoTotalConFondo = acumuladoEfectivo + fondoIngresado;
+            txtEfectivoReal.Text = efectivoTotalConFondo.ToString("C");
+        }
     }
 }

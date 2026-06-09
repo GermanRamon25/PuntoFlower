@@ -39,13 +39,14 @@
             <Border Background="#EAECEE" Padding="15,10" CornerRadius="8">
                 <DockPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock Text="📅 Parámetros de Búsqueda — " FontSize="13" FontWeight="Bold" Foreground="#34495E" VerticalAlignment="Center" Margin="0,0,15,0"/>
-
                         <TextBlock Text="Desde:" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="13" FontWeight="SemiBold" Foreground="#5D6D7E"/>
-                        <DatePicker x:Name="dpDesdeCorte" Width="120" Height="30" VerticalContentAlignment="Center" Margin="0,0,15,0"/>
+                        <DatePicker x:Name="dpDesdeCorte" Width="115" Height="30" VerticalContentAlignment="Center" Margin="0,0,15,0"/>
 
                         <TextBlock Text="Hasta:" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="13" FontWeight="SemiBold" Foreground="#5D6D7E"/>
-                        <DatePicker x:Name="dpHastaCorte" Width="120" Height="30" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                        <DatePicker x:Name="dpHastaCorte" Width="115" Height="30" VerticalContentAlignment="Center" Margin="0,0,20,0"/>
+
+                        <TextBlock Text="Fondo Caja ($):" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="13" FontWeight="Bold" Foreground="#2E4053"/>
+                        <TextBox x:Name="txtFondoCaja" Width="80" Height="30" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" Text="0.00" TextChanged="txtFondoCaja_TextChanged"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">

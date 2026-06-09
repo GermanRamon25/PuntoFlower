@@ -158,5 +158,60 @@ namespace PuntoFlower.Data
                 }
             }
         }
+
+        // =========================================================================
+        // NUEVOS MÉTODOS PARA PERSISTENCIA CONTABLE DEL FONDO DE CAJA DIARIO
+        // =========================================================================
+
+        public decimal ObtenerFondoCaja()
+        {
+            decimal fondo = 0;
+            try
+            {
+                using (SqlConnection con = OpenConnection())
+                {
+                    string query = "SELECT Valor FROM ConfiguracionSistema WHERE Clave = 'FondoCajaUltimo'";
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        object res = cmd.ExecuteScalar();
+                        if (res != null)
+                        {
+                            decimal.TryParse(res.ToString(), out fondo);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Manejo de excepción silenciosa para evitar cierres del software
+            }
+            return fondo;
+        }
+
+        public void GuardarFondoCaja(decimal monto)
+        {
+            try
+            {
+                using (SqlConnection con = OpenConnection())
+                {
+                    string query = @"
+                        IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'FondoCajaUltimo')
+                            UPDATE ConfiguracionSistema SET Valor = @v WHERE Clave = 'FondoCajaUltimo';
+                        ELSE
+                            INSERT INTO ConfiguracionSistema (Clave, Valor) VALUES ('FondoCajaUltimo', @v);";
+
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        // Formateamos con invariante decimal para asegurar compatibilidad de puntos/comas
+                        cmd.Parameters.AddWithValue("@v", monto.ToString("F2"));
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch
+            {
+                // Captura por fallos de interrupción de red local
+            }
+        }
     }
 }
