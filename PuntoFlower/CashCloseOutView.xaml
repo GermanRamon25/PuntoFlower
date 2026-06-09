@@ -7,6 +7,7 @@
              d:DesignHeight="600" d:DesignWidth="1000"
              Background="#F5F5F5"
              Loaded="UserControl_Loaded">
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -14,86 +15,120 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" Margin="0,0,0,20">
-            <StackPanel>
-                <TextBlock x:Name="txtTituloCorte" Text="Corte de Caja Diario" FontSize="26" FontWeight="Bold" Foreground="#2C3E50"/>
-                <TextBlock x:Name="txtEmpleadoEnTurno" Text="Empleado en turno: -" FontSize="14" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-            </StackPanel>
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
 
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+            <Grid Margin="0,0,0,15">
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock x:Name="txtTituloCorte" Text="Corte de Caja Diario" FontSize="26" FontWeight="Bold" Foreground="#2C3E50"/>
+                    <TextBlock x:Name="txtEmpleadoEnTurno" Text="Empleado en turno: -" FontSize="14" Foreground="#7F8C8D" FontWeight="SemiBold" Margin="2,2,0,0"/>
+                </StackPanel>
+
                 <Button x:Name="btnEliminarVentaSeleccionada" Content="❌ ELIMINAR VENTA" 
                         Click="btnEliminarVentaSeleccionada_Click"
                         Visibility="Collapsed"
-                        Background="#E74C3C" Foreground="White" FontWeight="Bold" 
-                        Height="45" Padding="15,0" Margin="0,0,10,0" BorderThickness="0" Cursor="Hand">
+                        Background="#E74C3C" Foreground="White" FontWeight="Bold" FontSize="12"
+                        Height="38" Padding="15,0" HorizontalAlignment="Right" VerticalAlignment="Center" BorderThickness="0" Cursor="Hand">
                     <Button.Resources>
                         <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="8"/>
+                            <Setter Property="CornerRadius" Value="6"/>
                         </Style>
                     </Button.Resources>
                 </Button>
+            </Grid>
 
-                <TextBlock Text="Periodo:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" FontWeight="SemiBold" Foreground="#5D6D7E"/>
-                <ComboBox x:Name="cmbPeriodo" Width="150" Height="35" VerticalContentAlignment="Center" Margin="0,0,15,0" SelectionChanged="cmbPeriodo_SelectionChanged">
-                    <ComboBoxItem Content="Hoy" IsSelected="True"/>
-                    <ComboBoxItem Content="Esta Semana"/>
-                    <ComboBoxItem Content="Este Mes"/>
-                </ComboBox>
+            <Border Background="#EAECEE" Padding="15,10" CornerRadius="8">
+                <DockPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock Text="📅 Parámetros de Búsqueda — " FontSize="13" FontWeight="Bold" Foreground="#34495E" VerticalAlignment="Center" Margin="0,0,15,0"/>
 
-                <Button x:Name="btnFinalizarCorte" Content="CERRAR TURNO E IMPRIMIR PDF" 
-                        Click="btnFinalizarCorte_Click"
-                        Background="#27AE60" Foreground="White" FontWeight="Bold" 
-                        Height="45" Padding="20,0" BorderThickness="0" Cursor="Hand">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="8"/>
-                        </Style>
-                    </Button.Resources>
-                </Button>
-            </StackPanel>
-        </DockPanel>
+                        <TextBlock Text="Desde:" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="13" FontWeight="SemiBold" Foreground="#5D6D7E"/>
+                        <DatePicker x:Name="dpDesdeCorte" Width="120" Height="30" VerticalContentAlignment="Center" Margin="0,0,15,0"/>
 
-        <UniformGrid Grid.Row="1" Columns="4" Height="120" Margin="0,0,0,20">
+                        <TextBlock Text="Hasta:" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="13" FontWeight="SemiBold" Foreground="#5D6D7E"/>
+                        <DatePicker x:Name="dpHastaCorte" Width="120" Height="30" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button x:Name="btnGenerarCorte" Content="GENERAR CORTE" 
+                                Click="btnGenerarCorte_Click"
+                                Background="#3498DB" Foreground="White" FontWeight="Bold" FontSize="12"
+                                Height="32" Padding="15,0" Margin="0,0,10,0" BorderThickness="0" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="4"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+
+                        <Button x:Name="btnFinalizarCorte" Content="📥 CERRAR TURNO E IMPRIMIR PDF" 
+                                Click="btnFinalizarCorte_Click"
+                                Background="#27AE60" Foreground="White" FontWeight="Bold" FontSize="12"
+                                Height="32" Padding="15,0" BorderThickness="0" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="4"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </StackPanel>
+
+        <UniformGrid Grid.Row="1" Columns="4" Height="105" Margin="0,0,0,20">
             <Border Background="#EAFAF1" Margin="5" CornerRadius="10" Padding="15">
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Efectivo Recibido (+)" Foreground="#1D8348" FontSize="14"/>
-                    <TextBlock x:Name="txtTotalRecibido" Text="$0.00" FontSize="24" FontWeight="Bold"/>
+                    <TextBlock Text="Efectivo Recibido (+)" Foreground="#1D8348" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="txtTotalRecibido" Text="$0.00" FontSize="24" FontWeight="Bold" Foreground="#145A32" Margin="0,2,0,0"/>
                 </StackPanel>
             </Border>
 
             <Border Background="#FEF9E7" Margin="5" CornerRadius="10" Padding="15">
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Gastos de Turno (-)" Foreground="#B7950B" FontSize="14"/>
-                    <TextBlock x:Name="txtTotalGastosTurno" Text="$0.00" FontSize="24" FontWeight="Bold" Foreground="#9A7D0A"/>
+                    <TextBlock Text="Gastos de Turno (-)" Foreground="#B7950B" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="txtTotalGastosTurno" Text="$0.00" FontSize="24" FontWeight="Bold" Foreground="#7D6608" Margin="0,2,0,0"/>
                 </StackPanel>
             </Border>
 
             <Border Background="#FDEDEC" Margin="5" CornerRadius="10" Padding="15">
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Cambio Entregado (-)" Foreground="#CB4335" FontSize="14"/>
-                    <TextBlock x:Name="txtTotalCambio" Text="$0.00" FontSize="24" FontWeight="Bold"/>
+                    <TextBlock Text="Cambio Entregado (-)" Foreground="#CB4335" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="txtTotalCambio" Text="$0.00" FontSize="24" FontWeight="Bold" Foreground="#78281F" Margin="0,2,0,0"/>
                 </StackPanel>
             </Border>
 
             <Border Background="#EBF5FB" Margin="5" CornerRadius="10" Padding="15">
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Efectivo en Caja (=)" Foreground="#2E86C1" FontSize="14" FontWeight="Bold"/>
-                    <TextBlock x:Name="txtEfectivoReal" Text="$0.00" FontSize="28" FontWeight="Bold" Foreground="#2C3E50"/>
+                    <TextBlock Text="Efectivo en Caja (=)" Foreground="#2E86C1" FontSize="13" FontWeight="Bold"/>
+                    <TextBlock x:Name="txtEfectivoReal" Text="$0.00" FontSize="26" FontWeight="Bold" Foreground="#1B4F72" Margin="0,2,0,0"/>
                 </StackPanel>
             </Border>
         </UniformGrid>
 
         <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="15">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#D5DBDB" Opacity="0.5"/>
+            </Border.Effect>
             <DockPanel>
-                <TextBlock x:Name="txtSubtituloTabla" Text="Auditoría de Movimientos (Hoy)" DockPanel.Dock="Top" FontWeight="Bold" Margin="0,0,0,10" Foreground="#5D6D7E"/>
+                <TextBlock x:Name="txtSubtituloTabla" Text="Auditoría de Movimientos en el Rango Seleccionado" DockPanel.Dock="Top" FontSize="15" FontWeight="Bold" Margin="0,0,0,12" Foreground="#5D6D7E"/>
                 <DataGrid x:Name="dgCorte" AutoGenerateColumns="False" IsReadOnly="True" 
                           HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                          Background="Transparent" BorderThickness="0" SelectionMode="Single">
+                          Background="Transparent" BorderThickness="0" SelectionMode="Single"
+                          HorizontalGridLinesBrush="#EAEDED" RowHeight="35">
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#34495E"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Padding" Value="8,5"/>
+                            <Setter Property="Height" Value="32"/>
+                        </Style>
+                    </DataGrid.Resources>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Id Venta" Binding="{Binding Id}" Width="70"/>
-                        <DataGridTextColumn Header="Fecha/Hora" Binding="{Binding Fecha, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="130"/>
+                        <DataGridTextColumn Header="Id Venta" Binding="{Binding Id}" Width="80"/>
+                        <DataGridTextColumn Header="Fecha/Hora" Binding="{Binding Fecha, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="140"/>
                         <DataGridTextColumn Header="Producto/Servicio" Binding="{Binding ProductoNombre}" Width="*"/>
-                        <DataGridTextColumn Header="Método Pago" Binding="{Binding MetodoPagoVisual}" Width="150"/>
+                        <DataGridTextColumn Header="Método Pago" Binding="{Binding MetodoPagoVisual}" Width="160"/>
                         <DataGridTextColumn Header="Ref/Depósito" Binding="{Binding NumeroReferencia}" Width="120"/>
                         <DataGridTextColumn Header="Importe" Binding="{Binding Total, StringFormat={}{0:C}}" Width="100"/>
                         <DataGridTextColumn Header="Descuento" Binding="{Binding Descuento, StringFormat={}{0:C}}" Width="100"/>

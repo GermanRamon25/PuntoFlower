@@ -52,25 +52,30 @@ namespace PuntoFlower.Views
             InitializeComponent();
             txtEmpleadoEnTurno.Text = $"Empleado en turno: {Session.UsuarioActual}";
 
-            if (cmbPeriodo != null) cmbPeriodo.SelectedIndex = 0;
-
             EvaluarVisibilidadBotonEliminar();
-            ProcesarCorteFiltrado();
 
             this.IsVisibleChanged += (s, e) => {
                 if ((bool)e.NewValue)
                 {
-                    if (cmbPeriodo != null) cmbPeriodo.SelectedIndex = 0;
                     EvaluarVisibilidadBotonEliminar();
-                    ProcesarCorteFiltrado();
+                    ProcesarCorteFiltrado(); // Recarga automática al cambiar entre pestañas del sistema
                 }
             };
         }
 
+        // FUNCIONALIDAD AUTOMÁTICA RESTAURADA AL 100%
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
-            if (cmbPeriodo != null && cmbPeriodo.SelectedIndex != 0) cmbPeriodo.SelectedIndex = 0;
+            // Forzamos a que las cajas de fecha arranquen con el día actual (Hoy) por defecto
+            if (dpDesdeCorte != null)
+                dpDesdeCorte.SelectedDate = DateTime.Today;
+
+            if (dpHastaCorte != null)
+                dpHastaCorte.SelectedDate = DateTime.Today;
+
             EvaluarVisibilidadBotonEliminar();
+
+            // Llama en automático al cargador para que la lista no se muestre vacía al entrar
             ProcesarCorteFiltrado();
         }
 
@@ -93,12 +98,13 @@ namespace PuntoFlower.Views
             }
         }
 
-        private void cmbPeriodo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // Evento disparador del botón "GENERAR CORTE" (Por si desean auditar un día pasado)
+        private void btnGenerarCorte_Click(object sender, RoutedEventArgs e)
         {
-            if (txtTituloCorte == null || txtSubtituloTabla == null) return;
             ProcesarCorteFiltrado();
         }
 
+        // LÓGICA DE AUDITORÍA CRÍTICA: Filtrado contable por parámetros DatePicker de forma segura
         private void ProcesarCorteFiltrado()
         {
             List<MovimientoVentaClass> ventasFiltradas = new List<MovimientoVentaClass>();
@@ -117,7 +123,6 @@ namespace PuntoFlower.Views
             nombreEncargado1 = db.ObtenerEncargadoCuenta1();
             nombreEncargado2 = db.ObtenerEncargadoCuenta2();
 
-            // Desglosamos la lista dinámica de encargados separados por comas para auditoría limpia
             if (!string.IsNullOrWhiteSpace(nombreEncargado1))
             {
                 string[] depto = nombreEncargado1.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
@@ -132,37 +137,31 @@ namespace PuntoFlower.Views
                 }
             }
 
-            string condicionFecha = "";
-            string seleccion = (cmbPeriodo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Hoy";
+            // Captura de rangos de fechas desde los selectores visuales o día de hoy por defecto
+            DateTime fechaDesde = dpDesdeCorte?.SelectedDate ?? DateTime.Today;
+            DateTime fechaHasta = dpHastaCorte?.SelectedDate ?? DateTime.Today;
 
-            switch (seleccion)
-            {
-                case "Hoy":
-                    txtTituloCorte.Text = "Corte de Caja Diario";
-                    txtSubtituloTabla.Text = "Auditoría de Movimientos (Hoy)";
-                    condicionFecha = "WHERE CAST(Fecha AS DATE) = CAST(GETDATE() AS DATE)";
-                    break;
-                case "Esta Semana":
-                    txtTituloCorte.Text = "Reporte Financiero Semanal (Natural)";
-                    txtSubtituloTabla.Text = "Auditoría de Movimientos (Lunes a Domingo Actual)";
-                    condicionFecha = "WHERE DATEDIFF(wk, Fecha, GETDATE()) = 0 AND Fecha <= GETDATE()";
-                    break;
-                case "Este Mes":
-                    txtTituloCorte.Text = "Reporte Financiero Mensual (Calendario)";
-                    txtSubtituloTabla.Text = "Auditoría de Movimientos (Mes en Curso)";
-                    condicionFecha = "WHERE DATEDIFF(mm, Fecha, GETDATE()) = 0 AND Fecha <= GETDATE()";
-                    break;
-            }
+            // Mapeo dinámico del título descriptivo de la ventana
+            if (txtTituloCorte != null)
+                txtTituloCorte.Text = $"Corte: {fechaDesde:dd/MM/yyyy} al {fechaHasta:dd/MM/yyyy}";
+
+            // Extendemos los parámetros hasta las 23:59:59 del último día para amarrar folios nocturnos
+            fechaHasta = fechaHasta.Date.AddDays(1).AddTicks(-1);
 
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = $@"SELECT Id, Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, 
+                    string query = @"SELECT Id, Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, 
                                              CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId, Cantidad 
-                                     FROM Ventas {condicionFecha} ORDER BY Fecha DESC";
+                                     FROM Ventas 
+                                     WHERE Fecha BETWEEN @desde AND @hasta
+                                     ORDER BY Fecha DESC";
 
                     SqlCommand cmd = new SqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@desde", fechaDesde);
+                    cmd.Parameters.AddWithValue("@hasta", fechaHasta);
+
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -181,7 +180,6 @@ namespace PuntoFlower.Views
                             }
                             else
                             {
-                                // CORRECCIÓN DE LÓGICA DE AUDITORÍA: Se acumula el dinero neto exacto recibido restándole el cambio entregado
                                 sumaRecibido += (recibido - cambio);
                             }
 
@@ -200,7 +198,6 @@ namespace PuntoFlower.Views
                             {
                                 if (!string.IsNullOrEmpty(cuenta))
                                 {
-                                    // Sumamos de manera dinámica e individual al encargado correspondiente
                                     if (balanceTransferenciasPorEncargado.ContainsKey(cuenta))
                                     {
                                         balanceTransferenciasPorEncargado[cuenta] += totalVenta;
@@ -347,17 +344,6 @@ namespace PuntoFlower.Views
             catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
 
-        private string ObtenerRangoFechasTexto(string seleccion)
-        {
-            switch (seleccion)
-            {
-                case "Hoy": return DateTime.Now.ToString("dd/MM/yyyy");
-                case "Esta Semana": return "Semana Actual (Lunes a Domingo)";
-                case "Este Mes": return DateTime.Now.ToString("MMMM yyyy").ToUpper();
-                default: return DateTime.Now.ToString("dd/MM/yyyy");
-            }
-        }
-
         private void btnFinalizarCorte_Click(object sender, RoutedEventArgs e)
         {
             var listaMovimientos = dgCorte.ItemsSource as List<MovimientoVentaClass>;
@@ -367,12 +353,13 @@ namespace PuntoFlower.Views
                 return;
             }
 
-            string seleccionPeriodo = (cmbPeriodo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Hoy";
+            DateTime fechaDesde = dpDesdeCorte?.SelectedDate ?? DateTime.Today;
+            DateTime fechaHasta = dpHastaCorte?.SelectedDate ?? DateTime.Today;
 
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
                 Filter = "Archivo PDF (*.pdf)|*.pdf",
-                FileName = $"Corte_Caja_{seleccionPeriodo}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf",
+                FileName = $"Corte_Caja_{fechaDesde:yyyyMMdd}_A_{fechaHasta:yyyyMMdd}.pdf",
                 Title = "Guardar Reporte de Corte de Caja"
             };
 
@@ -398,7 +385,7 @@ namespace PuntoFlower.Views
                         iTextParagraph pTitulo = new iTextParagraph("PUNTO FLOWER - REPORTE DE CAJA", fontTitulo);
                         doc.Add(pTitulo);
 
-                        iTextParagraph pMeta = new iTextParagraph($"Periodo Evaluado: {ObtenerRangoFechasTexto(seleccionPeriodo)} | Fecha de Emisión: {DateTime.Now:dd/MM/yyyy HH:mm:ss}\nGenerado por: {Session.UsuarioActual}", fontSubtitulo);
+                        iTextParagraph pMeta = new iTextParagraph($"Rango Evaluado: Desde {fechaDesde:dd/MM/yyyy} Hasta {fechaHasta:dd/MM/yyyy} | Fecha de Emisión: {DateTime.Now:dd/MM/yyyy HH:mm:ss}\nGenerado por: {Session.UsuarioActual}", fontSubtitulo);
                         pMeta.SpacingAfter = 20;
                         doc.Add(pMeta);
 
@@ -425,7 +412,6 @@ namespace PuntoFlower.Views
 
                         decimal totalVentasBrutasEfectivo = acumuladoEfectivo + acumuladoGastosEfectivo;
 
-                        // Calculamos la suma real de todas las transferencias dinámicas
                         decimal totalTransferenciasAcumuladas = 0;
                         foreach (var b in balanceTransferenciasPorEncargado.Values) totalTransferenciasAcumuladas += b;
 
