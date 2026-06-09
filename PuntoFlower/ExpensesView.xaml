@@ -120,18 +120,24 @@
                                     <TextBlock Text="Historial de Egresos Aplicados" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#5D6D7E"/>
 
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <TextBlock Text="Periodo:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="13" FontWeight="SemiBold" Foreground="#5D6D7E"/>
-                                        <ComboBox x:Name="cmbPeriodoGastos" Width="160" Height="32" VerticalContentAlignment="Center" Margin="0,0,15,0" SelectionChanged="cmbPeriodoGastos_SelectionChanged">
-                                            <ComboBoxItem Content="Este Mes" IsSelected="True"/>
-                                            <ComboBoxItem Content="Hoy"/>
-                                            <ComboBoxItem Content="Esta Semana"/>
-                                            <ComboBoxItem Content="Historial Completo"/>
-                                        </ComboBox>
+                                        <TextBlock Text="Desde:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="13" Foreground="#5D6D7E"/>
+                                        <DatePicker x:Name="dpDesdeGastos" Width="115" Height="30" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
 
-                                        <Button x:Name="btnImprimirPDF" Content="🖨️ REPORTE PDF" Click="btnImprimirPDF_Click" Background="#3498DB" Foreground="White" Padding="15,0" Height="32" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                        <TextBlock Text="Hasta:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="13" Foreground="#5D6D7E"/>
+                                        <DatePicker x:Name="dpHastaGastos" Width="115" Height="30" VerticalContentAlignment="Center" Margin="0,0,15,0"/>
+
+                                        <Button x:Name="btnGenerarReporte" Content="GENERAR REPORTE" Click="btnGenerarReporte_Click" Background="#007ACC" Foreground="White" Padding="12,0" Height="32" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Margin="0,0,10,0">
                                             <Button.Resources>
                                                 <Style TargetType="Border">
-                                                    <Setter Property="CornerRadius" Value="6"/>
+                                                    <Setter Property="CornerRadius" Value="4"/>
+                                                </Style>
+                                            </Button.Resources>
+                                        </Button>
+
+                                        <Button x:Name="btnImprimirPDF" Content="🖨️ PDF" Click="btnImprimirPDF_Click" Background="#3498DB" Foreground="White" Padding="12,0" Height="32" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                            <Button.Resources>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="CornerRadius" Value="4"/>
                                                 </Style>
                                             </Button.Resources>
                                         </Button>

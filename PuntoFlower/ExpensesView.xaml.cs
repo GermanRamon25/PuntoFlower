@@ -29,6 +29,13 @@ namespace PuntoFlower.Views
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
+            // Inicializar las fechas por defecto como en la pantalla de ingresos
+            if (dpDesdeGastos != null && dpDesdeGastos.SelectedDate == null)
+                dpDesdeGastos.SelectedDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+
+            if (dpHastaGastos != null && dpHastaGastos.SelectedDate == null)
+                dpHastaGastos.SelectedDate = DateTime.Now;
+
             EvaluarPerfilYRestringirAcceso();
             CargarGastosDeLaBase();
         }
@@ -90,46 +97,37 @@ namespace PuntoFlower.Views
             }
         }
 
-        private void cmbPeriodoGastos_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // Evento asignado al botón "Generar Reporte" para realizar la consulta
+        private void btnGenerarReporte_Click(object sender, RoutedEventArgs e)
         {
-            if (dgGastos == null) return;
             CargarGastosDeLaBase();
         }
 
+        // LÓGICA CAMBIADA: Ahora filtra dinámicamente por rango libre de parámetros Desde / Hasta
         private void CargarGastosDeLaBase()
         {
             List<object> historialGastos = new List<object>();
             ConexionDB db = new ConexionDB();
 
-            string condicionFecha = "";
-            string seleccion = (cmbPeriodoGastos?.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Este Mes";
+            DateTime fechaDesde = dpDesdeGastos?.SelectedDate ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+            DateTime fechaHasta = dpHastaGastos?.SelectedDate ?? DateTime.Now;
 
-            switch (seleccion)
-            {
-                case "Hoy":
-                    condicionFecha = "WHERE CAST(Fecha AS DATE) = CAST(GETDATE() AS DATE)";
-                    break;
-                case "Esta Semana":
-                    condicionFecha = "WHERE DATEDIFF(wk, Fecha, GETDATE()) = 0 AND Fecha <= GETDATE()";
-                    break;
-                case "Este Mes":
-                    condicionFecha = "WHERE DATEDIFF(mm, Fecha, GETDATE()) = 0 AND Fecha <= GETDATE()";
-                    break;
-                case "Historial Completo":
-                    condicionFecha = "";
-                    break;
-            }
+            // Ajustamos la fecha hasta para que incluya todo el día hasta las 23:59:59
+            fechaHasta = fechaHasta.Date.AddDays(1).AddTicks(-1);
 
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = $@"SELECT Fecha, Descripcion, Categoria, MetodoPago, Monto 
+                    string query = @"SELECT Fecha, Descripcion, Categoria, MetodoPago, Monto 
                                      FROM Gastos 
-                                     {condicionFecha}
+                                     WHERE Fecha BETWEEN @desde AND @hasta
                                      ORDER BY Fecha DESC";
 
                     SqlCommand cmd = new SqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@desde", fechaDesde);
+                    cmd.Parameters.AddWithValue("@hasta", fechaHasta);
+
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -190,7 +188,6 @@ namespace PuntoFlower.Views
                     {
                         try
                         {
-                            // 1. REGISTRO EN BITÁCORA DE GASTOS: Guarda el monto en positivo de forma normal
                             string queryGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago) 
                                                  VALUES (@desc, @monto, GETDATE(), @cat, @metodo)";
 
@@ -203,10 +200,8 @@ namespace PuntoFlower.Views
                                 cmdGasto.ExecuteNonQuery();
                             }
 
-                            // 2. REFLEJO EN FLUJO DE CAJA: Si es en Efectivo, inyecta un contra-registro negativo en Ventas
                             if (metodoPago == "Efectivo")
                             {
-                                // Ponemos el monto en negativo en la columna Total y MontoRecibido para que la fórmula del Corte Diario lo reste
                                 string queryCajaSalida = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado) 
                                                           VALUES (GETDATE(), @conceptoSalida, 1, @montoNegativo, 'Efectivo', @montoNegativo, 0, 0)";
 
@@ -253,11 +248,12 @@ namespace PuntoFlower.Views
                 return;
             }
 
-            string periodoSeleccionado = (cmbPeriodoGastos.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Este Mes";
+            DateTime fechaDesde = dpDesdeGastos?.SelectedDate ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+            DateTime fechaHasta = dpHastaGastos?.SelectedDate ?? DateTime.Now;
 
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "PDF Files (*.pdf)|*.pdf";
-            sfd.FileName = $"Reporte_Egresos_{periodoSeleccionado.Replace(" ", "")}_{DateTime.Now:yyyyMMdd}.pdf";
+            sfd.FileName = $"Reporte_Egresos_{fechaDesde:yyyyMMdd}_A_{fechaHasta:yyyyMMdd}.pdf";
 
             if (sfd.ShowDialog() == true)
             {
@@ -287,7 +283,8 @@ namespace PuntoFlower.Views
 
                     BaseColor azulMarino = new BaseColor(44, 62, 80);
 
-                    doc.Add(new iTextParagraph($"PUNTO FLOWER - REPORTE DE AUDITORÍA DE EGRESOS ({periodoSeleccionado.ToUpper()})", fTitulo));
+                    doc.Add(new iTextParagraph($"PUNTO FLOWER - REPORTE DE AUDITORÍA DE EGRESOS", fTitulo));
+                    doc.Add(new iTextParagraph($"Rango: Desde {fechaDesde:dd/MM/yyyy} Hasta {fechaHasta:dd/MM/yyyy}", fBold));
                     doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fBold));
                     doc.Add(new iTextParagraph($"Fecha de Emisión: {DateTime.Now:g}", fCuerpo));
                     doc.Add(new iTextParagraph($"Generado por: {Session.UsuarioActual}", fCuerpo));
@@ -306,7 +303,7 @@ namespace PuntoFlower.Views
                     doc.Add(tablaResumenEstructura);
                     doc.Add(new iTextParagraph(" "));
 
-                    doc.Add(new iTextParagraph($"DETALLE CRONOLÓGICO DEL PERIODO ({periodoSeleccionado.ToUpper()})", fSub));
+                    doc.Add(new iTextParagraph($"DETALLE CRONOLÓGICO DEL PERIODO", fSub));
                     doc.Add(new iTextParagraph(" "));
 
                     PdfPTable tablaHistorial = new PdfPTable(5);
