@@ -15,7 +15,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
     <IsWebBootstrapper>false</IsWebBootstrapper>
-    <PublishUrl>D:\PUNTOFLOWER_MAGENTA\VERSION_6.0_GUAMUCHIL\</PublishUrl>
+    <PublishUrl>D:\PUNTOFLOWER_MAGENTA\VERSION_7.0 UNIVERSAL\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
     <UpdateEnabled>false</UpdateEnabled>
@@ -25,7 +25,7 @@
     <UpdatePeriodically>false</UpdatePeriodically>
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
-    <ApplicationRevision>16</ApplicationRevision>
+    <ApplicationRevision>17</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -96,6 +96,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AdminExpensesView.xaml.cs">
+      <DependentUpon>AdminExpensesView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CambiarPasswordWindow.xaml.cs">
       <DependentUpon>CambiarPasswordWindow.xaml</DependentUpon>
     </Compile>
@@ -160,6 +163,10 @@
     <Compile Include="Views\RegistrarCompraWindow.xaml.cs">
       <DependentUpon>RegistrarCompraWindow.xaml</DependentUpon>
     </Compile>
+    <Page Include="AdminExpensesView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="CambiarPasswordWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

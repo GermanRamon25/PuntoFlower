@@ -34,23 +34,29 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <UniformGrid Columns="3" Height="100">
+            <UniformGrid Columns="4" Height="100">
                 <Border Background="#EAFAF1" Margin="5" CornerRadius="8" Padding="10">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="(+) Total Ventas" Foreground="#1D8348" FontSize="12"/>
-                        <TextBlock x:Name="txtRepVentas" Text="$0.00" FontSize="22" FontWeight="Bold"/>
+                        <TextBlock Text="(+) Total Ventas" Foreground="#1D8348" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="txtRepVentas" Text="$0.00" FontSize="20" FontWeight="Bold"/>
                     </StackPanel>
                 </Border>
                 <Border Background="#FDEDEC" Margin="5" CornerRadius="8" Padding="10">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="(-) Total Salidas" Foreground="#CB4335" FontSize="12"/>
-                        <TextBlock x:Name="txtRepGastos" Text="$0.00" FontSize="22" FontWeight="Bold"/>
+                        <TextBlock Text="(-) Egresos Tienda (Empleado)" Foreground="#CB4335" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="txtRepGastos" Text="$0.00" FontSize="20" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="#FEF9E7" Margin="5" CornerRadius="8" Padding="10">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="(-) Egresos Admin (Surtido)" Foreground="#B7950B" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="txtRepGastosAdmin" Text="$0.00" FontSize="20" FontWeight="Bold"/>
                     </StackPanel>
                 </Border>
                 <Border Background="#EBF5FB" Margin="5" CornerRadius="8" Padding="10">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="(=) Utilidad Real" Foreground="#2E86C1" FontSize="12"/>
-                        <TextBlock x:Name="txtRepUtilidad" Text="$0.00" FontSize="22" FontWeight="Bold"/>
+                        <TextBlock Text="(=) Utilidad Disponible" Foreground="#2E86C1" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="txtRepUtilidad" Text="$0.00" FontSize="20" FontWeight="Bold"/>
                     </StackPanel>
                 </Border>
             </UniformGrid>
@@ -58,14 +64,16 @@
             <Border Grid.Column="1" Background="White" Margin="5" CornerRadius="8" Padding="10">
                 <StackPanel>
                     <TextBlock Text="🏆 TOP 5 MÁS VENDIDOS" FontWeight="Bold" FontSize="12" Foreground="#2C3E50" Margin="0,0,0,5"/>
-                    <DataGrid x:Name="dgTopVentas" AutoGenerateColumns="False" IsReadOnly="True" 
-                              HeadersVisibility="None" GridLinesVisibility="None" Background="Transparent" 
-                              BorderThickness="0" FontSize="11" Height="70">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Binding="{Binding ProductoNombre}" Width="*"/>
-                            <DataGridTextColumn Binding="{Binding CantidadTotal}" Width="Auto" FontWeight="Bold"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Height="70">
+                        <DataGrid x:Name="dgTopVentas" AutoGenerateColumns="False" IsReadOnly="True" 
+                                  HeadersVisibility="None" GridLinesVisibility="None" Background="Transparent" 
+                                  BorderThickness="0" FontSize="11">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Binding="{Binding ProductoNombre}" Width="*"/>
+                                <DataGridTextColumn Binding="{Binding CantidadTotal}" Width="Auto" FontWeight="Bold"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </ScrollViewer>
                 </StackPanel>
             </Border>
         </Grid>
@@ -73,35 +81,57 @@
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="15"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="15"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
                 <TextBlock Text="INGRESOS (VENTAS)" FontWeight="Bold" Foreground="#1D8348" Margin="0,0,0,10"/>
                 <Border Background="White" CornerRadius="10" Padding="5">
-                    <DataGrid x:Name="dgIngresos" AutoGenerateColumns="False" IsReadOnly="True" 
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="250">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="100"/>
-                            <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
-                            <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="100"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Height="250">
+                        <DataGrid x:Name="dgIngresos" AutoGenerateColumns="False" IsReadOnly="True" 
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="90"/>
+                                <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
+                                <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="90"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </ScrollViewer>
                 </Border>
             </StackPanel>
 
             <StackPanel Grid.Column="2">
-                <TextBlock Text="EGRESOS (GASTOS Y SURTIDO)" FontWeight="Bold" Foreground="#CB4335" Margin="0,0,0,10"/>
+                <TextBlock Text="EGRESOS TIENDA (EMPLEADO)" FontWeight="Bold" Foreground="#CB4335" Margin="0,0,0,10"/>
                 <Border Background="White" CornerRadius="10" Padding="5">
-                    <DataGrid x:Name="dgEgresos" AutoGenerateColumns="False" IsReadOnly="True" 
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="250">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="100"/>
-                            <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
-                            <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="100"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Height="250">
+                        <DataGrid x:Name="dgEgresosEmpleado" AutoGenerateColumns="False" IsReadOnly="True" 
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="90"/>
+                                <DataGridTextColumn Header="Servicio / Gasto" Binding="{Binding Concepto}" Width="*"/>
+                                <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="90"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </ScrollViewer>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="4">
+                <TextBlock Text="EGRESOS ADMIN (SURTIDO)" FontWeight="Bold" Foreground="#B7950B" Margin="0,0,0,10"/>
+                <Border Background="White" CornerRadius="10" Padding="5">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Height="250">
+                        <DataGrid x:Name="dgEgresosAdmin" AutoGenerateColumns="False" IsReadOnly="True" 
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="90"/>
+                                <DataGridTextColumn Header="Concepto Proveedor" Binding="{Binding Concepto}" Width="*"/>
+                                <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="90"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </ScrollViewer>
                 </Border>
             </StackPanel>
         </Grid>
@@ -109,15 +139,17 @@
         <StackPanel Grid.Row="3" Margin="0,20,0,0">
             <TextBlock Text="REPORTE DE MERMAS (PRODUCTO DAÑADO / PÉRDIDAS)" FontWeight="Bold" Foreground="#922B21" Margin="0,0,0,10"/>
             <Border Background="White" CornerRadius="10" Padding="5">
-                <DataGrid x:Name="dgMermas" AutoGenerateColumns="False" IsReadOnly="True" 
-                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" Height="150">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="120"/>
-                        <DataGridTextColumn Header="Producto" Binding="{Binding ProductoNombre}" Width="*"/>
-                        <DataGridTextColumn Header="Cantidad" Binding="{Binding Cantidad}" Width="100"/>
-                        <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Height="150">
+                    <DataGrid x:Name="dgMermas" AutoGenerateColumns="False" IsReadOnly="True" 
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="120"/>
+                            <DataGridTextColumn Header="Producto" Binding="{Binding ProductoNombre}" Width="*"/>
+                            <DataGridTextColumn Header="Cantidad" Binding="{Binding Cantidad}" Width="100"/>
+                            <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </ScrollViewer>
             </Border>
         </StackPanel>
     </Grid>

@@ -44,14 +44,30 @@
     </UserControl.Resources>
 
     <Grid Background="#F5F5F5">
-        <StackPanel Margin="20">
-            <TextBlock x:Name="lblTituloGastos" Text="Gastos y Surtido de Mercancía" FontSize="24" FontWeight="Bold" Margin="0,0,0,15" Foreground="#2C3E50"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <TabControl x:Name="tcGastosPrincipal" Background="Transparent" BorderThickness="0">
+        <Grid Grid.Row="0" Margin="20,20,20,5">
+            <TextBlock x:Name="lblTituloGastos" Text="Gastos y Surtido de Mercancía" FontSize="24" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
+            <Button x:Name="btnModuloAdmin" Content="💼 Panel Administrador" Click="btnModuloAdmin_Click" 
+                    Background="#2C3E50" Foreground="White" FontWeight="Bold" Padding="15,8" HorizontalAlignment="Right" VerticalAlignment="Center" BorderThickness="0" Cursor="Hand">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="20,5,20,20">
+            <TabControl x:Name="tcGastosPrincipal" Background="Transparent" BorderThickness="0" Visibility="Visible">
                 <TabItem Header="Pago de Servicios" Style="{StaticResource SubTabItemStyle}">
                     <StackPanel Margin="0,15,0,0">
-
                         <Border Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,15">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="#DDD"/>
@@ -102,11 +118,13 @@
 
                                 <Button Content="Registrar Gasto" Click="btnRegistrarGasto_Click" Background="#27AE60" Foreground="White" 
                                         Padding="20,0" Height="33" VerticalAlignment="Bottom" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="6"/>
-                                        </Style>
-                                    </Button.Resources>
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
                                 </Button>
                             </StackPanel>
                         </Border>
@@ -118,32 +136,32 @@
                             <DockPanel>
                                 <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
                                     <TextBlock Text="Historial de Egresos Aplicados" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#5D6D7E"/>
-
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                         <TextBlock Text="Desde:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="13" Foreground="#5D6D7E"/>
                                         <DatePicker x:Name="dpDesdeGastos" Width="115" Height="30" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
-
                                         <TextBlock Text="Hasta:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="13" Foreground="#5D6D7E"/>
                                         <DatePicker x:Name="dpHastaGastos" Width="115" Height="30" VerticalContentAlignment="Center" Margin="0,0,15,0"/>
 
                                         <Button x:Name="btnGenerarReporte" Content="GENERAR REPORTE" Click="btnGenerarReporte_Click" Background="#007ACC" Foreground="White" Padding="12,0" Height="32" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Margin="0,0,10,0">
-                                            <Button.Resources>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="CornerRadius" Value="4"/>
-                                                </Style>
-                                            </Button.Resources>
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
                                         </Button>
-
                                         <Button x:Name="btnImprimirPDF" Content="🖨️ PDF" Click="btnImprimirPDF_Click" Background="#3498DB" Foreground="White" Padding="12,0" Height="32" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
-                                            <Button.Resources>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="CornerRadius" Value="4"/>
-                                                </Style>
-                                            </Button.Resources>
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
                                         </Button>
                                     </StackPanel>
                                 </Grid>
-
                                 <DataGrid x:Name="dgGastos" AutoGenerateColumns="False" Height="310" 
                                           Background="Transparent" BorderThickness="0" CanUserAddRows="False"
                                           HeadersVisibility="Column" GridLinesVisibility="Horizontal" IsReadOnly="True"
@@ -160,14 +178,14 @@
                         </Border>
                     </StackPanel>
                 </TabItem>
-
                 <TabItem x:Name="tiComprasProveedores" Header="Compras a Proveedores" Style="{StaticResource SubTabItemStyle}">
                     <Grid Margin="0,15,0,0">
                         <views:ProveedoresView />
                     </Grid>
                 </TabItem>
-
             </TabControl>
-        </StackPanel>
+
+            <ContentControl x:Name="ContenedorAdmin" Visibility="Collapsed"/>
+        </Grid>
     </Grid>
 </UserControl>

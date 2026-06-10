@@ -21,6 +21,7 @@ namespace PuntoFlower.Views
     public partial class ExpensesView : UserControl
     {
         private bool esPerfilEmpleado = false;
+        private bool mostrandoModuloAdmin = false; // Bandera para conmutar la visibilidad
 
         public ExpensesView()
         {
@@ -29,7 +30,6 @@ namespace PuntoFlower.Views
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
-            // Inicializar las fechas por defecto como en la pantalla de ingresos
             if (dpDesdeGastos != null && dpDesdeGastos.SelectedDate == null)
                 dpDesdeGastos.SelectedDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
 
@@ -52,9 +52,7 @@ namespace PuntoFlower.Views
                  !Session.UsuarioActual.Equals("leticia", StringComparison.OrdinalIgnoreCase)))
             {
                 esPerfilEmpleado = true;
-
                 if (tiComprasProveedores != null) tiComprasProveedores.Visibility = Visibility.Collapsed;
-
                 if (cbiTarjeta != null) cbiTarjeta.Visibility = Visibility.Collapsed;
                 if (cbiTransferencia != null) cbiTransferencia.Visibility = Visibility.Collapsed;
                 if (cbMetodoGasto != null)
@@ -62,11 +60,12 @@ namespace PuntoFlower.Views
                     cbMetodoGasto.SelectedIndex = 0;
                     cbMetodoGasto.IsEnabled = false;
                 }
-
                 if (cbCategoria != null) cbCategoria.SelectedIndex = 0;
                 if (panelCategoria != null) panelCategoria.Visibility = Visibility.Collapsed;
-
                 if (lblTituloGastos != null) lblTituloGastos.Text = "Registro Operativo de Gastos de Servicios";
+
+                // Ocultar botón del panel de administración a la empleada por seguridad
+                if (btnModuloAdmin != null) btnModuloAdmin.Visibility = Visibility.Collapsed;
             }
             else
             {
@@ -77,13 +76,40 @@ namespace PuntoFlower.Views
                 if (cbMetodoGasto != null) cbMetodoGasto.IsEnabled = true;
                 if (panelCategoria != null) panelCategoria.Visibility = Visibility.Visible;
                 if (lblTituloGastos != null) lblTituloGastos.Text = "Gastos y Surtido de Mercancía";
+
+                // Mostrar botón de administración solo a dueños/admin
+                if (btnModuloAdmin != null) btnModuloAdmin.Visibility = Visibility.Visible;
+            }
+        }
+
+        // NUEVO MANEJADOR: Conmuta en tiempo real entre lo operativo y tu nuevo panel de caja de la semana
+        private void btnModuloAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            if (mostrandoModuloAdmin)
+            {
+                // Regresar a la vista de la empleada
+                ContenedorAdmin.Visibility = Visibility.Collapsed;
+                tcGastosPrincipal.Visibility = Visibility.Visible;
+                btnModuloAdmin.Content = "💼 Panel Administrador";
+                lblTituloGastos.Text = "Gastos y Surtido de Mercancía";
+                mostrandoModuloAdmin = false;
+                CargarGastosDeLaBase();
+            }
+            else
+            {
+                // Cargar e Inyectar dinámicamente tu panel exclusivo
+                tcGastosPrincipal.Visibility = Visibility.Collapsed;
+                ContenedorAdmin.Visibility = Visibility.Visible;
+                ContenedorAdmin.Content = new PuntoFlower.Views.AdminExpensesView();
+                btnModuloAdmin.Content = "↩️ Volver a Servicios";
+                lblTituloGastos.Text = "Control de Capital e Inversión (Administrador)";
+                mostrandoModuloAdmin = true;
             }
         }
 
         private void cbConceptoServicio_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (panelOtroConcepto == null) return;
-
             string seleccion = (cbConceptoServicio.SelectedItem as ComboBoxItem)?.Content.ToString();
             if (seleccion == "Otro Servicio / Gasto")
             {
@@ -97,31 +123,27 @@ namespace PuntoFlower.Views
             }
         }
 
-        // Evento asignado al botón "Generar Reporte" para realizar la consulta
         private void btnGenerarReporte_Click(object sender, RoutedEventArgs e)
         {
             CargarGastosDeLaBase();
         }
 
-        // LÓGICA CAMBIADA: Ahora filtra dinámicamente por rango libre de parámetros Desde / Hasta
         private void CargarGastosDeLaBase()
         {
             List<object> historialGastos = new List<object>();
             ConexionDB db = new ConexionDB();
-
             DateTime fechaDesde = dpDesdeGastos?.SelectedDate ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
             DateTime fechaHasta = dpHastaGastos?.SelectedDate ?? DateTime.Now;
-
-            // Ajustamos la fecha hasta para que incluya todo el día hasta las 23:59:59
             fechaHasta = fechaHasta.Date.AddDays(1).AddTicks(-1);
 
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
+                    // FILTRADO DE SEGURIDAD: La tabla de esta vista solo mostrará lo operativo de la tienda
                     string query = @"SELECT Fecha, Descripcion, Categoria, MetodoPago, Monto 
                                      FROM Gastos 
-                                     WHERE Fecha BETWEEN @desde AND @hasta
+                                     WHERE RegistradoPor = 'Empleado' AND Fecha BETWEEN @desde AND @hasta
                                      ORDER BY Fecha DESC";
 
                     SqlCommand cmd = new SqlCommand(query, con);
@@ -158,14 +180,8 @@ namespace PuntoFlower.Views
             string SampleCategory = (cbCategoria.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Renta / Servicios";
             string metodoPago = (cbMetodoGasto.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Efectivo";
 
-            if (seleccionCombo == "Otro Servicio / Gasto")
-            {
-                descripcionFinal = txtDesc.Text.Trim();
-            }
-            else
-            {
-                descripcionFinal = seleccionCombo;
-            }
+            if (seleccionCombo == "Otro Servicio / Gasto") descripcionFinal = txtDesc.Text.Trim();
+            else descripcionFinal = seleccionCombo;
 
             if (string.IsNullOrEmpty(descripcionFinal))
             {
@@ -188,8 +204,9 @@ namespace PuntoFlower.Views
                     {
                         try
                         {
-                            string queryGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago) 
-                                                 VALUES (@desc, @monto, GETDATE(), @cat, @metodo)";
+                            // Inserción explícita con tag 'Empleado' para amarrar el corte
+                            string queryGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago, RegistradoPor) 
+                                                 VALUES (@desc, @monto, GETDATE(), @cat, @metodo, 'Empleado')";
 
                             using (SqlCommand cmdGasto = new SqlCommand(queryGasto, con, transaccion))
                             {
@@ -212,7 +229,6 @@ namespace PuntoFlower.Views
                                     cmdCaja.ExecuteNonQuery();
                                 }
                             }
-
                             transaccion.Commit();
                         }
                         catch
@@ -223,15 +239,10 @@ namespace PuntoFlower.Views
                     }
                 }
 
-                string msgExito = $"¡Gasto por '{descripcionFinal}' guardado exitosamente!";
-                if (metodoPago == "Efectivo") msgExito += "\nEl importe fue descontado del corte de caja diario y del acumulado mensual de ventas.";
-
-                MessageBox.Show(msgExito, "Egreso Confirmado", MessageBoxButton.OK, MessageBoxImage.Information);
-
+                MessageBox.Show($"¡Gasto por '{descripcionFinal}' guardado exitosamente!", "Egreso Confirmado", MessageBoxButton.OK, MessageBoxImage.Information);
                 txtMonto.Clear();
                 txtDesc.Clear();
                 if (cbConceptoServicio != null) cbConceptoServicio.SelectedIndex = 0;
-
                 CargarGastosDeLaBase();
             }
             catch (Exception ex)
@@ -250,7 +261,6 @@ namespace PuntoFlower.Views
 
             DateTime fechaDesde = dpDesdeGastos?.SelectedDate ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
             DateTime fechaHasta = dpHastaGastos?.SelectedDate ?? DateTime.Now;
-
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "PDF Files (*.pdf)|*.pdf";
             sfd.FileName = $"Reporte_Egresos_{fechaDesde:yyyyMMdd}_A_{fechaHasta:yyyyMMdd}.pdf";
@@ -261,9 +271,7 @@ namespace PuntoFlower.Views
                 {
                     ConexionDB db = new ConexionDB();
                     string sucursalNombre = db.ObtenerNombreSucursal();
-
-                    decimal totalGeneral = 0;
-                    decimal totalEfectivoPuro = 0;
+                    decimal totalGeneral = 0, totalEfectivoPuro = 0;
 
                     foreach (dynamic item in dgGastos.ItemsSource)
                     {
@@ -280,61 +288,42 @@ namespace PuntoFlower.Views
                     iTextFont fCuerpo = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
                     iTextFont fBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.BLACK);
                     iTextFont fTablaHead = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
-
                     BaseColor azulMarino = new BaseColor(44, 62, 80);
 
                     doc.Add(new iTextParagraph($"PUNTO FLOWER - REPORTE DE AUDITORÍA DE EGRESOS", fTitulo));
                     doc.Add(new iTextParagraph($"Rango: Desde {fechaDesde:dd/MM/yyyy} Hasta {fechaHasta:dd/MM/yyyy}", fBold));
                     doc.Add(new iTextParagraph($"Sucursal: {sucursalNombre}", fBold));
-                    doc.Add(new iTextParagraph($"Fecha de Emisión: {DateTime.Now:g}", fCuerpo));
                     doc.Add(new iTextParagraph($"Generado por: {Session.UsuarioActual}", fCuerpo));
-                    doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
                     doc.Add(new iTextParagraph(" "));
 
                     PdfPTable tablaResumenEstructura = new PdfPTable(2);
                     tablaResumenEstructura.WidthPercentage = 100;
-                    tablaResumenEstructura.SetWidths(new float[] { 50f, 50f });
-
-                    PdfPCell cellTot = new PdfPCell(new Phrase($"TOTAL ACUMULADO EN PERIODO:\n{totalGeneral:C}", fBold)) { BackgroundColor = new BaseColor(253, 237, 236), Padding = 8, HorizontalAlignment = Element.ALIGN_CENTER };
-                    PdfPCell cellEf = new PdfPCell(new Phrase($"TOTAL RETIRADO EN EFECTIVO:\n{totalEfectivoPuro:C}", fBold)) { BackgroundColor = new BaseColor(234, 242, 248), Padding = 8, HorizontalAlignment = Element.ALIGN_CENTER };
-
-                    tablaResumenEstructura.AddCell(cellTot);
-                    tablaResumenEstructura.AddCell(cellEf);
+                    tablaResumenEstructura.AddCell(new PdfPCell(new Phrase($"TOTAL ACUMULADO EN PERIODO:\n{totalGeneral:C}", fBold)) { BackgroundColor = new BaseColor(253, 237, 236), Padding = 8, HorizontalAlignment = Element.ALIGN_CENTER });
+                    tablaResumenEstructura.AddCell(new PdfPCell(new Phrase($"TOTAL RETIRADO EN EFECTIVO:\n{totalEfectivoPuro:C}", fBold)) { BackgroundColor = new BaseColor(234, 242, 248), Padding = 8, HorizontalAlignment = Element.ALIGN_CENTER });
                     doc.Add(tablaResumenEstructura);
-                    doc.Add(new iTextParagraph(" "));
-
-                    doc.Add(new iTextParagraph($"DETALLE CRONOLÓGICO DEL PERIODO", fSub));
                     doc.Add(new iTextParagraph(" "));
 
                     PdfPTable tablaHistorial = new PdfPTable(5);
                     tablaHistorial.WidthPercentage = 100;
                     tablaHistorial.SetWidths(new float[] { 18f, 35f, 20f, 15f, 12f });
-
                     string[] headers = { "Fecha/Hora", "Descripción / Concepto", "Categoría", "Método Pago", "Monto" };
-                    foreach (string h in headers)
-                    {
-                        tablaHistorial.AddCell(new PdfPCell(new Phrase(h, fTablaHead)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = azulMarino, Padding = 5 });
-                    }
+                    foreach (string h in headers) tablaHistorial.AddCell(new PdfPCell(new Phrase(h, fTablaHead)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = azulMarino, Padding = 5 });
 
                     foreach (dynamic item in dgGastos.ItemsSource)
                     {
                         tablaHistorial.AddCell(new PdfPCell(new Phrase(item.Fecha.ToString("dd/MM/yyyy HH:mm"), fCuerpo)) { Padding = 4 });
                         tablaHistorial.AddCell(new PdfPCell(new Phrase(item.Descripcion, fCuerpo)) { Padding = 4 });
-                        tablaHistorial.AddCell(new PdfPCell(new Phrase(item.Categoria, fCuerpo)) { Padding = 4 });
-                        tablaHistorial.AddCell(new PdfPCell(new Phrase(item.MetodoPago, fCuerpo)) { Padding = 4, HorizontalAlignment = Element.ALIGN_CENTER });
-                        tablaHistorial.AddCell(new PdfPCell(new Phrase(item.Monto.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
+                        tablaHistorial.AddCell(new Phrase(item.Categoria, fCuerpo));
+                        tablaHistorial.AddCell(new PdfPCell(new Phrase(item.MetodoPago, fCuerpo)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        tablaHistorial.AddCell(new PdfPCell(new Phrase(item.Monto.ToString("C"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT });
                     }
-
                     doc.Add(tablaHistorial);
-                    doc.Add(new iTextParagraph(" "));
-                    doc.Add(new iTextParagraph($"Firma de Supervisor / Administrador: ___________________________", fCuerpo));
-
                     doc.Close();
                     MessageBox.Show("Reporte de gastos exportado a PDF con éxito.", "Exportación Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error al generar el documento PDF del reporte: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("Error al generar el documento PDF: " + ex.Message, "Error");
                 }
             }
         }

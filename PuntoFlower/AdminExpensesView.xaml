@@ -1,0 +1,103 @@
+﻿<UserControl x:Class="PuntoFlower.Views.AdminExpensesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#F5F5F5">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#EBF5FB" BorderBrush="#AED6F1" BorderThickness="1.5" CornerRadius="10" Padding="15" Margin="0,0,0,20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="💵" FontSize="35" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="INGRESOS COMBINADOS TOTALES (EFECTIVO, TARJETA Y TRANSFERENCIA)" Foreground="#2C3E50" FontWeight="Bold" FontSize="11"/>
+                        <TextBlock x:Name="txtDineroDisponible" Text="$0.00" FontSize="26" FontWeight="Black" Foreground="#2E86C1"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,0">
+                    <TextBlock Text="Desde:" VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="SemiBold" Foreground="#34495E"/>
+                    <DatePicker x:Name="dpInicioAdmin" Width="125" Height="28" VerticalContentAlignment="Center" Margin="0,0,15,0"/>
+
+                    <TextBlock Text="Hasta:" VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="SemiBold" Foreground="#34495E"/>
+                    <DatePicker x:Name="dpFinAdmin" Width="125" Height="28" VerticalContentAlignment="Center" Margin="0,0,15,0"/>
+
+                    <Button Content="⚙️ CONSULTAR" Click="btnConsultar_Click" 
+                            Background="#3498DB" Foreground="White" FontWeight="Bold" Padding="12,0" Height="28" BorderThickness="0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="15" Margin="0,0,0,20">
+            <StackPanel>
+                <TextBlock Text="REGISTRAR EGRESO DE ADMINISTRACIÓN (SURTIDOS / PROVEEDORES)" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
+                <UniformGrid Columns="4">
+                    <StackPanel Margin="5">
+                        <TextBlock Text="Concepto o Proveedor:" Margin="0,0,0,5" Foreground="#566573"/>
+                        <TextBox x:Name="txtConceptoAdmin" Height="30" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Margin="5">
+                        <TextBlock Text="Monto del Pago ($):" Margin="0,0,0,5" Foreground="#566573"/>
+                        <TextBox x:Name="txtMontoAdmin" Height="30" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Margin="5">
+                        <TextBlock Text="Método de Pago:" Margin="0,0,0,5" Foreground="#566573"/>
+                        <ComboBox x:Name="cmbMetodoAdmin" Height="30" VerticalContentAlignment="Center">
+                            <ComboBoxItem Content="Efectivo de Caja"/>
+                            <ComboBoxItem Content="Transferencia Bancaria"/>
+                            <ComboBoxItem Content="Tarjeta Crédito/Débito"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <Button x:Name="btnGuardarGastoAdmin" Content="GUARDAR EGRESO" Click="btnGuardarGastoAdmin_Click"
+                            Background="#27AE60" Foreground="White" FontWeight="Bold" Margin="5,20,5,0" Height="32" BorderThickness="0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </UniformGrid>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="HISTORIAL DE EGRESOS DEL ADMINISTRADOR EN EL PERÍODO SELECCIONADO" FontWeight="Bold" Foreground="#7D6608" Margin="0,0,0,10"/>
+            <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="5">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <DataGrid x:Name="dgEgresosAdmin" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Fecha de Registro" Binding="{Binding Fecha, StringFormat=g}" Width="150"/>
+                            <DataGridTextColumn Header="Concepto / Proveedor" Binding="{Binding Descripcion}" Width="*"/>
+                            <DataGridTextColumn Header="Método" Binding="{Binding MetodoPago}" Width="150"/>
+                            <DataGridTextColumn Header="Monto Pagado" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="120" FontWeight="Bold"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
