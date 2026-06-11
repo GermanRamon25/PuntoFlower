@@ -294,10 +294,10 @@ namespace PuntoFlower.Views
             catch { }
         }
 
-        private void ActualizarTextoBoton(int capacidad, decimal precio)
+        private void ActualizarTextoBoton(int capacity, decimal precio)
         {
-            string texto = $"{capacidad} pz ({precio:C0})";
-            switch (capacidad)
+            string texto = $"{capacity} pz ({precio:C0})";
+            switch (capacity)
             {
                 case 6: rbRamo6.Content = texto; break;
                 case 12: rbRamo12.Content = texto; break;
@@ -348,12 +348,44 @@ namespace PuntoFlower.Views
             ActualizarProgreso();
         }
 
+        // AUXILIAR DE CONTROL SECUNDARIO: Lee existencias directo de la BD antes de meter al carrito
+        private int ObtenerStockFisicoReal(string nombreProducto)
+        {
+            int stock = 0;
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    string q = "SELECT ISNULL(StockActual, 0) FROM Productos WHERE Nombre = @nom AND Categoria = 'Venta'";
+                    using (SqlCommand cmd = new SqlCommand(q, con))
+                    {
+                        cmd.Parameters.AddWithValue("@nom", nombreProducto);
+                        stock = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                }
+            }
+            catch { }
+            return stock;
+        }
+
         private void btnAgregarAlRamo_Click(object sender, RoutedEventArgs e)
         {
             var flor = cbInsumosRamos.SelectedItem as Producto;
             if (flor == null || capacityRamo == 0) return;
             if (!int.TryParse(txtCantFlorRamo.Text, out int cant) || cant <= 0) return;
-            if (floresAgregadas + cant > capacityRamo) { MessageBox.Show("Superas la capacidad del ramo."); return; }
+            if (floresAgregadas + cant > capacityRamo) { MessageBox.Show("Superas la capacidad del ramo.", "Límite Ramo"); return; }
+
+            // VALIDACIÓN INYECTADA (Configurador de Ramos)
+            int stockReal = ObtenerStockFisicoReal(flor.Nombre);
+            int yaAgregadoAlTicket = ProductosEnTicket.SelectMany(x => x.InsumosADescontar).Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad) +
+                                     composicionRamoActual.Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad);
+
+            if ((yaAgregadoAlTicket + cant) > stockReal)
+            {
+                MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.\nYa comprometido en venta: {yaAgregadoAlTicket} pz.\n\nNo se pueden colocar números negativos en stock.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             composicionRamoActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
             floresAgregadas += cant;
@@ -381,6 +413,16 @@ namespace PuntoFlower.Views
             var prod = cbInsumosLibre.SelectedItem as Producto;
             if (prod == null || !int.TryParse(txtCantLibre.Text, out int cant) || cant <= 0) return;
 
+            // VALIDACIÓN INYECTADA (Venta de Flores por Unidad / Sueltas)
+            int stockReal = ObtenerStockFisicoReal(prod.Nombre);
+            int yaAgregadoAlTicket = ProductosEnTicket.SelectMany(x => x.InsumosADescontar).Where(i => i.Nombre == prod.Nombre).Sum(i => i.Cantidad);
+
+            if ((yaAgregadoAlTicket + cant) > stockReal)
+            {
+                MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {prod.Nombre}\nExistencia actual: {stockReal} pz.\nYa en carrito: {yaAgregadoAlTicket} pz.\n\nModifica la cantidad para evitar números negativos.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             ProductosEnTicket.Add(new ItemTicket
             {
                 ProductoNombre = prod.Nombre,
@@ -395,11 +437,22 @@ namespace PuntoFlower.Views
 
         private void btnAgregarFlorEspecial_Click(object sender, RoutedEventArgs e)
         {
-            var font = cbInsumosEspeciales.SelectedItem as Producto;
-            if (font == null) return;
+            var flor = cbInsumosEspeciales.SelectedItem as Producto;
+            if (flor == null) return;
             if (!int.TryParse(txtCantFlorEspecial.Text, out int cant) || cant <= 0) return;
 
-            composicionEspecialActual.Add(new DetalleInsumo { Nombre = font.Nombre, Cantidad = cant });
+            // VALIDACIÓN INYECTADA (Arreglos Diseños Especiales)
+            int stockReal = ObtenerStockFisicoReal(flor.Nombre);
+            int yaAgregadoAlTicket = ProductosEnTicket.SelectMany(x => x.InsumosADescontar).Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad) +
+                                     composicionEspecialActual.Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad);
+
+            if ((yaAgregadoAlTicket + cant) > stockReal)
+            {
+                MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.\nComprometido actualmente: {yaAgregadoAlTicket} pz.\n\nSelecciona una cantidad menor.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            composicionEspecialActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
             lblProgresoEspecial.Text = "Flores añadidas: " + string.Join(", ", composicionEspecialActual.Select(x => $"{x.Cantidad} {x.Nombre}"));
             txtCantFlorEspecial.Text = "0";
             cbInsumosEspeciales.SelectedItem = null;
@@ -565,7 +618,6 @@ namespace PuntoFlower.Views
                 return;
             }
 
-            // MEJORA REQUERIDA DE CONTROL: Bloqueo estricto contra cobros menores en mostrador directo
             if (chkEsPedidoApartado.IsChecked == false && esCobroDeAbonoExistente == false)
             {
                 if (pagoRecibido < totalNetoArreglo)
@@ -603,7 +655,6 @@ namespace PuntoFlower.Views
             }
 
             PedidoComboClass pedidoEnlazadoCombo = cbPedidosAgendaDesplegable.SelectedItem as PedidoComboClass;
-
             decimal cambioFinal = (metodoPago == "Efectivo" && pagoRecibido > totalNetoArreglo) ? (pagoRecibido - totalNetoArreglo) : 0;
 
             ConexionDB db = new ConexionDB();
@@ -617,6 +668,37 @@ namespace PuntoFlower.Views
                     {
                         try
                         {
+                            // =========================================================================
+                            // BLINDAJE TRANSACCIONAL INYECTADO: Doble verificación antes de descontar stock
+                            // =========================================================================
+                            if (!esCobroDeAbonoExistente)
+                            {
+                                // Consolidamos los totales requeridos por tipo de flor en el carrito actual
+                                var totalesRequeridos = ProductosEnTicket
+                                    .SelectMany(x => x.InsumosADescontar)
+                                    .GroupBy(i => i.Nombre)
+                                    .Select(g => new { Nombre = g.Key, CantidadRequerida = g.Sum(i => i.Quantity ?? i.Cantidad) });
+
+                                foreach (var req in totalesRequeridos)
+                                {
+                                    // Consultamos directo en la transacción con bloqueo para evitar colisiones de red
+                                    string qCheck = "SELECT ISNULL(StockActual, 0) FROM Productos WITH (UPDLOCK) WHERE Nombre = @nom AND Categoria = 'Venta'";
+                                    int stockTransaccional = 0;
+                                    using (SqlCommand cmdCheck = new SqlCommand(qCheck, con, tra))
+                                    {
+                                        cmdCheck.Parameters.AddWithValue("@nom", req.Nombre);
+                                        stockTransaccional = Convert.ToInt32(cmdCheck.ExecuteScalar());
+                                    }
+
+                                    if (req.CantidadRequerida > stockTransaccional)
+                                    {
+                                        // Si otra caja nos ganó el producto y bajó de lo requerido, aborta el cobro inmediatamente
+                                        throw new Exception($"¡Venta Cancelada por falta de Stock simultáneo!\n\nLa flor '{req.Nombre}' ya fue vendida en otra caja. Existencia real: {stockTransaccional} pz. Requerido en nota: {req.CantidadRequerida} pz.");
+                                    }
+                                }
+                            }
+                            // =========================================================================
+
                             string detProdNombres = string.Join(", ", ProductosEnTicket.Select(x => x.ProductoNombre));
                             string detVisualConcat = string.Join(" | ", ProductosEnTicket.Select(x => x.DetalleVisual));
 
@@ -719,6 +801,7 @@ namespace PuntoFlower.Views
                                     cmdAnt.ExecuteNonQuery();
                                 }
                             }
+                            else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo != null) { } // Removido duplicado pasivo
                             else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo == null)
                             {
                                 decimal.TryParse(txtFleteNuevoPedido.Text.Trim(), out decimal fleteNeto);
@@ -837,7 +920,7 @@ namespace PuntoFlower.Views
                         catch (Exception ex)
                         {
                             tra.Rollback();
-                            MessageBox.Show("Transacción revertida por integridad: " + ex.Message, "Error Crítico");
+                            MessageBox.Show("Transacción revertida por integridad: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Stop);
                         }
                     }
                 }
