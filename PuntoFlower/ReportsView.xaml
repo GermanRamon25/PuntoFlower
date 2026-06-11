@@ -69,8 +69,8 @@
                                   HeadersVisibility="None" GridLinesVisibility="None" Background="Transparent" 
                                   BorderThickness="0" FontSize="11">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Binding="{Binding ProductoNombre}" Width="*"/>
-                                <DataGridTextColumn Binding="{Binding CantidadTotal}" Width="Auto" FontWeight="Bold"/>
+                                <DataGridTextColumn Binding="{Binding Concepto}" Width="*"/>
+                                <DataGridTextColumn Binding="{Binding Extra}" Width="Auto" FontWeight="Bold"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </ScrollViewer>
@@ -94,9 +94,9 @@
                         <DataGrid x:Name="dgIngresos" AutoGenerateColumns="False" IsReadOnly="True" 
                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="90"/>
+                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha}" Width="90"/>
                                 <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
-                                <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="90"/>
+                                <DataGridTextColumn Header="Monto" Binding="{Binding Monto}" Width="90"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </ScrollViewer>
@@ -110,9 +110,9 @@
                         <DataGrid x:Name="dgEgresosEmpleado" AutoGenerateColumns="False" IsReadOnly="True" 
                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="90"/>
+                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha}" Width="90"/>
                                 <DataGridTextColumn Header="Servicio / Gasto" Binding="{Binding Concepto}" Width="*"/>
-                                <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="90"/>
+                                <DataGridTextColumn Header="Monto" Binding="{Binding Monto}" Width="90"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </ScrollViewer>
@@ -126,9 +126,9 @@
                         <DataGrid x:Name="dgEgresosAdmin" AutoGenerateColumns="False" IsReadOnly="True" 
                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="90"/>
-                                <DataGridTextColumn Header="Concepto Proveedor" Binding="{Binding Concepto}" Width="*"/>
-                                <DataGridTextColumn Header="Monto" Binding="{Binding Monto, StringFormat={}{0:C}}" Width="90"/>
+                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha}" SortMemberPath="Fecha" CanUserSort="True" Width="90"/>
+                                <DataGridTextColumn Header="Concepto" Binding="{Binding Concepto}" Width="*"/>
+                                <DataGridTextColumn Header="Monto" Binding="{Binding Monto}" Width="90"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </ScrollViewer>
@@ -143,10 +143,10 @@
                     <DataGrid x:Name="dgMermas" AutoGenerateColumns="False" IsReadOnly="True" 
                               HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat=d}" Width="120"/>
-                            <DataGridTextColumn Header="Producto" Binding="{Binding ProductoNombre}" Width="*"/>
-                            <DataGridTextColumn Header="Cantidad" Binding="{Binding Cantidad}" Width="100"/>
-                            <DataGridTextColumn Header="Motivo" Binding="{Binding Motivo}" Width="*"/>
+                            <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha}" Width="120"/>
+                            <DataGridTextColumn Header="Producto" Binding="{Binding Concepto}" Width="*"/>
+                            <DataGridTextColumn Header="Cantidad" Binding="{Binding Monto}" Width="100"/>
+                            <DataGridTextColumn Header="Motivo" Binding="{Binding Extra}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </ScrollViewer>
