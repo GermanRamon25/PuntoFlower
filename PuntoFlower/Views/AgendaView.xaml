@@ -82,15 +82,33 @@
                                     <TextBlock Text="{Binding Direccion}" TextWrapping="Wrap" Height="35" FontSize="13" Foreground="#2C3E50" Margin="0,2,0,0"/>
                                 </StackPanel>
 
-                                <Button Content="Ver Detalles / Avanzar" 
-                                        Click="btnVerDetalles_Click" 
-                                        Background="#3498DB" Foreground="White" BorderThickness="0" Height="35" FontWeight="SemiBold" Cursor="Hand">
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="6"/>
-                                        </Style>
-                                    </Button.Resources>
-                                </Button>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Grid.Column="0" Content="Ver Detalles" 
+                                            Click="btnVerDetalles_Click" 
+                                            Background="#3498DB" Foreground="White" BorderThickness="0" Height="35" FontWeight="SemiBold" Cursor="Hand">
+                                        <Button.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="6"/>
+                                            </Style>
+                                        </Button.Resources>
+                                    </Button>
+
+                                    <Button Grid.Column="2" Content="✏️ Modificar" 
+                                            Click="btnModificarPedido_Click" 
+                                            Background="#34495E" Foreground="White" BorderThickness="0" Height="35" FontWeight="SemiBold" Cursor="Hand">
+                                        <Button.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="6"/>
+                                            </Style>
+                                        </Button.Resources>
+                                    </Button>
+                                </Grid>
                             </StackPanel>
                         </Border>
 

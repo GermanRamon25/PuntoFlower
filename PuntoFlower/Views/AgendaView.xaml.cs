@@ -28,7 +28,6 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Construcción dinámica de la query basada en la pestaña activa seleccionada
                     string condicion = "WHERE Estado != 'Entregado'";
 
                     if (modoFiltro == "HOY")
@@ -77,7 +76,6 @@ namespace PuntoFlower.Views
                 icPedidos.ItemsSource = null;
                 icPedidos.ItemsSource = listaPedidos;
 
-                // Actualizar resaltado visual de botones corporativos
                 RegularizarEstiloBotones(modoFiltro);
             }
             catch (Exception ex)
@@ -88,14 +86,12 @@ namespace PuntoFlower.Views
 
         private void RegularizarEstiloBotones(string activo)
         {
-            // Reseteo base de colores
             btnFiltrarTodos.Background = Brushes.White; btnFiltrarTodos.Foreground = Brushes.Black;
             btnFiltrarHoy.Background = Brushes.White; btnFiltrarHoy.Foreground = Brushes.Black;
             btnFiltrarCerrados.Background = Brushes.White; btnFiltrarCerrados.Foreground = Brushes.Black;
 
             var azulWPF = (Brush)new BrushConverter().ConvertFromString("#3498DB");
 
-            // Resaltamos el botón activo actual
             if (activo == "TODOS") { btnFiltrarTodos.Background = azulWPF; btnFiltrarTodos.Foreground = Brushes.White; }
             else if (activo == "HOY") { btnFiltrarHoy.Background = azulWPF; btnFiltrarHoy.Foreground = Brushes.White; }
             else if (activo == "CERRADOS") { btnFiltrarCerrados.Background = azulWPF; btnFiltrarCerrados.Foreground = Brushes.White; }
@@ -139,6 +135,29 @@ namespace PuntoFlower.Views
 
                 if (ventana.ShowDialog() == true)
                 {
+                    CargarPedidos(filtroActual);
+                }
+            }
+        }
+
+        // NUEVO: Método para interceptar el pedido y abrir el editor reutilizable
+        private void btnModificarPedido_Click(object sender, RoutedEventArgs e)
+        {
+            var boton = sender as Button;
+            if (boton == null) return;
+
+            // Extrae el objeto anónimo enlazado a la tarjeta de la Agenda
+            dynamic pedidoSeleccionado = boton.DataContext;
+
+            if (pedidoSeleccionado != null)
+            {
+                // Invocamos la ventana de Nuevo Pedido enviando el objeto para activar el "Modo Edición"
+                NuevoPedidoWindow ventana = new NuevoPedidoWindow(pedidoSeleccionado);
+                ventana.Owner = Window.GetWindow(this);
+
+                if (ventana.ShowDialog() == true)
+                {
+                    // Si guardó cambios con éxito, refresca la pantalla de inmediato en el filtro que estabas viendo
                     CargarPedidos(filtroActual);
                 }
             }
