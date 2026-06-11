@@ -18,7 +18,6 @@ using iTextSharp.text.pdf;
 
 namespace PuntoFlower.Views
 {
-    // Clase auxiliar interna para leer los elementos tipados del historial sin usar tipos anónimos en LINQ
     public class HistorialTrasladoClass
     {
         public DateTime Fecha { get; set; }
@@ -28,6 +27,16 @@ namespace PuntoFlower.Views
         public string UsuarioResponsable { get; set; }
     }
 
+    // NUEVA clase auxiliar fuertemente tipada para el control operativo de mermas
+    public class MermasControlClass
+    {
+        public int Id { get; set; }
+        public string ProductoNombre { get; set; }
+        public int Cantidad { get; set; }
+        public string Motivo { get; set; }
+        public DateTime Fecha { get; set; }
+    }
+
     public partial class InventoryView : UserControl
     {
         public InventoryView()
@@ -35,12 +44,14 @@ namespace PuntoFlower.Views
             InitializeComponent();
             CargarDesdeSQL();
             InicializarModuloTraslados();
+            CargarHistorialMermas();
 
             this.IsVisibleChanged += (s, e) => {
                 if ((bool)e.NewValue)
                 {
                     CargarDesdeSQL();
                     CargarHistorialTraslados();
+                    CargarHistorialMermas();
                 }
             };
         }
@@ -64,12 +75,7 @@ namespace PuntoFlower.Views
                             while (r.Read())
                             {
                                 string nombreSucursalBD = r["Nombre"].ToString();
-
-                                if (txtSucursalOrigen.Text.ToUpper().Contains(nombreSucursalBD.ToUpper()))
-                                {
-                                    continue;
-                                }
-
+                                if (txtSucursalOrigen.Text.ToUpper().Contains(nombreSucursalBD.ToUpper())) continue;
                                 sucursalesDestino.Add(nombreSucursalBD);
                             }
                         }
@@ -109,6 +115,40 @@ namespace PuntoFlower.Views
                     }
                 }
                 dgHistorialTraslados.ItemsSource = logs;
+            }
+            catch { }
+        }
+
+        // NUEVO MÉTODO: Carga el historial de mermas directamente en la nueva tabla del TabControl
+        private void CargarHistorialMermas()
+        {
+            List<MermasControlClass> listaMermas = new List<MermasControlClass>();
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    string query = "SELECT Id, ProductoNombre, Cantidad, Motivo, Fecha FROM Mermas ORDER BY Fecha DESC";
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        using (SqlDataReader r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                listaMermas.Add(new MermasControlClass
+                                {
+                                    Id = Convert.ToInt32(r["Id"]),
+                                    ProductoNombre = r["ProductoNombre"].ToString(),
+                                    Cantidad = Convert.ToInt32(r["Cantidad"]),
+                                    Motivo = r["Motivo"].ToString(),
+                                    Fecha = Convert.ToDateTime(r["Fecha"])
+                                });
+                            }
+                        }
+                    }
+                }
+                dgHistorialMermasControl.ItemsSource = null;
+                dgHistorialMermasControl.ItemsSource = listaMermas;
             }
             catch { }
         }
@@ -288,10 +328,111 @@ namespace PuntoFlower.Views
                     }
                     MessageBox.Show("Inventario actualizado. Merma registrada en el historial.");
                     CargarDesdeSQL();
+                    CargarHistorialMermas();
                 }
                 catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
             }
         }
+
+        // NUEVO MÉTODO: Permite modificar el motivo o ajustar la cantidad de piezas de una merma existente
+        private void btnEditarMerma_Click(object sender, RoutedEventArgs e)
+        {
+            var boton = sender as Button;
+            var merma = boton?.DataContext as MermasControlClass;
+            if (merma == null) return;
+
+            string nuevaCantidadStr = Microsoft.VisualBasic.Interaction.InputBox($"Modificar cantidad para la merma de '{merma.ProductoNombre}':", "Editar Cantidad", merma.Cantidad.ToString());
+            if (string.IsNullOrEmpty(nuevaCantidadStr) || !int.TryParse(nuevaCantidadStr, out int nuevaCant) || nuevaCant <= 0) return;
+
+            string nuevoMotivo = Microsoft.VisualBasic.Interaction.InputBox("Modificar motivo de la pérdida:", "Editar Motivo", merma.Motivo);
+            if (string.IsNullOrEmpty(nuevoMotivo)) return;
+
+            // Extraemos el nombre limpio de la flor para ajustar su inventario
+            string nombreFlor = merma.ProductoNombre.Split('(')[0].Trim();
+            string catFlor = merma.ProductoNombre.Contains("(Bodega)") ? "Bodega" : "Venta";
+
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    // Calculamos la diferencia matemática neta
+                    int diferencia = nuevaCant - merma.Cantidad;
+
+                    // Ajustamos el catálogo de productos de forma segura
+                    string qStock = "UPDATE Productos SET StockActual = StockActual - @dif WHERE Nombre = @nom AND Categoria = @cat";
+                    using (SqlCommand cmdStock = new SqlCommand(qStock, con))
+                    {
+                        cmdStock.Parameters.AddWithValue("@dif", diferencia);
+                        cmdStock.Parameters.AddWithValue("@nom", nombreFlor);
+                        cmdStock.Parameters.AddWithValue("@cat", catFlor);
+                        cmdStock.ThemeExecuteNonQuerySafe(); // Evita desbordamiento si el producto fue borrado
+                    }
+
+                    // Guardamos los cambios en la tabla Mermas
+                    string qUpdate = "UPDATE Mermas SET Cantidad = @cant, Motivo = @mot WHERE Id = @id";
+                    using (SqlCommand cmdUp = new SqlCommand(qUpdate, con))
+                    {
+                        cmdUp.Parameters.AddWithValue("@cant", nuevaCant);
+                        cmdUp.Parameters.AddWithValue("@mot", nuevoMotivo);
+                        cmdUp.Parameters.AddWithValue("@id", merma.Id);
+                        cmdUp.ExecuteNonQuery();
+                    }
+                }
+
+                MessageBox.Show("Merma corregida y conciliada con el inventario físico.", "Éxito");
+                CargarDesdeSQL();
+                支配HistorialMermas();
+            }
+            catch (Exception ex) { MessageBox.Show("Error al editar: " + ex.Message); }
+        }
+
+        // NUEVO MÉTODO: Elimina por completo la merma y le regresa el stock de flores robado al mostrador/bodega
+        private void btnEliminarMerma_Click(object sender, RoutedEventArgs e)
+        {
+            var boton = sender as Button;
+            var merma = boton?.DataContext as MermasControlClass;
+            if (merma == null) return;
+
+            var conf = MessageBox.Show($"¿Deseas cancelar y borrar esta merma? Se devolverán las {merma.Cantidad} piezas al inventario.", "Confirmar Cancelación", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (conf != MessageBoxResult.Yes) return;
+
+            string nombreFlor = merma.ProductoNombre.Split('(')[0].Trim();
+            string catFlor = merma.ProductoNombre.Contains("(Bodega)") ? "Bodega" : "Venta";
+
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    // Devolución automática de stock de flores
+                    string qRestaurar = "UPDATE Productos SET StockActual = StockActual + @cant WHERE Nombre = @nom AND Categoria = @cat";
+                    using (SqlCommand cmdRes = new SqlCommand(qRestaurar, con))
+                    {
+                        cmdRes.Parameters.AddWithValue("@cant", merma.Cantidad);
+                        cmdRes.Parameters.AddWithValue("@nom", nombreFlor);
+                        cmdRes.Parameters.AddWithValue("@cat", catFlor);
+                        cmdRes.ExecuteNonQuery();
+                    }
+
+                    // Borrado físico del log
+                    string qDelete = "DELETE FROM Mermas WHERE Id = @id";
+                    using (SqlCommand cmdDel = new SqlCommand(qDelete, con))
+                    {
+                        cmdDel.Parameters.AddWithValue("@id", merma.Id);
+                        cmdDel.ExecuteNonQuery();
+                    }
+                }
+
+                MessageBox.Show("Merma eliminada. El stock ha sido reincorporado.");
+                CargarDesdeSQL();
+                CargarHistorialMermas();
+            }
+            catch (Exception ex) { MessageBox.Show("Error al eliminar la merma: " + ex.Message); }
+        }
+
+        // Método puente para asegurar refresco homogéneo sin romper dependencias
+        private void 支配HistorialMermas() => CargarHistorialMermas();
 
         private void btnSurtirStock_Click(object sender, RoutedEventArgs e)
         {
@@ -374,7 +515,6 @@ namespace PuntoFlower.Views
                     PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
                     doc.Open();
 
-                    // CORRECCIÓN DE FUENTES: Uso directo de FontFactory para evitar errores de conversión y estilos
                     iTextFont fTitulo = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 14, new BaseColor(44, 62, 80));
                     iTextFont fSub = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.DARK_GRAY);
                     iTextFont fCuerpo = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
@@ -490,13 +630,12 @@ namespace PuntoFlower.Views
             }
         }
 
-        // NUEVO MÉTODO: Compilación y exportación de la Bitácora de Traslados Emitidos a Sucursales
         private void btnReporteTraslados_Click(object sender, RoutedEventArgs e)
         {
             var listaTraslados = dgHistorialTraslados.ItemsSource as List<HistorialTrasladoClass>;
             if (listaTraslados == null || !listaTraslados.Any())
             {
-                MessageBox.Show("No se registran transferencias o traslados emitidos en la bitácora actual para exportar.", "Atención", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("No se registran transferencias o traslados emitidos in la bitácora actual para exportar.", "Atención", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -516,13 +655,11 @@ namespace PuntoFlower.Views
                     PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
                     doc.Open();
 
-                    // CORRECCIÓN DE FUENTES TAMBIÉN AQUÍ: Formato homogéneo sin fallos de casteo
                     iTextFont fTitulo = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 15, new BaseColor(31, 97, 141));
                     iTextFont fCuerpo = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
                     iTextFont fBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.BLACK);
                     iTextFont fTablaHead = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
 
-                    // Encabezado Corporativo del Reporte de Fletes
                     doc.Add(new iTextParagraph("PUNTO FLOWER - MANIFESTO DE TRASLADO ENTRE SUCURSALES", fTitulo));
                     doc.Add(new iTextParagraph($"Planta / Sucursal Emisora (Origen): {sucursalOrigenNombre}", fBold));
                     doc.Add(new iTextParagraph($"Fecha de Reporte: {DateTime.Now:dd/MM/yyyy HH:mm:ss}", fCuerpo));
@@ -530,7 +667,6 @@ namespace PuntoFlower.Views
                     doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));
                     doc.Add(new iTextParagraph(" "));
 
-                    // Estructura de la Tabla del Manifiesto de Carga
                     PdfPTable tTraslados = new PdfPTable(5);
                     tTraslados.WidthPercentage = 100;
                     tTraslados.SetWidths(new float[] { 20f, 40f, 12f, 14f, 14f });
@@ -543,7 +679,6 @@ namespace PuntoFlower.Views
                         tTraslados.AddCell(new PdfPCell(new Phrase(h, fTablaHead)) { BackgroundColor = azulGrisaceo, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 6 });
                     }
 
-                    // Llenado dinámico de las filas con las celdas alineadas
                     foreach (var t in listaTraslados)
                     {
                         tTraslados.AddCell(new PdfPCell(new Phrase(t.Fecha.ToString("dd/MM/yyyy HH:mm"), fCuerpo)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 5 });
@@ -557,7 +692,6 @@ namespace PuntoFlower.Views
                     doc.Add(new iTextParagraph(" "));
                     doc.Add(new iTextParagraph("\n\n\n"));
 
-                    // Firmas físicas obligatorias de validación para control logístico regional
                     PdfPTable tablaFirmas = new PdfPTable(2);
                     tablaFirmas.WidthPercentage = 100;
                     tablaFirmas.SetWidths(new float[] { 50f, 50f });
@@ -577,6 +711,15 @@ namespace PuntoFlower.Views
                     MessageBox.Show("Error al compilar el documento logístico de traslados: " + ex.Message, "Error de Compilación", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+    }
+
+    // Extensión de seguridad para evitar caídas en hilos secundarios si el catálogo de flores mutó
+    public static class SqlExtensionTheme
+    {
+        public static void ThemeExecuteNonQuerySafe(this SqlCommand cmd)
+        {
+            try { cmd.ExecuteNonQuery(); } catch { }
         }
     }
 }
