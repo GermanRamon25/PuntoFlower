@@ -348,7 +348,6 @@ namespace PuntoFlower.Views
             ActualizarProgreso();
         }
 
-        // AUXILIAR DE CONTROL SECUNDARIO: Lee existencias directo de la BD antes de meter al carrito
         private int ObtenerStockFisicoReal(string nombreProducto)
         {
             int stock = 0;
@@ -376,15 +375,18 @@ namespace PuntoFlower.Views
             if (!int.TryParse(txtCantFlorRamo.Text, out int cant) || cant <= 0) return;
             if (floresAgregadas + cant > capacityRamo) { MessageBox.Show("Superas la capacidad del ramo.", "Límite Ramo"); return; }
 
-            // VALIDACIÓN INYECTADA (Configurador de Ramos)
-            int stockReal = ObtenerStockFisicoReal(flor.Nombre);
-            int yaAgregadoAlTicket = ProductosEnTicket.SelectMany(x => x.InsumosADescontar).Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad) +
-                                     composicionRamoActual.Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad);
-
-            if ((yaAgregadoAlTicket + cant) > stockReal)
+            // Si es un apartado a futuro, permitimos armar el ramo de forma libre sin bloquear por stock inmediato de hoy
+            if (chkEsPedidoApartado.IsChecked == false)
             {
-                MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.\nYa comprometido en venta: {yaAgregadoAlTicket} pz.\n\nNo se pueden colocar números negativos en stock.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                int stockReal = ObtenerStockFisicoReal(flor.Nombre);
+                int yaAgregadoAlTicket = ProductosEnTicket.SelectMany(x => x.InsumosADescontar).Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad) +
+                                         composicionRamoActual.Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad);
+
+                if ((yaAgregadoAlTicket + cant) > stockReal)
+                {
+                    MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.\nYa comprometido en venta: {yaAgregadoAlTicket} pz.\n\nNo se pueden colocar números negativos en stock.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
             }
 
             composicionRamoActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
@@ -413,14 +415,16 @@ namespace PuntoFlower.Views
             var prod = cbInsumosLibre.SelectedItem as Producto;
             if (prod == null || !int.TryParse(txtCantLibre.Text, out int cant) || cant <= 0) return;
 
-            // VALIDACIÓN INYECTADA (Venta de Flores por Unidad / Sueltas)
-            int stockReal = ObtenerStockFisicoReal(prod.Nombre);
-            int yaAgregadoAlTicket = ProductosEnTicket.SelectMany(x => x.InsumosADescontar).Where(i => i.Nombre == prod.Nombre).Sum(i => i.Cantidad);
-
-            if ((yaAgregadoAlTicket + cant) > stockReal)
+            if (chkEsPedidoApartado.IsChecked == false)
             {
-                MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {prod.Nombre}\nExistencia actual: {stockReal} pz.\nYa en carrito: {yaAgregadoAlTicket} pz.\n\nModifica la cantidad para evitar números negativos.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                int stockReal = ObtenerStockFisicoReal(prod.Nombre);
+                int yaAgregadoAlTicket = ProductosEnTicket.SelectMany(x => x.InsumosADescontar).Where(i => i.Nombre == prod.Nombre).Sum(i => i.Cantidad);
+
+                if ((yaAgregadoAlTicket + cant) > stockReal)
+                {
+                    MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {prod.Nombre}\nExistencia actual: {stockReal} pz.\nYa en carrito: {yaAgregadoAlTicket} pz.\n\nModifica la cantidad para evitar números negativos.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
             }
 
             ProductosEnTicket.Add(new ItemTicket
@@ -441,15 +445,17 @@ namespace PuntoFlower.Views
             if (flor == null) return;
             if (!int.TryParse(txtCantFlorEspecial.Text, out int cant) || cant <= 0) return;
 
-            // VALIDACIÓN INYECTADA (Arreglos Diseños Especiales)
-            int stockReal = ObtenerStockFisicoReal(flor.Nombre);
-            int yaAgregadoAlTicket = ProductosEnTicket.SelectMany(x => x.InsumosADescontar).Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad) +
-                                     composicionEspecialActual.Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad);
-
-            if ((yaAgregadoAlTicket + cant) > stockReal)
+            if (chkEsPedidoApartado.IsChecked == false)
             {
-                MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.\nComprometido actualmente: {yaAgregadoAlTicket} pz.\n\nSelecciona una cantidad menor.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                int stockReal = ObtenerStockFisicoReal(flor.Nombre);
+                int yaAgregadoAlTicket = ProductosEnTicket.SelectMany(x => x.InsumosADescontar).Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad) +
+                                         composicionEspecialActual.Where(i => i.Nombre == flor.Nombre).Sum(i => i.Cantidad);
+
+                if ((yaAgregadoAlTicket + cant) > stockReal)
+                {
+                    MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.\nComprometido actualmente: {yaAgregadoAlTicket} pz.\n\nSelecciona una cantidad menor.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
             }
 
             composicionEspecialActual.Add(new DetalleInsumo { Nombre = flor.Nombre, Cantidad = cant });
@@ -524,8 +530,6 @@ namespace PuntoFlower.Views
             }
             ActualizarTotal();
         }
-
-        private void txtFactorManualRapido_TextChanged(object sender, TextChangedEventArgs e) { }
 
         private void txtFleteNuevoPedido_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -669,11 +673,10 @@ namespace PuntoFlower.Views
                         try
                         {
                             // =========================================================================
-                            // BLINDAJE TRANSACCIONAL INYECTADO: Doble verificación antes de descontar stock
+                            // BLINDAJE LOGÍSTICO MODIFICADO: Solo bloqueamos stock en Ventas de Mostrador
                             // =========================================================================
-                            if (!esCobroDeAbonoExistente)
+                            if (!esCobroDeAbonoExistente && chkEsPedidoApartado.IsChecked == false)
                             {
-                                // Consolidamos los totales requeridos por tipo de flor en el carrito actual
                                 var totalesRequeridos = ProductosEnTicket
                                     .SelectMany(x => x.InsumosADescontar)
                                     .GroupBy(i => i.Nombre)
@@ -681,7 +684,6 @@ namespace PuntoFlower.Views
 
                                 foreach (var req in totalesRequeridos)
                                 {
-                                    // Consultamos directo en la transacción con bloqueo para evitar colisiones de red
                                     string qCheck = "SELECT ISNULL(StockActual, 0) FROM Productos WITH (UPDLOCK) WHERE Nombre = @nom AND Categoria = 'Venta'";
                                     int stockTransaccional = 0;
                                     using (SqlCommand cmdCheck = new SqlCommand(qCheck, con, tra))
@@ -692,7 +694,6 @@ namespace PuntoFlower.Views
 
                                     if (req.CantidadRequerida > stockTransaccional)
                                     {
-                                        // Si otra caja nos ganó el producto y bajó de lo requerido, aborta el cobro inmediatamente
                                         throw new Exception($"¡Venta Cancelada por falta de Stock simultáneo!\n\nLa flor '{req.Nombre}' ya fue vendida en otra caja. Existencia real: {stockTransaccional} pz. Requerido en nota: {req.CantidadRequerida} pz.");
                                     }
                                 }
@@ -729,6 +730,7 @@ namespace PuntoFlower.Views
                                 }
                             }
 
+                            // CAMINO 2 MODIFICADO: ¡AQUÍ ES CUANDO SE ENTREGA EL PEDIDO Y SE DESCUENTAN LAS FLORES DESDE LA AGENDA!
                             if (esCobroDeAbonoExistente)
                             {
                                 string actPedido = @"UPDATE Pedidos 
@@ -740,6 +742,55 @@ namespace PuntoFlower.Views
                                     cmdP.Parameters.AddWithValue("@abono", totalNetoArreglo);
                                     cmdP.Parameters.AddWithValue("@id", idPedidoParaAbonar);
                                     cmdP.ExecuteNonQuery();
+                                }
+
+                                // NUEVA INYECCIÓN CONTABLE: Como el pedido se va a entregar hoy, leemos su descripción original para saber qué flores descontar de la cámara fría
+                                string queryLeerComposicion = "SELECT Descripcion FROM Pedidos WHERE Id = @id";
+                                string descripcionPedidoOriginal = "";
+                                using (SqlCommand cmdLeer = new SqlCommand(queryLeerComposicion, con, tra))
+                                {
+                                    cmdLeer.Parameters.AddWithValue("@id", idPedidoParaAbonar);
+                                    descripcionPedidoOriginal = cmdLeer.ExecuteScalar()?.ToString() ?? "";
+                                }
+
+                                // Si la descripción del pedido guardó la lista de flores separada por comas, las procesamos y descontamos una por una de vitrina de forma segura
+                                if (!string.IsNullOrEmpty(descripcionPedidoOriginal) && (descripcionPedidoOriginal.Contains("p") || descripcionPedidoOriginal.Contains("(")))
+                                {
+                                    // Buscamos todas las flores activas del catálogo para comparar textos
+                                    List<string> floresCatalogo = new List<string>();
+                                    using (SqlCommand cmdCat = new SqlCommand("SELECT Nombre FROM Productos WHERE Categoria = 'Venta'", con, tra))
+                                    {
+                                        using (SqlDataReader readerCat = cmdCat.ExecuteReader())
+                                        {
+                                            while (readerCat.Read()) floresCatalogo.Add(readerCat["Nombre"].ToString());
+                                        }
+                                    }
+
+                                    foreach (string nombreFlor in floresCatalogo)
+                                    {
+                                        if (descripcionPedidoOriginal.Contains(nombreFlor))
+                                        {
+                                            // Extraemos la cantidad de tallos usada mediante análisis de cadena
+                                            int piezasADescontar = 1;
+                                            try
+                                            {
+                                                int indexFlor = descripcionPedidoOriginal.IndexOf(nombreFlor);
+                                                string fragmentoAnterior = descripcionPedidoOriginal.Substring(Math.Max(0, indexFlor - 5), Math.Min(5, indexFlor));
+                                                string digitos = new string(fragmentoAnterior.Where(char.IsDigit).ToArray());
+                                                if (!string.IsNullOrEmpty(digitos)) piezasADescontar = int.Parse(digitos);
+                                            }
+                                            catch { piezasADescontar = 1; }
+
+                                            // Descontamos físicamente del inventario hoy, porque hoy se lo lleva el cliente
+                                            string qDesc = "UPDATE Productos SET StockActual = CASE WHEN (StockActual - @c) < 0 THEN 0 ELSE (StockActual - @c) END WHERE Nombre = @nom AND Categoria = 'Venta'";
+                                            using (SqlCommand cmdDescontarAgenda = new SqlCommand(qDesc, con, tra))
+                                            {
+                                                cmdDescontarAgenda.Parameters.AddWithValue("@c", piezasADescontar);
+                                                cmdDescontarAgenda.Parameters.AddWithValue("@nom", nombreFlor);
+                                                cmdDescontarAgenda.ExecuteNonQuery();
+                                            }
+                                        }
+                                    }
                                 }
 
                                 string nombreConceptoVenta = $"Liquidación / Abono: {txtClientePedidoCaja.Text.Trim()}";
@@ -760,6 +811,7 @@ namespace PuntoFlower.Views
                                     cmdV.ExecuteNonQuery();
                                 }
                             }
+                            // CAMINO 1: ENLAZAR APARTADO EXISTENTE DESDE EL COMBOBOX (SOLO ENTRA EL DINERO, NO SE DESCUENTAN LAS FLORES)
                             else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo != null)
                             {
                                 decimal abonoRealEfectivo = pagoRecibido - cambioFinal;
@@ -783,7 +835,7 @@ namespace PuntoFlower.Views
                                     cmdUp.ExecuteNonQuery();
                                 }
 
-                                string conceptoAnticipo = $"Liquidación Pedido: {pedidoEnlazadoCombo.ClienteNombre} ({detProdNombres})";
+                                string conceptoAnticipo = $"Abono Pedido: {pedidoEnlazadoCombo.ClienteNombre} ({detProdNombres})";
                                 string qAnt = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId) 
                                            VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
                                 using (SqlCommand cmdAnt = new SqlCommand(qAnt, con, tra))
@@ -801,7 +853,7 @@ namespace PuntoFlower.Views
                                     cmdAnt.ExecuteNonQuery();
                                 }
                             }
-                            else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo != null) { } // Removido duplicado pasivo
+                            // CAMINO 1 (B): APARTAR UN PEDIDO NUEVO (SOLO ENTRA EL DINERO DEL ANTICIPO, NO SE DESCUENTAN LAS FLORES)
                             else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo == null)
                             {
                                 decimal.TryParse(txtFleteNuevoPedido.Text.Trim(), out decimal fleteNeto);
@@ -843,6 +895,7 @@ namespace PuntoFlower.Views
                                     cmdV.ExecuteNonQuery();
                                 }
                             }
+                            // CAMINO 3: VENTA TRADICIONAL DE MOSTRADOR AL INSTANTE (SE COBRA COMPLETO Y SE DESCUENTA EL STOCK DE INMEDIATO)
                             else if (chkEsPedidoApartado.IsChecked == false && esCobroDeAbonoExistente == false)
                             {
                                 string nombreConceptoVenta = $"Venta Mostrador: {txtClientePedidoCaja.Text.Trim()} ({detProdNombres})";
@@ -863,10 +916,8 @@ namespace PuntoFlower.Views
                                     cmdV.Parameters.AddWithValue("@pId", (object)firstProductoIdDB ?? DBNull.Value);
                                     cmdV.ExecuteNonQuery();
                                 }
-                            }
 
-                            if (!esCobroDeAbonoExistente)
-                            {
+                                // Se descuenta el stock de inmediato porque el cliente retira el arreglo en este mismo instante
                                 foreach (var item in ProductosEnTicket)
                                 {
                                     foreach (var insumo in item.InsumosADescontar)
