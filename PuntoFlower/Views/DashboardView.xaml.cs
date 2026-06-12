@@ -25,7 +25,7 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // 1. VENTAS DEL MES
+                    // 1. VENTAS DEL MES (Mantenido intacto)
                     string qVentas = @"SELECT ISNULL(SUM(Total), 0) FROM Ventas 
                                      WHERE MONTH(Fecha) = MONTH(GETDATE()) 
                                      AND YEAR(Fecha) = YEAR(GETDATE())";
@@ -33,21 +33,27 @@ namespace PuntoFlower.Views
                     decimal totalVentas = Convert.ToDecimal(cmdVentas.ExecuteScalar());
                     txtVentasMes.Text = totalVentas.ToString("C");
 
-                    // 2. INVERSIÓN EN STOCK
-                    string qCompras = @"SELECT ISNULL(SUM(Cantidad * PrecioCosto), 0) FROM DetalleCompras 
-                                      WHERE MONTH(Fecha) = MONTH(GETDATE())";
-                    SqlCommand cmdCompras = new SqlCommand(qCompras, con);
-                    decimal totalCompras = Convert.ToDecimal(cmdCompras.ExecuteScalar());
-                    txtGastosSurtido.Text = totalCompras.ToString("C");
+                    // 2. INVERSIÓN EN STOCK Y GASTOS GENERALES (¡AQUÍ SE INYECTÓ LA MEJORA!)
+                    // Sumamos el surtido de DetalleCompras del mes + todos los gastos de administración y tienda de la tabla Gastos del mes
+                    string qComprasYGastos = @"
+                        SELECT 
+                            (SELECT ISNULL(SUM(Cantidad * PrecioCosto), 0) FROM DetalleCompras 
+                             WHERE MONTH(Fecha) = MONTH(GETDATE()) AND YEAR(Fecha) = YEAR(GETDATE()))
+                            +
+                            (SELECT ISNULL(SUM(Monto), 0) FROM Gastos 
+                             WHERE MONTH(Fecha) = MONTH(GETDATE()) AND YEAR(Fecha) = YEAR(GETDATE()))";
 
-                    // 3. STOCK CRÍTICO
+                    SqlCommand cmdCompras = new SqlCommand(qComprasYGastos, con);
+                    decimal totalComprasYGastos = Convert.ToDecimal(cmdCompras.ExecuteScalar());
+                    txtGastosSurtido.Text = totalComprasYGastos.ToString("C");
+
+                    // 3. STOCK CRÍTICO (Mantenido intacto)
                     string qStock = "SELECT COUNT(*) FROM Productos WHERE StockActual <= StockMinimo";
                     SqlCommand cmdStock = new SqlCommand(qStock, con);
                     int alertas = (int)cmdStock.ExecuteScalar();
                     txtStockAlerta.Text = $"{alertas} Flores";
 
-                    // 4. CARGAR LISTA DE ENTREGAS PARA HOY
-                    // Se agregó FechaRegistro a la consulta para obtener la hora real de la reserva
+                    // 4. CARGAR LISTA DE ENTREGAS PARA HOY (Mantenido intacto)
                     string qPedidosHoy = @"SELECT ClienteNombre, Descripcion, FechaEntrega, FechaRegistro, Estado 
                                          FROM Pedidos 
                                          WHERE CAST(FechaEntrega AS DATE) = CAST(GETDATE() AS DATE) 
@@ -62,7 +68,6 @@ namespace PuntoFlower.Views
                             string estado = r["Estado"].ToString();
 
                             // Lógica para obtener la hora de reserva en formato 12h (AM/PM)
-                            // Si por alguna razón el registro es nulo, usamos la fecha de entrega como respaldo
                             DateTime horaReal = r["FechaRegistro"] != DBNull.Value
                                 ? Convert.ToDateTime(r["FechaRegistro"])
                                 : Convert.ToDateTime(r["FechaEntrega"]);
