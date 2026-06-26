@@ -146,7 +146,7 @@
                                                 <TextBlock x:Name="StatusText" Text="Disponible" Foreground="#27AE60" FontWeight="SemiBold" FontSize="11"/>
                                             </Border>
                                             <DataTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding NecesitaSurtir}" Value="True">
+                                                <DataTrigger Binding="{Binding NecisitaSurtir}" Value="True">
                                                     <Setter TargetName="StatusBorder" Property="Background" Value="#FDEDEC"/>
                                                     <Setter TargetName="StatusText" Property="Text" Value="Resurtir"/>
                                                     <Setter TargetName="StatusText" Property="Foreground" Value="#E74C3C"/>
@@ -264,6 +264,17 @@
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="Destino" Binding="{Binding SucursalDestino}" Width="100"/>
                                     <DataGridTextColumn Header="Autorizó" Binding="{Binding UsuarioResponsable}" Width="100"/>
+
+                                    <DataGridTemplateColumn Header="Acciones" Width="140">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Button Content="Editar" Click="btnEditarTraslado_Click" Background="#E67E22" Foreground="White" FontWeight="SemiBold" Width="58" Height="25" Margin="0,0,5,0" BorderThickness="0" Cursor="Hand"/>
+                                                    <Button Content="Eliminar" Click="btnEliminarTraslado_Click" Background="#C0392B" Foreground="White" FontWeight="SemiBold" Width="58" Height="25" BorderThickness="0" Cursor="Hand"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </DockPanel>

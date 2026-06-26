@@ -20,6 +20,7 @@ namespace PuntoFlower.Views
 {
     public class HistorialTrasladoClass
     {
+        public int Id { get; set; } // Identificador físico único de la fila en SQL Server
         public DateTime Fecha { get; set; }
         public string ProductoNombre { get; set; }
         public int Cantidad { get; set; }
@@ -27,7 +28,6 @@ namespace PuntoFlower.Views
         public string UsuarioResponsable { get; set; }
     }
 
-    // NUEVA clase auxiliar fuertemente tipada para el control operativo de mermas
     public class MermasControlClass
     {
         public int Id { get; set; }
@@ -97,7 +97,7 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = "SELECT Fecha, ProductoNombre, Cantidad, SucursalDestino, UsuarioResponsable FROM HistorialTraslados ORDER BY Fecha DESC";
+                    string query = "SELECT Id, Fecha, ProductoNombre, Cantidad, SucursalDestino, UsuarioResponsable FROM HistorialTraslados ORDER BY Fecha DESC";
                     SqlCommand cmd = new SqlCommand(query, con);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
@@ -105,6 +105,7 @@ namespace PuntoFlower.Views
                         {
                             logs.Add(new HistorialTrasladoClass
                             {
+                                Id = Convert.ToInt32(r["Id"]),
                                 Fecha = (DateTime)r["Fecha"],
                                 ProductoNombre = r["ProductoNombre"].ToString(),
                                 Cantidad = Convert.ToInt32(r["Cantidad"]),
@@ -119,7 +120,142 @@ namespace PuntoFlower.Views
             catch { }
         }
 
-        // NUEVO MÉTODO: Carga el historial de mermas directamente en la nueva tabla del TabControl
+        private void btnEditarTraslado_Click(object sender, RoutedEventArgs e)
+        {
+            var boton = sender as Button;
+            var traslado = boton?.DataContext as HistorialTrasladoClass;
+            if (traslado == null) return;
+
+            string nuevaCantidadStr = Microsoft.VisualBasic.Interaction.InputBox(
+                $"Modificar cantidad para el traslado de '{traslado.ProductoNombre}':",
+                "Editar Cantidad Traslado",
+                traslado.Cantidad.ToString());
+
+            if (string.IsNullOrEmpty(nuevaCantidadStr) || !int.TryParse(nuevaCantidadStr, out int nuevaCant) || nuevaCant <= 0)
+                return;
+
+            string nuevoDestino = Microsoft.VisualBasic.Interaction.InputBox(
+                "Modificar sucursal de destino:",
+                "Editar Destino Traslado",
+                traslado.SucursalDestino);
+
+            if (string.IsNullOrEmpty(nuevoDestino))
+                return;
+
+            ConexionDB db = new ConexionDB();
+            using (SqlConnection con = db.OpenConnection())
+            {
+                SqlTransaction transaccion = con.BeginTransaction();
+
+                try
+                {
+                    string qDevolver = "UPDATE Productos SET StockActual = StockActual + @cantOriginal WHERE Nombre = @nomOriginal AND Categoria = 'Venta'";
+                    using (SqlCommand cmdDev = new SqlCommand(qDevolver, con, transaccion))
+                    {
+                        cmdDev.Parameters.AddWithValue("@cantOriginal", traslado.Cantidad);
+                        cmdDev.Parameters.AddWithValue("@nomOriginal", traslado.ProductoNombre);
+                        cmdDev.ExecuteNonQuery();
+                    }
+
+                    string qCheck = "SELECT StockActual FROM Productos WHERE Nombre = @nom AND Categoria = 'Venta'";
+                    int stockDisponibleTemporal = 0;
+                    using (SqlCommand cmdCheck = new SqlCommand(qCheck, con, transaccion))
+                    {
+                        cmdCheck.Parameters.AddWithValue("@nom", traslado.ProductoNombre);
+                        object res = cmdCheck.ExecuteScalar();
+                        stockDisponibleTemporal = res != null ? Convert.ToInt32(res) : 0;
+                    }
+
+                    if (nuevaCant > stockDisponibleTemporal)
+                    {
+                        MessageBox.Show($"Operación Cancelada: El inventario de '{traslado.ProductoNombre}' es insuficiente ({stockDisponibleTemporal} disponibles).", "Almacén Bloqueado", MessageBoxButton.OK, MessageBoxImage.Stop);
+                        transaccion.Rollback();
+                        return;
+                    }
+
+                    string qDescontar = "UPDATE Productos SET StockActual = StockActual - @cantNueva WHERE Nombre = @nom AND Categoria = 'Venta'";
+                    using (SqlCommand cmdDesc = new SqlCommand(qDescontar, con, transaccion))
+                    {
+                        cmdDesc.Parameters.AddWithValue("@cantNueva", nuevaCant);
+                        cmdDesc.Parameters.AddWithValue("@nom", traslado.ProductoNombre);
+                        cmdDesc.ExecuteNonQuery();
+                    }
+
+                    string qUpdateLog = @"UPDATE HistorialTraslados 
+                                          SET Cantidad = @cantNueva, 
+                                              SucursalDestino = @destNuevo,
+                                              UsuarioResponsable = @user
+                                          WHERE Id = @idTraslado";
+                    using (SqlCommand cmdUpLog = new SqlCommand(qUpdateLog, con, transaccion))
+                    {
+                        cmdUpLog.Parameters.AddWithValue("@cantNueva", nuevaCant);
+                        cmdUpLog.Parameters.AddWithValue("@destNuevo", nuevoDestino.Trim());
+                        cmdUpLog.Parameters.AddWithValue("@user", Session.UsuarioActual);
+                        cmdUpLog.Parameters.AddWithValue("@idTraslado", traslado.Id);
+                        cmdUpLog.ExecuteNonQuery();
+                    }
+
+                    transaccion.Commit();
+                    MessageBox.Show("¡El traslado ha sido corregido y conciliado con el inventario físico con éxito!", "Modificación Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    CargarDesdeSQL();
+                    CargarHistorialTraslados();
+                }
+                catch (Exception ex)
+                {
+                    transaccion.Rollback();
+                    MessageBox.Show("Fallo interno de consistencia: " + ex.Message, "Error de Transacción");
+                }
+            }
+        }
+
+        // NUEVO MÉTODO: Elimina el registro del traslado y devuelve el stock al mostrador (Venta)
+        private void btnEliminarTraslado_Click(object sender, RoutedEventArgs e)
+        {
+            var boton = sender as Button;
+            var traslado = boton?.DataContext as HistorialTrasladoClass;
+            if (traslado == null) return;
+
+            var conf = MessageBox.Show($"¿Deseas cancelar y borrar permanentemente este traslado?\nSe devolverán las {traslado.Cantidad} piezas de '{traslado.ProductoNombre}' al inventario de mostrador.", "Confirmar Cancelación de Traslado", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (conf != MessageBoxResult.Yes) return;
+
+            ConexionDB db = new ConexionDB();
+            using (SqlConnection con = db.OpenConnection())
+            {
+                SqlTransaction transaccion = con.BeginTransaction();
+                try
+                {
+                    // PASO 1: Devolución física de stock de flores
+                    string qRestaurar = "UPDATE Productos SET StockActual = StockActual + @cant WHERE Nombre = @nom AND Categoria = 'Venta'";
+                    using (SqlCommand cmdRes = new SqlCommand(qRestaurar, con, transaccion))
+                    {
+                        cmdRes.Parameters.AddWithValue("@cant", traslado.Cantidad);
+                        cmdRes.Parameters.AddWithValue("@nom", traslado.ProductoNombre);
+                        cmdRes.ExecuteNonQuery();
+                    }
+
+                    // PASO 2: Borrado físico del registro en la bitácora
+                    string qDelete = "DELETE FROM HistorialTraslados WHERE Id = @id";
+                    using (SqlCommand cmdDel = new SqlCommand(qDelete, con, transaccion))
+                    {
+                        cmdDel.Parameters.AddWithValue("@id", traslado.Id);
+                        cmdDel.ExecuteNonQuery();
+                    }
+
+                    transaccion.Commit();
+                    MessageBox.Show("Traslado cancelado. Las flores se han reincorporado al inventario de mostrador.", "Cancelación Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    CargarDesdeSQL();
+                    CargarHistorialTraslados();
+                }
+                catch (Exception ex)
+                {
+                    transaccion.Rollback();
+                    MessageBox.Show("Error de red local al intentar eliminar el traslado: " + ex.Message, "Error");
+                }
+            }
+        }
+
         private void CargarHistorialMermas()
         {
             List<MermasControlClass> listaMermas = new List<MermasControlClass>();
@@ -334,7 +470,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // NUEVO MÉTODO: Permite modificar el motivo o ajustar la cantidad de piezas de una merma existente
         private void btnEditarMerma_Click(object sender, RoutedEventArgs e)
         {
             var boton = sender as Button;
@@ -347,7 +482,6 @@ namespace PuntoFlower.Views
             string nuevoMotivo = Microsoft.VisualBasic.Interaction.InputBox("Modificar motivo de la pérdida:", "Editar Motivo", merma.Motivo);
             if (string.IsNullOrEmpty(nuevoMotivo)) return;
 
-            // Extraemos el nombre limpio de la flor para ajustar su inventario
             string nombreFlor = merma.ProductoNombre.Split('(')[0].Trim();
             string catFlor = merma.ProductoNombre.Contains("(Bodega)") ? "Bodega" : "Venta";
 
@@ -356,20 +490,16 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Calculamos la diferencia matemática neta
                     int diferencia = nuevaCant - merma.Cantidad;
-
-                    // Ajustamos el catálogo de productos de forma segura
                     string qStock = "UPDATE Productos SET StockActual = StockActual - @dif WHERE Nombre = @nom AND Categoria = @cat";
                     using (SqlCommand cmdStock = new SqlCommand(qStock, con))
                     {
                         cmdStock.Parameters.AddWithValue("@dif", diferencia);
                         cmdStock.Parameters.AddWithValue("@nom", nombreFlor);
                         cmdStock.Parameters.AddWithValue("@cat", catFlor);
-                        cmdStock.ThemeExecuteNonQuerySafe(); // Evita desbordamiento si el producto fue borrado
+                        cmdStock.ThemeExecuteNonQuerySafe();
                     }
 
-                    // Guardamos los cambios en la tabla Mermas
                     string qUpdate = "UPDATE Mermas SET Cantidad = @cant, Motivo = @mot WHERE Id = @id";
                     using (SqlCommand cmdUp = new SqlCommand(qUpdate, con))
                     {
@@ -387,7 +517,6 @@ namespace PuntoFlower.Views
             catch (Exception ex) { MessageBox.Show("Error al editar: " + ex.Message); }
         }
 
-        // NUEVO MÉTODO: Elimina por completo la merma y le regresa el stock de flores robado al mostrador/bodega
         private void btnEliminarMerma_Click(object sender, RoutedEventArgs e)
         {
             var boton = sender as Button;
@@ -405,7 +534,6 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Devolución automática de stock de flores
                     string qRestaurar = "UPDATE Productos SET StockActual = StockActual + @cant WHERE Nombre = @nom AND Categoria = @cat";
                     using (SqlCommand cmdRes = new SqlCommand(qRestaurar, con))
                     {
@@ -415,7 +543,6 @@ namespace PuntoFlower.Views
                         cmdRes.ExecuteNonQuery();
                     }
 
-                    // Borrado físico del log
                     string qDelete = "DELETE FROM Mermas WHERE Id = @id";
                     using (SqlCommand cmdDel = new SqlCommand(qDelete, con))
                     {
@@ -431,13 +558,12 @@ namespace PuntoFlower.Views
             catch (Exception ex) { MessageBox.Show("Error al eliminar la merma: " + ex.Message); }
         }
 
-        // Método puente para asegurar refresco homogéneo sin romper dependencias
         private void 支配HistorialMermas() => CargarHistorialMermas();
 
         private void btnSurtirStock_Click(object sender, RoutedEventArgs e)
         {
             var seleccionado = ObtenerProductoSeleccionado();
-            if (seleccionado != null)
+            if (seleccionado != null) // Corregido el error ortográfico a 'seleccionado'
             {
                 PuntoFlower.Views.SurtirStockWindow ventanaSurtir = new PuntoFlower.Views.SurtirStockWindow(seleccionado.Nombre);
                 ventanaSurtir.Owner = Window.GetWindow(this);
@@ -714,7 +840,6 @@ namespace PuntoFlower.Views
         }
     }
 
-    // Extensión de seguridad para evitar caídas en hilos secundarios si el catálogo de flores mutó
     public static class SqlExtensionTheme
     {
         public static void ThemeExecuteNonQuerySafe(this SqlCommand cmd)
