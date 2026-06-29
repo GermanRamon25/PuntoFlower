@@ -6,6 +6,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using PuntoFlower.Data;
+using PuntoFlower.Models;
 using Microsoft.Win32;
 
 // Alias para evitar conflictos entre iTextSharp y WPF
@@ -19,11 +20,13 @@ namespace PuntoFlower.Views
 {
     public partial class ReportsView : UserControl
     {
-        // Estructura auxiliar con propiedades públicas para asegurar que el DataGrid de WPF renderice los datos siempre
+        // Estructura auxiliar con propiedades públicas optimizada y robustecida
         public class ReportRow
         {
             public string Fecha { get; set; }
             public string Concepto { get; set; }
+            public string MetodoPago { get; set; }     // Para desglosar el método de pago en la UI/PDF
+            public string Referencia { get; set; }     // Para desglosar el número de referencia en transferencias
             public string Monto { get; set; }
             public string Extra { get; set; } // Para cantidad o motivo en mermas/top
         }
@@ -59,8 +62,8 @@ namespace PuntoFlower.Views
 
             using (SqlConnection con = db.OpenConnection())
             {
-                // 1. Obtener Ventas (Ingresos)
-                string qVentas = "SELECT Fecha, ProductoNombre, Total FROM Ventas WHERE Fecha BETWEEN @i AND @f ORDER BY Fecha DESC";
+                // 1. Obtener Ventas (Ingresos y Salidas) - MODIFICADO CON SEPARACIÓN SEGÚN MONTO RECIBIDO
+                string qVentas = "SELECT Fecha, ProductoNombre, Total, MetodoPago, CuentaTransferencia, NumeroReferencia, MontoRecibido FROM Ventas WHERE Fecha BETWEEN @i AND @f ORDER BY Fecha DESC";
                 SqlCommand cmdV = new SqlCommand(qVentas, con);
                 cmdV.Parameters.AddWithValue("@i", inicio);
                 cmdV.Parameters.AddWithValue("@f", fin);
@@ -69,14 +72,40 @@ namespace PuntoFlower.Views
                     while (r.Read())
                     {
                         decimal m = (decimal)r["Total"];
-                        totalVentas += m;
+                        decimal recibido = r["MontoRecibido"] != DBNull.Value ? Convert.ToDecimal(r["MontoRecibido"]) : 0;
                         DateTime fMov = (DateTime)r["Fecha"];
-                        listaIngresos.Add(new ReportRow
+
+                        string metodo = r["MetodoPago"]?.ToString() ?? "Efectivo";
+                        string cuenta = r["CuentaTransferencia"] != DBNull.Value ? r["CuentaTransferencia"].ToString().Trim() : "";
+                        string referencia = r["NumeroReferencia"] != DBNull.Value ? r["NumeroReferencia"].ToString().Trim() : "";
+
+                        string metodoVisual = metodo + (string.IsNullOrEmpty(cuenta) ? "" : $" ({cuenta})");
+                        string referenciaVisual = string.IsNullOrEmpty(referencia) ? "—" : referencia;
+
+                        // Si el monto recibido es negativo, significa que es una SALIDA de efectivo (Igual que en tu corte de caja)
+                        if (recibido < 0)
                         {
-                            Fecha = fMov.ToString("dd/MM/yyyy"),
-                            Concepto = r["ProductoNombre"].ToString(),
-                            Monto = m.ToString("C")
-                        });
+                            // Lo añadimos a la lista de Egresos de Tienda (Empleado) para no mezclarlo con las ventas puras
+                            listaEgresosEmpleado.Add(new ReportRow
+                            {
+                                Fecha = fMov.ToString("dd/MM/yyyy"),
+                                Concepto = $"[SALIDA CAJA] {r["ProductoNombre"]}",
+                                Monto = Math.Abs(m).ToString("C") // Se muestra positivo para sumarse visualmente en la tabla de egresos
+                            });
+                        }
+                        else
+                        {
+                            // Si es positivo, es una venta normal (Ingreso Puro)
+                            totalVentas += m;
+                            listaIngresos.Add(new ReportRow
+                            {
+                                Fecha = fMov.ToString("dd/MM/yyyy HH:mm"),
+                                Concepto = r["ProductoNombre"].ToString(),
+                                MetodoPago = metodoVisual,
+                                Referencia = referenciaVisual,
+                                Monto = m.ToString("C")
+                            });
+                        }
                     }
                 }
 
@@ -195,17 +224,20 @@ namespace PuntoFlower.Views
                 }
             }
 
+            // Recalcular la tarjeta de gastos para reflejar tanto los servicios como las salidas especiales
+            decimal totalSalidasCajaEfectivo = listaEgresosEmpleado.Sum(x => decimal.Parse(x.Monto, System.Globalization.NumberStyles.Currency));
+
             // Asignar totales numéricos fijos a las tarjetas
             txtRepVentas.Text = totalVentas.ToString("C");
-            txtRepGastos.Text = totalGastosServicios.ToString("C");
+            txtRepGastos.Text = totalSalidasCajaEfectivo.ToString("C"); // Muestra la suma total de gastos + salidas separadas
             txtRepGastosAdmin.Text = totalSurtidoProveedores.ToString("C");
-            txtRepUtilidad.Text = (totalVentas - totalGastosServicios - gastosAdminEfectivo).ToString("C");
+            txtRepUtilidad.Text = (totalVentas - totalSalidasCajaEfectivo - gastosAdminEfectivo).ToString("C");
 
             // Inyectar las listas limpias a los DataGrid de la UI
             dgIngresos.ItemsSource = listaIngresos;
             dgEgresosEmpleado.ItemsSource = listaEgresosEmpleado;
 
-            // Asignación de egresos de administración con su respectivo forzado de ordenación por fecha descendente
+            // Asignación de egresos de administración
             dgEgresosAdmin.ItemsSource = listaEgresosAdmin;
             dgEgresosAdmin.Items.SortDescriptions.Clear();
             dgEgresosAdmin.Items.SortDescriptions.Add(new System.ComponentModel.SortDescription("Fecha", System.ComponentModel.ListSortDirection.Descending));
@@ -225,7 +257,7 @@ namespace PuntoFlower.Views
 
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "PDF Files (*.pdf)|*.pdf";
-            sfd.FileName = $"Reporte_PuntoFlower_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+            sfd.FileName = $"Reporte_General_PuntoFlower_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
 
             if (sfd.ShowDialog() == true)
             {
@@ -272,39 +304,43 @@ namespace PuntoFlower.Views
                     PdfPTable tablaResumen = new PdfPTable(4);
                     tablaResumen.WidthPercentage = 100;
                     tablaResumen.AddCell(new PdfPCell(new Phrase("(+) VENTAS BRUTAS: \n" + vTot.ToString("C"), fontCuerpo)) { BackgroundColor = new BaseColor(234, 250, 241), Padding = 5 });
-                    tablaResumen.AddCell(new PdfPCell(new Phrase("(-) GASTOS SERVICIOS: \n" + gServ.ToString("C"), fontCuerpo)) { BackgroundColor = new BaseColor(253, 237, 236), Padding = 5 });
+                    tablaResumen.AddCell(new PdfPCell(new Phrase("(-) GASTOS Y SALIDAS: \n" + gServ.ToString("C"), fontCuerpo)) { BackgroundColor = new BaseColor(253, 237, 236), Padding = 5 });
                     tablaResumen.AddCell(new PdfPCell(new Phrase("(-) SURTIDO PROV. / ADMIN: \n" + sProv.ToString("C"), fontCuerpo)) { BackgroundColor = new BaseColor(252, 243, 207), Padding = 5 });
                     tablaResumen.AddCell(new PdfPCell(new Phrase("(=) UTILIDAD DISP.: \n" + (vTot - gServ - adminEfectivoPdf).ToString("C"), fontCuerpo)) { BackgroundColor = new BaseColor(235, 245, 251), Padding = 5 });
                     doc.Add(tablaResumen);
                     doc.Add(new iTextParagraph(" "));
 
                     // 1. CUADRO PDF: INGRESOS
-                    doc.Add(new iTextParagraph("DETALLE DE INGRESOS (VENTAS MOSTRADOR)", fontSub));
+                    doc.Add(new iTextParagraph("DETALLE DE INGRESOS (VENTAS MOSTRADOR CON MÉTODO DE PAGO)", fontSub));
                     doc.Add(new iTextParagraph(" "));
-                    PdfPTable tIngresos = new PdfPTable(3);
+                    PdfPTable tIngresos = new PdfPTable(5);
                     tIngresos.WidthPercentage = 100;
-                    tIngresos.SetWidths(new float[] { 20f, 60f, 20f });
-                    string[] headsI = { "Fecha", "Concepto / Producto", "Monto" };
+                    tIngresos.SetWidths(new float[] { 18f, 37f, 18f, 12f, 15f });
+
+                    string[] headsI = { "Fecha / Hora", "Concepto / Producto", "Método Pago", "Referencia", "Monto" };
                     foreach (string h in headsI) tIngresos.AddCell(new PdfPCell(new Phrase(h, fontTablaHead)) { BackgroundColor = new BaseColor(31, 97, 141), HorizontalAlignment = Element.ALIGN_CENTER });
+
                     if (dgIngresos.ItemsSource != null)
                     {
                         foreach (ReportRow item in dgIngresos.ItemsSource)
                         {
-                            tIngresos.AddCell(new Phrase(item.Fecha, fontCuerpo));
-                            tIngresos.AddCell(new Phrase(item.Concepto, fontCuerpo));
-                            tIngresos.AddCell(new Phrase(item.Monto, fontCuerpo));
+                            tIngresos.AddCell(new PdfPCell(new Phrase(item.Fecha, fontCuerpo)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                            tIngresos.AddCell(new PdfPCell(new Phrase(item.Concepto, fontCuerpo)));
+                            tIngresos.AddCell(new PdfPCell(new Phrase(item.MetodoPago, fontCuerpo)));
+                            tIngresos.AddCell(new PdfPCell(new Phrase(item.Referencia, fontCuerpo)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                            tIngresos.AddCell(new PdfPCell(new Phrase(item.Monto, fontCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT });
                         }
                     }
                     doc.Add(tIngresos);
                     doc.Add(new iTextParagraph(" "));
 
-                    // 2. CUADRO PDF: EGRESOS TIENDA (EMPLEADO)
-                    doc.Add(new iTextParagraph("DETALLE DE EGRESOS TIENDA (PAGO SERVICIOS / LOCAL)", fontSub));
+                    // 2. CUADRO PDF: EGRESOS TIENDA (EMPLEADO Y SALIDAS DE EFECTIVO)
+                    doc.Add(new iTextParagraph("DETALLE DE EGRESOS TIENDA Y SALIDAS DE EFECTIVO", fontSub));
                     doc.Add(new iTextParagraph(" "));
                     PdfPTable tEgresosEmp = new PdfPTable(3);
                     tEgresosEmp.WidthPercentage = 100;
                     tEgresosEmp.SetWidths(new float[] { 20f, 60f, 20f });
-                    string[] headsEE = { "Fecha", "Servicio / Concepto", "Monto" };
+                    string[] headsEE = { "Fecha", "Servicio / Concepto de Salida", "Monto" };
                     foreach (string h in headsEE) tEgresosEmp.AddCell(new PdfPCell(new Phrase(h, fontTablaHead)) { BackgroundColor = new BaseColor(146, 43, 33), HorizontalAlignment = Element.ALIGN_CENTER });
                     if (dgEgresosEmpleado.ItemsSource != null)
                     {
@@ -312,7 +348,7 @@ namespace PuntoFlower.Views
                         {
                             tEgresosEmp.AddCell(new Phrase(item.Fecha, fontCuerpo));
                             tEgresosEmp.AddCell(new Phrase(item.Concepto, fontCuerpo));
-                            tEgresosEmp.AddCell(new Phrase(item.Monto, fontCuerpo));
+                            tEgresosEmp.AddCell(new PdfPCell(new Phrase(item.Monto, fontCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT });
                         }
                     }
                     doc.Add(tEgresosEmp);
@@ -332,7 +368,7 @@ namespace PuntoFlower.Views
                         {
                             tEgresosAdm.AddCell(new Phrase(item.Fecha, fontCuerpo));
                             tEgresosAdm.AddCell(new Phrase(item.Concepto, fontCuerpo));
-                            tEgresosAdm.AddCell(new Phrase(item.Monto, fontCuerpo));
+                            tEgresosAdm.AddCell(new PdfPCell(new Phrase(item.Monto, fontCuerpo)) { HorizontalAlignment = Element.ALIGN_RIGHT });
                         }
                     }
                     doc.Add(tEgresosAdm);
