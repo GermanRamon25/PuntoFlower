@@ -77,6 +77,21 @@ namespace PuntoFlower.Views
         private int idPedidoParaAbonar = 0;
         private bool esCobroDeAbonoExistente = false;
 
+        // --- NUEVAS VARIABLES DE IMPRESIÓN INTELIGENTE ---
+        private bool imprimirCliente = false;
+        private bool imprimirAnticipo = false;
+        private bool imprimirProduccion = false;
+        private bool ticketEsPedido = false;
+
+        private string ticketCliente = "";
+        private string ticketFechaEntrega = "";
+        private string ticketDireccion = "";
+        private decimal ticketAnticipoAcumulado = 0;
+        private decimal ticketSaldoPendiente = 0;
+        private decimal ticketPrecioTotalPedido = 0;
+        private string ticketDetallesPedido = "";
+        // -------------------------------------------------
+
         public SalesView()
         {
             InitializeComponent();
@@ -375,7 +390,6 @@ namespace PuntoFlower.Views
             if (!int.TryParse(txtCantFlorRamo.Text, out int cant) || cant <= 0) return;
             if (floresAgregadas + cant > capacityRamo) { MessageBox.Show("Superas la capacidad del ramo.", "Límite Ramo"); return; }
 
-            // Si es un apartado a futuro, permitimos armar el ramo de forma libre sin bloquear por stock inmediato de hoy
             if (chkEsPedidoApartado.IsChecked == false)
             {
                 int stockReal = ObtenerStockFisicoReal(flor.Nombre);
@@ -708,6 +722,96 @@ namespace PuntoFlower.Views
                                 detVisualConcat += $" | Con Envío Rápido de: {fExt:C}";
                             }
 
+                            // ====================================================================
+                            // 1. CAPTURA INTELIGENTE DE DATOS PARA TICKETS (ANTES DE LA BASE DE DATOS)
+                            // ====================================================================
+                            imprimirCliente = false;
+                            imprimirAnticipo = false;
+                            imprimirProduccion = false;
+                            ticketEsPedido = (chkEsPedidoApartado.IsChecked == true || esCobroDeAbonoExistente);
+
+                            if (!esCobroDeAbonoExistente && chkEsPedidoApartado.IsChecked == false)
+                            {
+                                // VENTA DIRECTA INMEDIATA
+                                imprimirCliente = true;
+                                imprimirProduccion = true;
+
+                                ticketCliente = txtClientePedidoCaja.Text.Trim();
+                                if (string.IsNullOrEmpty(ticketCliente)) ticketCliente = "Público en General";
+                                ticketFechaEntrega = DateTime.Now.ToString("dd/MM/yyyy hh:mm tt");
+                                ticketDireccion = "Mostrador";
+                                ticketDetallesPedido = detProdNombres + " (" + detVisualConcat + ")";
+                                ticketPrecioTotalPedido = totalNetoArreglo;
+                                ticketAnticipoAcumulado = totalNetoArreglo;
+                                ticketSaldoPendiente = 0;
+                            }
+                            else if (chkEsPedidoApartado.IsChecked == true)
+                            {
+                                // AGENDA DESDE LA CAJA (Creando o enlazando desde ComboBox)
+                                decimal abonoHoy = pagoRecibido - cambioFinal;
+                                decimal saldoFinalCalculado = totalNetoArreglo - abonoHoy;
+                                if (saldoFinalCalculado < 0) saldoFinalCalculado = 0;
+
+                                ticketPrecioTotalPedido = totalNetoArreglo;
+                                ticketAnticipoAcumulado = abonoHoy;
+                                ticketSaldoPendiente = saldoFinalCalculado;
+
+                                ticketCliente = txtClientePedidoCaja.Text.Trim();
+                                ticketFechaEntrega = (dpFechaPedidoCaja.SelectedDate.HasValue ? dpFechaPedidoCaja.SelectedDate.Value : DateTime.Now.AddDays(1)).ToString("dd/MM/yyyy hh:mm tt");
+                                ticketDireccion = "Recoge en Tienda"; // Default visual al agendar rápido
+                                ticketDetallesPedido = detProdNombres + " (" + detVisualConcat + ")";
+
+                                if (ticketSaldoPendiente > 0)
+                                {
+                                    imprimirAnticipo = true;
+                                    imprimirProduccion = true;
+                                }
+                                else
+                                {
+                                    imprimirCliente = true;
+                                    imprimirProduccion = true; // Lo pagó de golpe, pero se debe armar después
+                                }
+                            }
+                            else if (esCobroDeAbonoExistente)
+                            {
+                                // COBRAR ABONO/LIQUIDACIÓN DESDE EL DATAGRID
+                                using (SqlCommand cmdGet = new SqlCommand("SELECT ClienteNombre, FechaEntrega, Direccion, Descripcion, PrecioTotal, Anticipo, SaldoPendiente FROM Pedidos WHERE Id = @id", con, tra))
+                                {
+                                    cmdGet.Parameters.AddWithValue("@id", idPedidoParaAbonar);
+                                    using (SqlDataReader r = cmdGet.ExecuteReader())
+                                    {
+                                        if (r.Read())
+                                        {
+                                            ticketCliente = r["ClienteNombre"].ToString();
+                                            ticketFechaEntrega = Convert.ToDateTime(r["FechaEntrega"]).ToString("dd/MM/yyyy hh:mm tt");
+                                            ticketDireccion = r["Direccion"].ToString();
+                                            ticketDetallesPedido = r["Descripcion"].ToString();
+
+                                            ticketPrecioTotalPedido = r["PrecioTotal"] != DBNull.Value ? Convert.ToDecimal(r["PrecioTotal"]) : 0;
+                                            decimal saldoHistorico = r["SaldoPendiente"] != DBNull.Value ? Convert.ToDecimal(r["SaldoPendiente"]) : 0;
+
+                                            // La nota cobró "totalNetoArreglo" (que para el abono equivale a la cantidad registrada en caja)
+                                            decimal saldoFinalCalculado = saldoHistorico - totalNetoArreglo;
+                                            if (saldoFinalCalculado < 0) saldoFinalCalculado = 0;
+
+                                            ticketSaldoPendiente = saldoFinalCalculado;
+                                            ticketAnticipoAcumulado = ticketPrecioTotalPedido - ticketSaldoPendiente;
+                                        }
+                                    }
+                                }
+
+                                if (ticketSaldoPendiente > 0)
+                                {
+                                    imprimirAnticipo = true;
+                                    imprimirProduccion = true; // Sigue debiendo, las muchachas reciben orden de armado aquí
+                                }
+                                else
+                                {
+                                    imprimirCliente = true;    // Ya liquidó, sacamos el ticket final y listo
+                                }
+                            }
+                            // ====================================================================
+
                             int? firstProductoIdDB = null;
                             int totalPiezasContadas = 1;
 
@@ -819,11 +923,11 @@ namespace PuntoFlower.Views
                                 string estadoFinalCalculado = (saldoRestanteCalculado <= 0) ? "Entregado" : "Pendiente";
 
                                 string queryActualizarExistente = @"UPDATE Pedidos 
-                                                                    SET Descripcion = @des,
-                                                                        PrecioTotal = @tot,
-                                                                        SaldoPendiente = CASE WHEN @saldoCalc <= 0 THEN 0 ELSE @saldoCalc END,
-                                                                        Estado = @estFinal
-                                                                    WHERE Id = @id";
+                                                            SET Descripcion = @des,
+                                                                PrecioTotal = @tot,
+                                                                SaldoPendiente = CASE WHEN @saldoCalc <= 0 THEN 0 ELSE @saldoCalc END,
+                                                                Estado = @estFinal
+                                                            WHERE Id = @id";
 
                                 using (SqlCommand cmdUp = new SqlCommand(queryActualizarExistente, con, tra))
                                 {
@@ -990,11 +1094,28 @@ namespace PuntoFlower.Views
         {
             try
             {
-                PrintDocument pd = new PrintDocument();
-                pd.PrintPage += new PrintPageEventHandler(DrawTicketPage);
-                pd.Print();
+                if (imprimirCliente)
+                {
+                    PrintDocument pdCliente = new PrintDocument();
+                    pdCliente.PrintPage += new PrintPageEventHandler(DrawTicketPage);
+                    pdCliente.Print();
+                }
+
+                if (imprimirAnticipo)
+                {
+                    PrintDocument pdAnticipo = new PrintDocument();
+                    pdAnticipo.PrintPage += new PrintPageEventHandler(DrawTicketAnticipoPage);
+                    pdAnticipo.Print();
+                }
+
+                if (imprimirProduccion)
+                {
+                    PrintDocument pdProduccion = new PrintDocument();
+                    pdProduccion.PrintPage += new PrintPageEventHandler(DrawTicketEmpleadaPage);
+                    pdProduccion.Print();
+                }
             }
-            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Error al imprimir: " + ex.Message); }
         }
 
         private void DrawTicketPage(object sender, PrintPageEventArgs e)
@@ -1009,10 +1130,8 @@ namespace PuntoFlower.Views
             DgBrush brush = new DgBrush(DgColor.Black);
 
             float y = 10;
-            g.DrawString("🌸 PUNTO FLOWER 🌸", fontTitulo, brush, new DgRectangle(0, y, 220, 20), new DgStringFormat { Alignment = DgAlignment.Center });
-            y += 20;
-            g.DrawString(sucursal, fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center });
-            y += 20;
+            g.DrawString("🌸 PUNTO FLOWER 🌸", fontTitulo, brush, new DgRectangle(0, y, 220, 20), new DgStringFormat { Alignment = DgAlignment.Center }); y += 20;
+            g.DrawString(sucursal, fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center }); y += 20;
 
             g.DrawString($"Fecha: {DateTime.Now:g}", fontNormal, brush, 5, y); y += 15;
             g.DrawString($"Atendió: {Session.UsuarioActual}", fontNormal, brush, 5, y); y += 15;
@@ -1020,6 +1139,8 @@ namespace PuntoFlower.Views
             var itemPago = cbMetodoPago.SelectedItem as ComboBoxItem;
             string metodo = itemPago != null ? itemPago.Content.ToString() : "Efectivo";
             g.DrawString($"Método Pago: {metodo}", fontNormal, brush, 5, y); y += 15;
+
+            if (ticketEsPedido) { g.DrawString($"Cliente: {ticketCliente}", fontBold, brush, 5, y); y += 15; }
 
             if (!string.IsNullOrEmpty(ticketReferencia)) { g.DrawString($"Ref/Dep: {ticketReferencia}", fontBold, brush, 5, y); y += 15; }
 
@@ -1032,11 +1153,101 @@ namespace PuntoFlower.Views
             }
 
             g.DrawString("==================================", fontNormal, brush, 5, y); y += 15;
+
+            // Mostrar el desglose exacto de pagos SOLO si es una liquidación/pedido
+            if (ticketEsPedido)
+            {
+                g.DrawString("--- DESGLOSE DE PAGO (PEDIDO) ---", fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center }); y += 15;
+                g.DrawString($"COSTO TOTAL: {ticketPrecioTotalPedido:C}", fontBold, brush, 5, y); y += 15;
+                g.DrawString($"ANTICIPO / ABONOS: {ticketAnticipoAcumulado:C}", fontNormal, brush, 5, y); y += 15;
+                g.DrawString($"RESTA / SALDO: {ticketSaldoPendiente:C}", fontBold, brush, 5, y); y += 20;
+            }
+
             g.DrawString($"TOTAL EN OPERACIÓN: {ticketTotal:C}", fontBold, brush, 5, y); y += 15;
             g.DrawString($"EFECTIVO DISPUESTO: {ticketPagado:C}", fontNormal, brush, 5, y); y += 15;
             g.DrawString($"CAMBIO ENTREGADO: {ticketCambio:C}", fontBold, brush, 5, y); y += 25;
 
             g.DrawString("¡Gracias por su preferencia!", fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center });
+        }
+
+        private void DrawTicketAnticipoPage(object sender, PrintPageEventArgs e)
+        {
+            ConexionDB db = new ConexionDB();
+            string sucursal = db.ObtenerNombreSucursal();
+            DgGraphics g = e.Graphics;
+
+            DgFont fontTitulo = new DgFont("Arial", 11, DgStyle.Bold);
+            DgFont fontBold = new DgFont("Arial", 9, DgStyle.Bold);
+            DgFont fontNormal = new DgFont("Arial", 9, DgStyle.Regular);
+            DgBrush brush = new DgBrush(DgColor.Black);
+
+            float y = 10;
+            g.DrawString("🌸 PUNTO FLOWER 🌸", fontTitulo, brush, new DgRectangle(0, y, 220, 20), new DgStringFormat { Alignment = DgAlignment.Center }); y += 20;
+            g.DrawString(sucursal, fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center }); y += 25;
+
+            g.DrawString("--- COMPROBANTE DE ANTICIPO ---", fontTitulo, brush, new DgRectangle(0, y, 220, 20), new DgStringFormat { Alignment = DgAlignment.Center }); y += 25;
+
+            g.DrawString($"Fecha: {DateTime.Now:g}", fontNormal, brush, 5, y); y += 15;
+            g.DrawString($"Atendió: {Session.UsuarioActual}", fontNormal, brush, 5, y); y += 20;
+            g.DrawString($"Cliente: {ticketCliente}", fontBold, brush, 5, y); y += 15;
+            g.DrawString($"Entregar el: {ticketFechaEntrega}", fontBold, brush, 5, y); y += 20;
+
+            g.DrawString("==================================", fontNormal, brush, 5, y); y += 15;
+
+            // MOSTRAR LOS PRODUCTOS EN EL COMPROBANTE DE ANTICIPO
+            foreach (var item in productosParaImprimir)
+            {
+                g.DrawString(item.ProductoNombre, fontBold, brush, 5, y); y += 13;
+                g.DrawString($"   {item.DetalleVisual}", fontNormal, brush, 5, y); y += 13;
+            }
+            g.DrawString("==================================", fontNormal, brush, 5, y); y += 15;
+
+            g.DrawString($"COSTO TOTAL: {ticketPrecioTotalPedido:C}", fontBold, brush, 5, y); y += 15;
+            g.DrawString($"ANTICIPO DEJADO HOY: {ticketAnticipoAcumulado:C}", fontNormal, brush, 5, y); y += 15;
+            g.DrawString($"RESTA POR LIQUIDAR: {ticketSaldoPendiente:C}", fontBold, brush, 5, y); y += 15;
+            g.DrawString("==================================", fontNormal, brush, 5, y); y += 25;
+
+            DgRectangle rectAviso = new DgRectangle(5, y, 210, 60);
+            g.DrawString("Conserve este ticket como comprobante para recoger y liquidar su pedido.", fontNormal, brush, rectAviso);
+        }
+
+        private void DrawTicketEmpleadaPage(object sender, PrintPageEventArgs e)
+        {
+            DgGraphics g = e.Graphics;
+            DgFont fontTitulo = new DgFont("Arial", 12, DgStyle.Bold);
+            DgFont fontBold = new DgFont("Arial", 9, DgStyle.Bold);
+            DgFont fontNormal = new DgFont("Arial", 9, DgStyle.Regular);
+            DgBrush brush = new DgBrush(DgColor.Black);
+
+            float y = 10;
+            g.DrawString("--- TICKET DE PRODUCCIÓN ---", fontTitulo, brush, new DgRectangle(0, y, 220, 20), new DgStringFormat { Alignment = DgAlignment.Center }); y += 25;
+
+            g.DrawString("FECHA Y HORA DE ENTREGA:", fontBold, brush, 5, y); y += 15;
+            g.DrawString(ticketFechaEntrega, fontNormal, brush, 5, y); y += 20;
+
+            g.DrawString("CLIENTE:", fontBold, brush, 5, y); y += 15;
+            g.DrawString(ticketCliente, fontNormal, brush, 5, y); y += 20;
+
+            g.DrawString("DETALLES DEL PEDIDO:", fontBold, brush, 5, y); y += 15;
+            DgRectangle rectDetalle = new DgRectangle(5, y, 210, 80);
+            g.DrawString(ticketDetallesPedido, fontNormal, brush, rectDetalle); y += 85;
+
+            g.DrawString("TIPO DE ENTREGA:", fontBold, brush, 5, y); y += 15;
+            string tipoEntrega = string.IsNullOrWhiteSpace(ticketDireccion) || ticketDireccion.Contains("Recoge en Tienda") || ticketDireccion.Contains("Mostrador") ? "RECOGE EN TIENDA" : "ENVÍO A DOMICILIO";
+            g.DrawString(tipoEntrega, fontNormal, brush, 5, y); y += 15;
+
+            if (tipoEntrega == "ENVÍO A DOMICILIO")
+            {
+                DgRectangle rectDir = new DgRectangle(5, y, 210, 60);
+                g.DrawString($"Dir: {ticketDireccion}", fontNormal, brush, rectDir); y += 65;
+            }
+            else { y += 10; }
+
+            g.DrawString("--- ESTADO DE PAGO ---", fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center }); y += 15;
+            g.DrawString($"Resta por Cobrar: {ticketSaldoPendiente:C}", fontBold, brush, 5, y); y += 15;
+
+            if (ticketSaldoPendiente <= 0) { g.DrawString("¡PEDIDO PAGADO EN SU TOTALIDAD!", fontBold, brush, 5, y); y += 15; }
+            y += 20; g.DrawString("----------------------------", fontNormal, brush, 5, y); y += 15;
         }
 
         private void LimpiarConfiguradorRamo()
