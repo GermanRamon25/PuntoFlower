@@ -13,8 +13,45 @@ namespace PuntoFlower.Views
         public DashboardView()
         {
             InitializeComponent();
+            VerificarAlertaMensualidad(); // Evaluamos la alerta de licencia
             CargarEstadisticasReales();
         }
+
+        // ========================================================
+        // NUEVO: LÓGICA DE ALERTA DE MENSUALIDAD (DÍA 1 AL 6)
+        // ========================================================
+        private void VerificarAlertaMensualidad()
+        {
+            int diaActual = DateTime.Now.Day;
+
+            // Evaluamos si estamos en los primeros 6 días del mes
+            if (diaActual >= 1 && diaActual <= 6)
+            {
+                BannerMensualidad.Visibility = Visibility.Visible;
+
+                if (diaActual == 6)
+                {
+                    // El mero día del pago, lo ponemos en Rojo Peligro
+                    BannerMensualidad.Background = System.Windows.Media.Brushes.DarkRed;
+                    txtMensajeMensualidad.Text = "⚠️ AVISO IMPORTANTE: Hoy es día 6, corte mensual del sistema. Favor de contemplar el pago de la licencia.";
+                }
+                else
+                {
+                    // Días previos (del 1 al 5), lo mantenemos en Naranja Preventivo
+                    int diasFaltantes = 6 - diaActual;
+                    string textoDias = diasFaltantes == 1 ? "1 día" : $"{diasFaltantes} días";
+
+                    BannerMensualidad.Background = System.Windows.Media.Brushes.DarkOrange;
+                    txtMensajeMensualidad.Text = $"⏳ Recordatorio: Faltan {textoDias} para el corte mensual del sistema (Día 6).";
+                }
+            }
+            else
+            {
+                // Del día 7 al 31, el banner se esconde
+                BannerMensualidad.Visibility = Visibility.Collapsed;
+            }
+        }
+        // ========================================================
 
         private void CargarEstadisticasReales()
         {
@@ -33,8 +70,7 @@ namespace PuntoFlower.Views
                     decimal totalVentas = Convert.ToDecimal(cmdVentas.ExecuteScalar());
                     txtVentasMes.Text = totalVentas.ToString("C");
 
-                    // 2. INVERSIÓN EN STOCK Y GASTOS GENERALES (¡AQUÍ SE INYECTÓ LA MEJORA!)
-                    // Sumamos el surtido de DetalleCompras del mes + todos los gastos de administración y tienda de la tabla Gastos del mes
+                    // 2. INVERSIÓN EN STOCK Y GASTOS GENERALES
                     string qComprasYGastos = @"
                         SELECT 
                             (SELECT ISNULL(SUM(Cantidad * PrecioCosto), 0) FROM DetalleCompras 

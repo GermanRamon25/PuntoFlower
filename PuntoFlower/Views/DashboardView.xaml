@@ -8,6 +8,24 @@
     <Grid Background="Transparent">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="20">
+
+                <!-- BANNER DE ALERTA DE MENSUALIDAD (NUEVO) -->
+                <Border x:Name="BannerMensualidad" 
+                        Background="DarkOrange" 
+                        Padding="10" 
+                        Margin="10,0,10,15" 
+                        CornerRadius="8" 
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="txtMensajeMensualidad" 
+                               Text="⏳ Recordatorio: El pago de la mensualidad del sistema es el día 6." 
+                               Foreground="White" 
+                               FontWeight="Bold" 
+                               FontSize="16" 
+                               HorizontalAlignment="Center" 
+                               TextWrapping="Wrap"/>
+                </Border>
+                <!-- ====================================== -->
+
                 <TextBlock Text="Resumen General" FontSize="28" FontWeight="Bold" Foreground="#1E312F" Margin="10,0,0,25"/>
 
                 <UniformGrid Columns="4" Height="140">
