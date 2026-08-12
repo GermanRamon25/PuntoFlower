@@ -84,6 +84,7 @@ namespace PuntoFlower.Views
         private bool ticketEsPedido = false;
 
         private string ticketCliente = "";
+        private string ticketTelefono = ""; // Variable para el ticket de producción
         private string ticketFechaEntrega = "";
         private string ticketDireccion = "";
         private decimal ticketAnticipoAcumulado = 0;
@@ -737,6 +738,7 @@ namespace PuntoFlower.Views
                                 imprimirProduccion = true;
 
                                 ticketCliente = txtClientePedidoCaja.Text.Trim();
+                                ticketTelefono = txtTelPedidoCaja.Text.Trim();
                                 if (string.IsNullOrEmpty(ticketCliente)) ticketCliente = "Público en General";
                                 ticketFechaEntrega = DateTime.Now.ToString("dd/MM/yyyy hh:mm tt");
                                 ticketDireccion = "Mostrador";
@@ -756,10 +758,32 @@ namespace PuntoFlower.Views
                                 ticketAnticipoAcumulado = abonoHoy;
                                 ticketSaldoPendiente = saldoFinalCalculado;
 
-                                ticketCliente = txtClientePedidoCaja.Text.Trim();
-                                ticketFechaEntrega = (dpFechaPedidoCaja.SelectedDate.HasValue ? dpFechaPedidoCaja.SelectedDate.Value : DateTime.Now.AddDays(1)).ToString("dd/MM/yyyy hh:mm tt");
-                                ticketDireccion = "Recoge en Tienda"; // Default visual al agendar rápido
-                                ticketDetallesPedido = detProdNombres + " (" + detVisualConcat + ")";
+                                if (pedidoEnlazadoCombo != null)
+                                {
+                                    using (SqlCommand cmdGet = new SqlCommand("SELECT ClienteNombre, Telefono, FechaEntrega, Direccion, Descripcion FROM Pedidos WHERE Id = @id", con, tra))
+                                    {
+                                        cmdGet.Parameters.AddWithValue("@id", pedidoEnlazadoCombo.Id);
+                                        using (SqlDataReader r = cmdGet.ExecuteReader())
+                                        {
+                                            if (r.Read())
+                                            {
+                                                ticketCliente = r["ClienteNombre"].ToString();
+                                                ticketTelefono = r["Telefono"].ToString();
+                                                ticketFechaEntrega = Convert.ToDateTime(r["FechaEntrega"]).ToString("dd/MM/yyyy hh:mm tt");
+                                                ticketDireccion = r["Direccion"].ToString();
+                                                ticketDetallesPedido = r["Descripcion"].ToString();
+                                            }
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    ticketCliente = txtClientePedidoCaja.Text.Trim();
+                                    ticketTelefono = txtTelPedidoCaja.Text.Trim();
+                                    ticketFechaEntrega = (dpFechaPedidoCaja.SelectedDate.HasValue ? dpFechaPedidoCaja.SelectedDate.Value : DateTime.Now.AddDays(1)).ToString("dd/MM/yyyy hh:mm tt");
+                                    ticketDireccion = "Recoge en Tienda";
+                                    ticketDetallesPedido = detProdNombres + " (" + detVisualConcat + ")";
+                                }
 
                                 if (ticketSaldoPendiente > 0)
                                 {
@@ -775,7 +799,7 @@ namespace PuntoFlower.Views
                             else if (esCobroDeAbonoExistente)
                             {
                                 // COBRAR ABONO/LIQUIDACIÓN DESDE EL DATAGRID
-                                using (SqlCommand cmdGet = new SqlCommand("SELECT ClienteNombre, FechaEntrega, Direccion, Descripcion, PrecioTotal, Anticipo, SaldoPendiente FROM Pedidos WHERE Id = @id", con, tra))
+                                using (SqlCommand cmdGet = new SqlCommand("SELECT ClienteNombre, Telefono, FechaEntrega, Direccion, Descripcion, PrecioTotal, Anticipo, SaldoPendiente FROM Pedidos WHERE Id = @id", con, tra))
                                 {
                                     cmdGet.Parameters.AddWithValue("@id", idPedidoParaAbonar);
                                     using (SqlDataReader r = cmdGet.ExecuteReader())
@@ -783,6 +807,7 @@ namespace PuntoFlower.Views
                                         if (r.Read())
                                         {
                                             ticketCliente = r["ClienteNombre"].ToString();
+                                            ticketTelefono = r["Telefono"].ToString();
                                             ticketFechaEntrega = Convert.ToDateTime(r["FechaEntrega"]).ToString("dd/MM/yyyy hh:mm tt");
                                             ticketDireccion = r["Direccion"].ToString();
                                             ticketDetallesPedido = r["Descripcion"].ToString();
@@ -803,11 +828,11 @@ namespace PuntoFlower.Views
                                 if (ticketSaldoPendiente > 0)
                                 {
                                     imprimirAnticipo = true;
-                                    imprimirProduccion = true; // Sigue debiendo, las muchachas reciben orden de armado aquí
+                                    imprimirProduccion = true;
                                 }
                                 else
                                 {
-                                    imprimirCliente = true;    // Ya liquidó, sacamos el ticket final y listo
+                                    imprimirCliente = true;
                                 }
                             }
                             // ====================================================================
@@ -1226,7 +1251,13 @@ namespace PuntoFlower.Views
             g.DrawString(ticketFechaEntrega, fontNormal, brush, 5, y); y += 20;
 
             g.DrawString("CLIENTE:", fontBold, brush, 5, y); y += 15;
-            g.DrawString(ticketCliente, fontNormal, brush, 5, y); y += 20;
+            g.DrawString(ticketCliente, fontNormal, brush, 5, y); y += 15;
+
+            if (!string.IsNullOrWhiteSpace(ticketTelefono))
+            {
+                g.DrawString($"Tel: {ticketTelefono}", fontNormal, brush, 5, y); y += 15;
+            }
+            y += 5;
 
             g.DrawString("DETALLES DEL PEDIDO:", fontBold, brush, 5, y); y += 15;
             DgRectangle rectDetalle = new DgRectangle(5, y, 210, 80);
