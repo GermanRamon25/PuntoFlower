@@ -47,8 +47,10 @@
                             <StackPanel>
                                 <Grid>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                                        <TextBlock Text="{Binding Estado}" x:Name="txtEstado" Foreground="#3498DB" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding HoraRegistro}" Foreground="#95A5A6" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center" FontStyle="Italic"/>
+                                        <!-- MEJORA #3: Se enlaza al EstadoVisual para indicar si está liquidado sin entregar -->
+                                        <TextBlock Text="{Binding EstadoVisual}" x:Name="txtEstado" Foreground="#3498DB" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
+                                        <!-- MEJORA #4: Se enlaza al SubtituloSuperior para mostrar hora de registro o de entrega real -->
+                                        <TextBlock Text="{Binding SubtituloSuperior}" Foreground="#95A5A6" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center" FontStyle="Italic"/>
                                     </StackPanel>
 
                                     <TextBlock Text="{Binding FechaEntrega, StringFormat={}{0:dd/MM}}" Foreground="#7F8C8D" FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
@@ -60,12 +62,13 @@
                                 <Border BorderThickness="0,1,0,1" BorderBrush="#F2F4F4" Padding="0,8" Margin="0,5">
                                     <Grid>
                                         <StackPanel HorizontalAlignment="Left">
-                                            <TextBlock Text="Anticipo Dejado:" FontSize="10" Foreground="#7F8C8D"/>
+                                            <TextBlock Text="Anticipo / Abonos:" FontSize="10" Foreground="#7F8C8D"/>
                                             <TextBlock Text="{Binding Anticipo, StringFormat={}{0:C}}" FontWeight="SemiBold" Foreground="#27AE60"/>
                                         </StackPanel>
                                         <StackPanel HorizontalAlignment="Right">
                                             <TextBlock Text="Saldo Pendiente:" FontSize="10" Foreground="#7F8C8D" HorizontalAlignment="Right"/>
-                                            <TextBlock Text="{Binding SaldoPendiente, StringFormat={}{0:C}}" FontWeight="Bold" Foreground="#E74C3C" HorizontalAlignment="Right"/>
+                                            <!-- MEJORA #3: El color del saldo cambia dinámicamente (Rojo si debe, Verde si es 0) -->
+                                            <TextBlock Text="{Binding SaldoPendiente, StringFormat={}{0:C}}" FontWeight="Bold" Foreground="{Binding ColorSaldo}" HorizontalAlignment="Right"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -113,15 +116,16 @@
                         </Border>
 
                         <DataTemplate.Triggers>
-                            <DataTrigger Binding="{Binding Estado}" Value="En Preparación">
+                            <!-- Los triggers se asocian al EstadoOriginal para mantener intactos los colores lógicos -->
+                            <DataTrigger Binding="{Binding EstadoOriginal}" Value="En Preparación">
                                 <Setter TargetName="CardBorder" Property="BorderBrush" Value="#F39C12"/>
                                 <Setter TargetName="txtEstado" Property="Foreground" Value="#F39C12"/>
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding Estado}" Value="Listo para Entregar">
+                            <DataTrigger Binding="{Binding EstadoOriginal}" Value="Listo para Entregar">
                                 <Setter TargetName="CardBorder" Property="BorderBrush" Value="#27AE60"/>
                                 <Setter TargetName="txtEstado" Property="Foreground" Value="#27AE60"/>
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding Estado}" Value="Entregado">
+                            <DataTrigger Binding="{Binding EstadoOriginal}" Value="Entregado">
                                 <Setter TargetName="CardBorder" Property="BorderBrush" Value="#7F8C8D"/>
                                 <Setter TargetName="txtEstado" Property="Foreground" Value="#7F8C8D"/>
                             </DataTrigger>

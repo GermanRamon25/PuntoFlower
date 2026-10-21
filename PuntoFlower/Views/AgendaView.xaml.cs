@@ -39,8 +39,9 @@ namespace PuntoFlower.Views
                         condicion = "WHERE Estado = 'Entregado'";
                     }
 
+                    // Se agrega FechaEntregaReal a la consulta para cumplir con la Mejora #4
                     string query = $@"SELECT Id, ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Descripcion, Direccion, 
-                                    NotaTarjeta, Estado, PrecioTotal, Anticipo, SaldoPendiente 
+                                    NotaTarjeta, Estado, PrecioTotal, Anticipo, SaldoPendiente, FechaEntregaReal 
                                     FROM Pedidos 
                                     {condicion} 
                                     ORDER BY FechaEntrega ASC";
@@ -50,9 +51,26 @@ namespace PuntoFlower.Views
                     {
                         while (r.Read())
                         {
-                            string horaReserva = r["FechaRegistro"] != DBNull.Value
-                                ? Convert.ToDateTime(r["FechaRegistro"]).ToString("h:mm tt")
-                                : "12:00 AM";
+                            decimal saldo = r["SaldoPendiente"] != DBNull.Value ? Convert.ToDecimal(r["SaldoPendiente"]) : 0;
+                            string estadoBD = r["Estado"].ToString();
+                            string subtitulo = "";
+
+                            // MEJORA #4: Mostrar fecha/hora exacta de entrega si ya está cerrado
+                            if (estadoBD == "Entregado" && r["FechaEntregaReal"] != DBNull.Value)
+                            {
+                                subtitulo = "Entregado el: " + Convert.ToDateTime(r["FechaEntregaReal"]).ToString("dd/MM/yy h:mm tt");
+                            }
+                            else
+                            {
+                                subtitulo = "Agendado: " + (r["FechaRegistro"] != DBNull.Value ? Convert.ToDateTime(r["FechaRegistro"]).ToString("h:mm tt") : "12:00 AM");
+                            }
+
+                            // MEJORA #3: Reflejar estatus financiero "Liquidado" si el saldo es 0, manteniendo el estado logístico
+                            string estadoVis = estadoBD;
+                            if (estadoBD != "Entregado" && saldo == 0)
+                            {
+                                estadoVis = $"{estadoBD} (Liquidado)";
+                            }
 
                             listaPedidos.Add(new
                             {
@@ -60,14 +78,18 @@ namespace PuntoFlower.Views
                                 ClienteNombre = r["ClienteNombre"].ToString(),
                                 Telefono = r["Telefono"].ToString(),
                                 FechaEntrega = Convert.ToDateTime(r["FechaEntrega"]),
-                                HoraRegistro = horaReserva,
                                 Descripcion = r["Descripcion"].ToString(),
                                 Direccion = string.IsNullOrEmpty(r["Direccion"].ToString()) ? "Recoge en Tienda" : r["Direccion"].ToString(),
                                 NotaTarjeta = r["NotaTarjeta"].ToString(),
-                                Estado = r["Estado"].ToString(),
                                 PrecioTotal = r["PrecioTotal"] != DBNull.Value ? Convert.ToDecimal(r["PrecioTotal"]) : 0,
                                 Anticipo = r["Anticipo"] != DBNull.Value ? Convert.ToDecimal(r["Anticipo"]) : 0,
-                                SaldoPendiente = r["SaldoPendiente"] != DBNull.Value ? Convert.ToDecimal(r["SaldoPendiente"]) : 0
+                                SaldoPendiente = saldo,
+
+                                // Propiedades de apoyo para la Interfaz (UI) mejorada:
+                                EstadoOriginal = estadoBD,           // Para mantener los colores de los bordes de la tarjeta
+                                EstadoVisual = estadoVis,            // El texto que lee la florista (Ej: "Pendiente (Liquidado)")
+                                SubtituloSuperior = subtitulo,       // Hora de registro u hora de entrega
+                                ColorSaldo = saldo == 0 ? "#27AE60" : "#E74C3C" // Verde si ya pagó, Rojo si debe
                             });
                         }
                     }
@@ -140,7 +162,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // NUEVO: Método para interceptar el pedido y abrir el editor reutilizable
         private void btnModificarPedido_Click(object sender, RoutedEventArgs e)
         {
             var boton = sender as Button;
