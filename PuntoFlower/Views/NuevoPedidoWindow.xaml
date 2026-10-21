@@ -22,16 +22,35 @@
                         <TextBlock Text="Teléfono" Foreground="#566573"/>
                         <TextBox x:Name="txtTelefono" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
                     </StackPanel>
-                    <StackPanel Margin="5,0,0,0">
-                        <TextBlock Text="Fecha de Entrega" Foreground="#566573"/>
-                        <DatePicker x:Name="dpFecha" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
-                    </StackPanel>
+
+                    <!-- CORRECCIÓN 1: Se dividió este espacio para acomodar Fecha y Hora -->
+                    <UniformGrid Columns="2" Margin="5,0,0,0">
+                        <StackPanel Margin="0,0,2,0">
+                            <TextBlock Text="Fecha Entrega" Foreground="#566573" FontSize="11"/>
+                            <DatePicker x:Name="dpFecha" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Margin="2,0,0,0">
+                            <TextBlock Text="Hora Aprox." Foreground="#566573" FontSize="11"/>
+                            <ComboBox x:Name="cbHoraEntrega" Height="35" Margin="0,5,0,15" VerticalContentAlignment="Center" IsEditable="True">
+                                <ComboBoxItem Content="09:00 AM"/>
+                                <ComboBoxItem Content="10:00 AM"/>
+                                <ComboBoxItem Content="11:00 AM"/>
+                                <ComboBoxItem Content="12:00 PM"/>
+                                <ComboBoxItem Content="01:00 PM"/>
+                                <ComboBoxItem Content="02:00 PM"/>
+                                <ComboBoxItem Content="03:00 PM"/>
+                                <ComboBoxItem Content="04:00 PM"/>
+                                <ComboBoxItem Content="05:00 PM"/>
+                                <ComboBoxItem Content="06:00 PM"/>
+                                <ComboBoxItem Content="07:00 PM"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </UniformGrid>
                 </UniformGrid>
 
                 <TextBlock Text="¿Qué pidió el cliente? (Ej: Ramo 24 Rosas Rojas)" Foreground="#566573" FontWeight="SemiBold"/>
                 <TextBox x:Name="txtDescripcion" Height="35" Margin="0,5,0,12" VerticalContentAlignment="Center" BorderBrush="#3498DB"/>
 
-                <!-- NUEVO BLOQUE MEJORA #5: Vinculación de Flor para Descuento Diferido al Entregar -->
                 <Border Background="#EBF5FB" Padding="10" CornerRadius="8" Margin="0,0,0,15" BorderBrush="#AED6F1" BorderThickness="1">
                     <StackPanel>
                         <TextBlock Text="📦 Flor Base a Descontar al Entregar (Inventario Diferido)" FontSize="11" FontWeight="Bold" Foreground="#1B4F72" Margin="0,0,0,5"/>
@@ -89,7 +108,6 @@
                             </StackPanel>
                         </UniformGrid>
 
-                        <!-- Panel dinámico para Transferencia (Cuenta y Referencia) -->
                         <UniformGrid x:Name="panelTransferenciaAnticipo" Columns="2" Margin="0,5,0,0" Visibility="Collapsed">
                             <StackPanel Margin="0,0,5,0">
                                 <TextBlock Text="Cuenta Destino:" FontSize="11" Foreground="#2980B9" FontWeight="SemiBold"/>

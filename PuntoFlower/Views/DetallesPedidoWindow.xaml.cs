@@ -18,7 +18,7 @@ namespace PuntoFlower.Views
             _saldoPendienteNum = pedido.SaldoPendiente;
 
             lblCliente.Text = pedido.ClienteNombre;
-            lblFecha.Text = "Entrega programada: " + pedido.FechaEntrega.ToString("dd/MM/yyyy");
+            lblFecha.Text = "Entrega programada: " + pedido.FechaEntrega.ToString("dd/MM/yyyy hh:mm tt");
             lblDescripcion.Text = pedido.Descripcion;
             lblDireccion.Text = pedido.Direccion;
             txtNota.Text = pedido.NotaTarjeta;
@@ -33,7 +33,6 @@ namespace PuntoFlower.Views
 
             lblCostoEnvio.Text = string.Format("{0:C}", envioMonto);
 
-            // Ocultar paneles de pago si ya está liquidado
             if (_saldoPendienteNum <= 0)
             {
                 if (panelMetodoLiquidacion != null) panelMetodoLiquidacion.Visibility = Visibility.Collapsed;
@@ -60,7 +59,6 @@ namespace PuntoFlower.Views
             catch { return 0; }
         }
 
-        // MEJORA #6: Registrar abonos parciales directos al corte de caja
         private void btnAbonar_Click(object sender, RoutedEventArgs e)
         {
             if (_saldoPendienteNum <= 0) return;
@@ -88,7 +86,6 @@ namespace PuntoFlower.Views
                 {
                     try
                     {
-                        // 1. Descontar saldo y sumar al anticipo
                         string qPed = "UPDATE Pedidos SET Anticipo = Anticipo + @m, SaldoPendiente = SaldoPendiente - @m WHERE Id = @id";
                         using (SqlCommand cP = new SqlCommand(qPed, con, tra))
                         {
@@ -97,7 +94,6 @@ namespace PuntoFlower.Views
                             cP.ExecuteNonQuery();
                         }
 
-                        // 2. Insertar Venta para el Corte de Caja de HOY
                         string qVen = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado)
                                         VALUES (GETDATE(), @con, 1, @tot, @met, @tot, 0, 0)";
                         using (SqlCommand cV = new SqlCommand(qVen, con, tra))
@@ -108,7 +104,6 @@ namespace PuntoFlower.Views
                             cV.ExecuteNonQuery();
                         }
 
-                        // 3. Historial de Abonos
                         string qAb = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, UsuarioRegistro)
                                        VALUES (@id, GETDATE(), @m, @met, @usr)";
                         using (SqlCommand cA = new SqlCommand(qAb, con, tra))
@@ -122,7 +117,6 @@ namespace PuntoFlower.Views
 
                         tra.Commit();
 
-                        // Actualizar UI
                         _saldoPendienteNum -= abono;
                         lblSaldo.Text = _saldoPendienteNum.ToString("C");
 
@@ -188,7 +182,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // ORQUESTADOR MAESTRO DE ENTREGA: Aquí se rematan las mejoras #1, #2, #4 y #5
         private void btnEntregar_Click(object sender, RoutedEventArgs e)
         {
             var conf = MessageBox.Show("¿Confirmas que el pedido ya se entregó o está saliendo a ruta en este momento?", "Confirmar Entrega", MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -202,7 +195,6 @@ namespace PuntoFlower.Views
                 {
                     try
                     {
-                        // 1. Obtenemos la radiografía actual del pedido en la base de datos
                         decimal costoEnvio = 0;
                         int? prodId = null;
                         int cantFlores = 0;
@@ -226,7 +218,6 @@ namespace PuntoFlower.Views
                             }
                         }
 
-                        // 2. LIQUIDACIÓN DE SALDO: Si debe dinero al momento de entregar, lo liquidamos con el método elegido
                         string metLiqFinal = cbMetodoLiquidacion.Text;
 
                         if (_saldoPendienteNum > 0)
@@ -257,7 +248,6 @@ namespace PuntoFlower.Views
                             metLiqFinal = "Liquidado Previamente";
                         }
 
-                        // 3. MEJORA #5 (INVENTARIO DIFERIDO): Descontamos la flor base que se usó (solo si no se había descontado ya)
                         if (!invDesc && prodId.HasValue && cantFlores > 0)
                         {
                             string qInv = "UPDATE Productos SET StockActual = StockActual - @c WHERE Id = @pid";
@@ -269,21 +259,31 @@ namespace PuntoFlower.Views
                             }
                         }
 
-                        // 4. MEJORA #1 y #2 (FLETE AUTOMÁTICO): Si cobramos envío, generamos el egreso automático para pagar al repartidor hoy
+                        // CORRECCIÓN 2: El Flete ahora entra como un valor negativo en Ventas para aparecer en el Corte de Caja.
                         if (!fleteCobrado && costoEnvio > 0)
                         {
+                            // A) Se guarda en Gastos para el historial general
                             string qGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago, RegistradoPor) 
                                               VALUES (@desc, @monto, GETDATE(), 'Servicios', 'Efectivo', @user)";
                             using (SqlCommand cmdG = new SqlCommand(qGasto, con, tra))
                             {
-                                cmdG.Parameters.AddWithValue("@desc", $"Flete / Servicio a Domicilio: Pedido #{_pedidoId} - {lblCliente.Text}");
+                                cmdG.Parameters.AddWithValue("@desc", $"Flete a Domicilio: Pedido #{_pedidoId}");
                                 cmdG.Parameters.AddWithValue("@monto", costoEnvio);
                                 cmdG.Parameters.AddWithValue("@user", Session.UsuarioActual ?? "Empleado");
                                 cmdG.ExecuteNonQuery();
                             }
+
+                            // B) Se guarda en Ventas como número negativo para el Corte de Caja
+                            string qVentaFlete = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado)
+                                                   VALUES (GETDATE(), @descV, 1, @montoNeg, 'Efectivo', @montoNeg, 0, 0)";
+                            using (SqlCommand cmdVF = new SqlCommand(qVentaFlete, con, tra))
+                            {
+                                cmdVF.Parameters.AddWithValue("@descV", $"Salida de Caja (Gasto): Flete Pedido #{_pedidoId} - {lblCliente.Text}");
+                                cmdVF.Parameters.AddWithValue("@montoNeg", -costoEnvio);
+                                cmdVF.ExecuteNonQuery();
+                            }
                         }
 
-                        // 5. MEJORA #4 (HORA EXACTA DE ENTREGA): Finalizamos el pedido en la base de datos
                         string qUpdate = @"UPDATE Pedidos 
                                            SET Estado = 'Entregado', 
                                                SaldoPendiente = 0, 

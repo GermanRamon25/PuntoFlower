@@ -84,7 +84,7 @@ namespace PuntoFlower.Views
         private bool ticketEsPedido = false;
 
         private string ticketCliente = "";
-        private string ticketTelefono = ""; // Variable para el ticket de producción
+        private string ticketTelefono = "";
         private string ticketFechaEntrega = "";
         private string ticketDireccion = "";
         private decimal ticketAnticipoAcumulado = 0;
@@ -153,7 +153,7 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string q = "SELECT Id, ClienteNombre, Telefono, FechaEntrega, Anticipo, CostoEnvio, MetodoPago FROM Pedidos WHERE Estado = 'Pendiente' ORDER BY FechaEntrega ASC";
+                    string q = "SELECT Id, ClienteNombre, Telefono, FechaEntrega, Anticipo, CostoEnvio, MetodoPago FROM Pedidos WHERE Estado != 'Entregado' ORDER BY FechaEntrega ASC";
                     SqlCommand cmd = new SqlCommand(q, con);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
@@ -688,7 +688,7 @@ namespace PuntoFlower.Views
                         try
                         {
                             // =========================================================================
-                            // BLINDAJE LOGÍSTICO MODIFICADO: Solo bloqueamos stock en Ventas de Mostrador
+                            // BLINDAJE LOGÍSTICO: Solo bloqueamos stock si es venta de mostrador inmediata
                             // =========================================================================
                             if (!esCobroDeAbonoExistente && chkEsPedidoApartado.IsChecked == false)
                             {
@@ -723,9 +723,6 @@ namespace PuntoFlower.Views
                                 detVisualConcat += $" | Con Envío Rápido de: {fExt:C}";
                             }
 
-                            // ====================================================================
-                            // 1. CAPTURA INTELIGENTE DE DATOS PARA TICKETS (ANTES DE LA BASE DE DATOS)
-                            // ====================================================================
                             imprimirCliente = false;
                             imprimirAnticipo = false;
                             imprimirProduccion = false;
@@ -733,7 +730,7 @@ namespace PuntoFlower.Views
 
                             if (!esCobroDeAbonoExistente && chkEsPedidoApartado.IsChecked == false)
                             {
-                                // VENTA DIRECTA INMEDIATA
+                                // VENTA DIRECTA INMEDIATA EN MOSTRADOR
                                 imprimirCliente = true;
                                 imprimirProduccion = true;
 
@@ -793,12 +790,12 @@ namespace PuntoFlower.Views
                                 else
                                 {
                                     imprimirCliente = true;
-                                    imprimirProduccion = true; // Lo pagó de golpe, pero se debe armar después
+                                    imprimirProduccion = true;
                                 }
                             }
                             else if (esCobroDeAbonoExistente)
                             {
-                                // COBRAR ABONO/LIQUIDACIÓN DESDE EL DATAGRID
+                                // COBRAR ABONO/LIQUIDACIÓN DESDE EL DATAGRID DE CAJA
                                 using (SqlCommand cmdGet = new SqlCommand("SELECT ClienteNombre, Telefono, FechaEntrega, Direccion, Descripcion, PrecioTotal, Anticipo, SaldoPendiente FROM Pedidos WHERE Id = @id", con, tra))
                                 {
                                     cmdGet.Parameters.AddWithValue("@id", idPedidoParaAbonar);
@@ -815,7 +812,6 @@ namespace PuntoFlower.Views
                                             ticketPrecioTotalPedido = r["PrecioTotal"] != DBNull.Value ? Convert.ToDecimal(r["PrecioTotal"]) : 0;
                                             decimal saldoHistorico = r["SaldoPendiente"] != DBNull.Value ? Convert.ToDecimal(r["SaldoPendiente"]) : 0;
 
-                                            // La nota cobró "totalNetoArreglo" (que para el abono equivale a la cantidad registrada en caja)
                                             decimal saldoFinalCalculado = saldoHistorico - totalNetoArreglo;
                                             if (saldoFinalCalculado < 0) saldoFinalCalculado = 0;
 
@@ -835,7 +831,6 @@ namespace PuntoFlower.Views
                                     imprimirCliente = true;
                                 }
                             }
-                            // ====================================================================
 
                             int? firstProductoIdDB = null;
                             int totalPiezasContadas = 1;
@@ -859,12 +854,16 @@ namespace PuntoFlower.Views
                                 }
                             }
 
-                            // CAMINO 2 MODIFICADO: ¡AQUÍ ES CUANDO SE ENTREGA EL PEDIDO Y SE DESCUENTAN LAS FLORES DESDE LA AGENDA!
+                            // =========================================================================
+                            // CAMINO 2 MODIFICADO (COBRO DESDE POS):
+                            // Aquí solo se abona y liquida el saldo en SQL, NO se descuentan las flores
+                            // ni se marca como 'Entregado'.
+                            // =========================================================================
                             if (esCobroDeAbonoExistente)
                             {
+                                // Actualizamos saldo. El estado SIEMPRE queda como está para que lo entreguen desde Agenda
                                 string actPedido = @"UPDATE Pedidos 
-                                                     SET SaldoPendiente = CASE WHEN (SaldoPendiente - @abono) <= 0 THEN 0 ELSE (SaldoPendiente - @abono) END, 
-                                                         Estado = CASE WHEN (SaldoPendiente - @abono) <= 0 THEN 'Entregado' ELSE 'Pendiente' END 
+                                                     SET SaldoPendiente = CASE WHEN (SaldoPendiente - @abono) <= 0 THEN 0 ELSE (SaldoPendiente - @abono) END 
                                                      WHERE Id = @id";
                                 using (SqlCommand cmdP = new SqlCommand(actPedido, con, tra))
                                 {
@@ -873,58 +872,10 @@ namespace PuntoFlower.Views
                                     cmdP.ExecuteNonQuery();
                                 }
 
-                                // NUEVA INYECCIÓN CONTABLE: Como el pedido se va a entregar hoy, leemos su descripción original para saber qué flores descontar de la cámara fría
-                                string queryLeerComposicion = "SELECT Descripcion FROM Pedidos WHERE Id = @id";
-                                string descripcionPedidoOriginal = "";
-                                using (SqlCommand cmdLeer = new SqlCommand(queryLeerComposicion, con, tra))
-                                {
-                                    cmdLeer.Parameters.AddWithValue("@id", idPedidoParaAbonar);
-                                    descripcionPedidoOriginal = cmdLeer.ExecuteScalar()?.ToString() ?? "";
-                                }
-
-                                // Si la descripción del pedido guardó la lista de flores separada por comas, las procesamos y descontamos una por una de vitrina de forma segura
-                                if (!string.IsNullOrEmpty(descripcionPedidoOriginal) && (descripcionPedidoOriginal.Contains("p") || descripcionPedidoOriginal.Contains("(")))
-                                {
-                                    // Buscamos todas las flores activas del catálogo para comparar textos
-                                    List<string> floresCatalogo = new List<string>();
-                                    using (SqlCommand cmdCat = new SqlCommand("SELECT Nombre FROM Productos WHERE Categoria = 'Venta'", con, tra))
-                                    {
-                                        using (SqlDataReader readerCat = cmdCat.ExecuteReader())
-                                        {
-                                            while (readerCat.Read()) floresCatalogo.Add(readerCat["Nombre"].ToString());
-                                        }
-                                    }
-
-                                    foreach (string nombreFlor in floresCatalogo)
-                                    {
-                                        if (descripcionPedidoOriginal.Contains(nombreFlor))
-                                        {
-                                            // Extraemos la cantidad de tallos usada mediante análisis de cadena
-                                            int piezasADescontar = 1;
-                                            try
-                                            {
-                                                int indexFlor = descripcionPedidoOriginal.IndexOf(nombreFlor);
-                                                string fragmentoAnterior = descripcionPedidoOriginal.Substring(Math.Max(0, indexFlor - 5), Math.Min(5, indexFlor));
-                                                string digitos = new string(fragmentoAnterior.Where(char.IsDigit).ToArray());
-                                                if (!string.IsNullOrEmpty(digitos)) piezasADescontar = int.Parse(digitos);
-                                            }
-                                            catch { piezasADescontar = 1; }
-
-                                            // Descontamos físicamente del inventario hoy, porque hoy se lo lleva el cliente
-                                            string qDesc = "UPDATE Productos SET StockActual = CASE WHEN (StockActual - @c) < 0 THEN 0 ELSE (StockActual - @c) END WHERE Nombre = @nom AND Categoria = 'Venta'";
-                                            using (SqlCommand cmdDescontarAgenda = new SqlCommand(qDesc, con, tra))
-                                            {
-                                                cmdDescontarAgenda.Parameters.AddWithValue("@c", piezasADescontar);
-                                                cmdDescontarAgenda.Parameters.AddWithValue("@nom", nombreFlor);
-                                                cmdDescontarAgenda.ExecuteNonQuery();
-                                            }
-                                        }
-                                    }
-                                }
-
+                                // Se inserta el ingreso a Ventas (para la caja)
                                 string nombreConceptoVenta = $"Liquidación / Abono: {txtClientePedidoCaja.Text.Trim()}";
                                 string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId) 
-                                           VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
+                                            VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
                                 using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
                                 {
                                     cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
@@ -939,20 +890,37 @@ namespace PuntoFlower.Views
                                     cmdV.Parameters.AddWithValue("@pId", (object)firstProductoIdDB ?? DBNull.Value);
                                     cmdV.ExecuteNonQuery();
                                 }
+
+                                // Guardamos historial del abono
+                                string qAbonoHist = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, CuentaTransferencia, NumeroReferencia, UsuarioRegistro)
+                                                      VALUES (@pedId, GETDATE(), @monto, @metodo, @cuenta, @ref, @user)";
+                                using (SqlCommand cmdAb = new SqlCommand(qAbonoHist, con, tra))
+                                {
+                                    cmdAb.Parameters.AddWithValue("@pedId", idPedidoParaAbonar);
+                                    cmdAb.Parameters.AddWithValue("@monto", totalNetoArreglo);
+                                    cmdAb.Parameters.AddWithValue("@metodo", metodoPago);
+                                    cmdAb.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                                    cmdAb.Parameters.AddWithValue("@ref", numeroRefValor);
+                                    cmdAb.Parameters.AddWithValue("@user", Session.UsuarioActual ?? "Empleado");
+                                    cmdAb.ExecuteNonQuery();
+                                }
                             }
-                            // CAMINO 1: ENLAZAR APARTADO EXISTENTE DESDE EL COMBOBOX (SOLO ENTRA EL DINERO, NO SE DESCUENTAN LAS FLORES)
+                            // =========================================================================
+                            // CAMINO 1 (ENLAZAR APARTADO EXISTENTE DESDE EL COMBOBOX)
+                            // =========================================================================
                             else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo != null)
                             {
                                 decimal abonoRealEfectivo = pagoRecibido - cambioFinal;
                                 decimal saldoRestanteCalculado = totalNetoArreglo - abonoRealEfectivo;
-                                string estadoFinalCalculado = (saldoRestanteCalculado <= 0) ? "Entregado" : "Pendiente";
+                                // MODIFICADO: No cambia a entregado aunque pague todo el saldo.
+                                string estadoFinalCalculado = "Pendiente";
 
                                 string queryActualizarExistente = @"UPDATE Pedidos 
-                                                            SET Descripcion = @des,
-                                                                PrecioTotal = @tot,
-                                                                SaldoPendiente = CASE WHEN @saldoCalc <= 0 THEN 0 ELSE @saldoCalc END,
-                                                                Estado = @estFinal
-                                                            WHERE Id = @id";
+                                                                    SET Descripcion = @des,
+                                                                        PrecioTotal = @tot,
+                                                                        SaldoPendiente = CASE WHEN @saldoCalc <= 0 THEN 0 ELSE @saldoCalc END,
+                                                                        Estado = @estFinal
+                                                                    WHERE Id = @id";
 
                                 using (SqlCommand cmdUp = new SqlCommand(queryActualizarExistente, con, tra))
                                 {
@@ -966,7 +934,7 @@ namespace PuntoFlower.Views
 
                                 string conceptoAnticipo = $"Abono Pedido: {pedidoEnlazadoCombo.ClienteNombre} ({detProdNombres})";
                                 string qAnt = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId) 
-                                           VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
+                                            VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
                                 using (SqlCommand cmdAnt = new SqlCommand(qAnt, con, tra))
                                 {
                                     cmdAnt.Parameters.AddWithValue("@n", conceptoAnticipo);
@@ -981,16 +949,34 @@ namespace PuntoFlower.Views
                                     cmdAnt.Parameters.AddWithValue("@pId", (object)firstProductoIdDB ?? DBNull.Value);
                                     cmdAnt.ExecuteNonQuery();
                                 }
+
+                                string qAbonoHist = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, CuentaTransferencia, NumeroReferencia, UsuarioRegistro)
+                                                      VALUES (@pedId, GETDATE(), @monto, @metodo, @cuenta, @ref, @user)";
+                                using (SqlCommand cmdAb = new SqlCommand(qAbonoHist, con, tra))
+                                {
+                                    cmdAb.Parameters.AddWithValue("@pedId", pedidoEnlazadoCombo.Id);
+                                    cmdAb.Parameters.AddWithValue("@monto", abonoRealEfectivo);
+                                    cmdAb.Parameters.AddWithValue("@metodo", metodoPago);
+                                    cmdAb.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                                    cmdAb.Parameters.AddWithValue("@ref", numeroRefValor);
+                                    cmdAb.Parameters.AddWithValue("@user", Session.UsuarioActual ?? "Empleado");
+                                    cmdAb.ExecuteNonQuery();
+                                }
                             }
-                            // CAMINO 1 (B): APARTAR UN PEDIDO NUEVO (SOLO ENTRA EL DINERO DEL ANTICIPO, NO SE DESCUENTAN LAS FLORES)
+                            // =========================================================================
+                            // CAMINO 1B: APARTAR UN PEDIDO NUEVO DESDE POS
+                            // =========================================================================
                             else if (chkEsPedidoApartado.IsChecked == true && pedidoEnlazadoCombo == null)
                             {
                                 decimal.TryParse(txtFleteNuevoPedido.Text.Trim(), out decimal fleteNeto);
                                 decimal saldoPendienteNuevo = totalNetoArreglo - pagoRecibido;
-                                string estadoNuevoCalculado = (saldoPendienteNuevo <= 0) ? "Entregado" : "Pendiente";
+                                // MODIFICADO: Todo nuevo pedido es Pendiente hasta que se despache
+                                string estadoNuevoCalculado = "Pendiente";
 
                                 string insPed = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago, CostoEnvio) 
-                                                 VALUES (@nom, @tel, @fec, GETDATE(), 'Mostrador Caja', '', @estFinal, @des, @tot, @ant, @saldo, @met, @flete)";
+                                                 VALUES (@nom, @tel, @fec, GETDATE(), 'Mostrador Caja', '', @estFinal, @des, @tot, @ant, @saldo, @met, @flete);
+                                                 SELECT SCOPE_IDENTITY();";
+                                int nuevoPedidoId = 0;
                                 using (SqlCommand cmdPed = new SqlCommand(insPed, con, tra))
                                 {
                                     cmdPed.Parameters.AddWithValue("@nom", txtClientePedidoCaja.Text.Trim());
@@ -1003,12 +989,12 @@ namespace PuntoFlower.Views
                                     cmdPed.Parameters.AddWithValue("@estFinal", estadoNuevoCalculado);
                                     cmdPed.Parameters.AddWithValue("@met", metodoPago);
                                     cmdPed.Parameters.AddWithValue("@flete", fleteNeto);
-                                    cmdPed.ExecuteNonQuery();
+                                    nuevoPedidoId = Convert.ToInt32(cmdPed.ExecuteScalar());
                                 }
 
                                 string nombreConceptoVenta = $"Abono/Anticipo Pedido: {txtClientePedidoCaja.Text.Trim()} ({detProdNombres})";
                                 string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId) 
-                                           VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
+                                            VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
                                 using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
                                 {
                                     cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
@@ -1023,14 +1009,29 @@ namespace PuntoFlower.Views
                                     cmdV.Parameters.AddWithValue("@pId", (object)firstProductoIdDB ?? DBNull.Value);
                                     cmdV.ExecuteNonQuery();
                                 }
+
+                                string qAbonoHist = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, CuentaTransferencia, NumeroReferencia, UsuarioRegistro)
+                                                      VALUES (@pedId, GETDATE(), @monto, @metodo, @cuenta, @ref, @user)";
+                                using (SqlCommand cmdAb = new SqlCommand(qAbonoHist, con, tra))
+                                {
+                                    cmdAb.Parameters.AddWithValue("@pedId", nuevoPedidoId);
+                                    cmdAb.Parameters.AddWithValue("@monto", pagoRecibido);
+                                    cmdAb.Parameters.AddWithValue("@metodo", metodoPago);
+                                    cmdAb.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                                    cmdAb.Parameters.AddWithValue("@ref", numeroRefValor);
+                                    cmdAb.Parameters.AddWithValue("@user", Session.UsuarioActual ?? "Empleado");
+                                    cmdAb.ExecuteNonQuery();
+                                }
                             }
-                            // CAMINO 3: VENTA TRADICIONAL DE MOSTRADOR AL INSTANTE (SE COBRA COMPLETO Y SE DESCUENTA EL STOCK DE INMEDIATO)
+                            // =========================================================================
+                            // CAMINO 3: VENTA TRADICIONAL DE MOSTRADOR AL INSTANTE
+                            // =========================================================================
                             else if (chkEsPedidoApartado.IsChecked == false && esCobroDeAbonoExistente == false)
                             {
                                 string nombreConceptoVenta = $"Venta Mostrador: {txtClientePedidoCaja.Text.Trim()} ({detProdNombres})";
 
                                 string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId) 
-                                           VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
+                                            VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
                                 using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
                                 {
                                     cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
@@ -1046,7 +1047,7 @@ namespace PuntoFlower.Views
                                     cmdV.ExecuteNonQuery();
                                 }
 
-                                // Se descuenta el stock de inmediato porque el cliente retira el arreglo en este mismo instante
+                                // Se descuenta el stock de inmediato porque el cliente se lo lleva AHORA MISMO
                                 foreach (var item in ProductosEnTicket)
                                 {
                                     foreach (var insumo in item.InsumosADescontar)
@@ -1179,7 +1180,6 @@ namespace PuntoFlower.Views
 
             g.DrawString("==================================", fontNormal, brush, 5, y); y += 15;
 
-            // Mostrar el desglose exacto de pagos SOLO si es una liquidación/pedido
             if (ticketEsPedido)
             {
                 g.DrawString("--- DESGLOSE DE PAGO (PEDIDO) ---", fontBold, brush, new DgRectangle(0, y, 220, 15), new DgStringFormat { Alignment = DgAlignment.Center }); y += 15;
@@ -1219,7 +1219,6 @@ namespace PuntoFlower.Views
 
             g.DrawString("==================================", fontNormal, brush, 5, y); y += 15;
 
-            // MOSTRAR LOS PRODUCTOS EN EL COMPROBANTE DE ANTICIPO
             foreach (var item in productosParaImprimir)
             {
                 g.DrawString(item.ProductoNombre, fontBold, brush, 5, y); y += 13;
