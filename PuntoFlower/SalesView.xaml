@@ -152,44 +152,11 @@
                                             <TextBlock x:Name="lblProgresoEspecial" Text="Flores añadidas: Ninguna" FontSize="12" FontWeight="SemiBold" Foreground="#E67E22" Margin="2,3,0,12" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
-                                    <Button Content="Agregar Pedido Especial al Ticket" Click="btnAgregarEspecial_Click" Background="#27AE60" Foreground="White" FontWeight="Bold" Height="50"/>
+                                    <Button Content="Agregar al Ticket" Click="btnAgregarEspecial_Click" Background="#27AE60" Foreground="White" FontWeight="Bold" Height="50"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
-                </Border>
-            </TabItem>
-
-            <TabItem Header="Abonar a Pedido">
-                <Border Background="White" CornerRadius="0,15,15,15">
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="15" ShadowDepth="2" Color="#D5DBDB" Opacity="0.3"/>
-                    </Border.Effect>
-                    <Grid Margin="15">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                            <TextBlock Text="Cobrar Saldo / Abono de Agenda" FontSize="20" FontWeight="Bold" Foreground="#1E312F" Margin="0,0,0,5"/>
-                            <Button Content="🔄 Cargar / Refrescar Pedidos con Saldo Pendiente" Click="btnRefrescarPedidosAbono_Click" Height="35" Background="#3498DB" Foreground="White" FontWeight="Bold" BorderThickness="0"/>
-                        </StackPanel>
-
-                        <DataGrid x:Name="dgPedidosPendientes" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" Background="Transparent" BorderThickness="0">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="*"/>
-                                <DataGridTextColumn Header="Descripción" Binding="{Binding Descripcion}" Width="150"/>
-                                <DataGridTextColumn Header="Saldo Pendiente" Binding="{Binding SaldoPendiente, StringFormat={}{0:C}}" Width="110"/>
-                                <DataGridTemplateColumn Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Button Content="Cobrar" Click="btnCargarPedidoAlTicket_Click" Background="#27AE60" Foreground="White" FontWeight="Bold" Padding="5,2"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
                 </Border>
             </TabItem>
         </TabControl>
@@ -236,14 +203,12 @@
                     <StackPanel Margin="0,0,5,0">
                         <Separator Background="#F2F3F4" Margin="0,0,0,8"/>
 
+                        <!-- MÓDULO REDUCIDO Y SIMPLIFICADO: Solo para Apartar NUEVOS pedidos -->
                         <CheckBox x:Name="chkEsPedidoApartado" Content="Vincular / Registrar como Pedido Agendado" FontWeight="Bold" Foreground="#2E4053" Margin="0,0,0,8" Checked="chkEsPedidoApartado_Checked" Unchecked="chkEsPedidoApartado_Unchecked"/>
 
                         <Border x:Name="panelCamposPedidoCaja" Visibility="Collapsed" Margin="0,0,0,8" Background="#F4F6F7" Padding="8" CornerRadius="5">
                             <StackPanel>
-                                <TextBlock Text="Asociar a Pedido Existente de Agenda:" FontSize="11" FontWeight="SemiBold" Foreground="#2980B9" Margin="0,0,0,3"/>
-                                <ComboBox x:Name="cbPedidosAgendaDesplegable" Height="28" DisplayMemberPath="ClienteNombre" Margin="0,0,0,8" SelectionChanged="cbPedidosAgendaDesplegable_SelectionChanged"/>
-
-                                <TextBlock Text="Nombre del Cliente (Para Nuevos):" FontSize="11" Foreground="#5D6D7E"/>
+                                <TextBlock Text="Nombre del Cliente:" FontSize="11" Foreground="#5D6D7E"/>
                                 <TextBox x:Name="txtClientePedidoCaja" Height="25" Margin="0,2,0,5" VerticalContentAlignment="Center"/>
 
                                 <UniformGrid Columns="2">

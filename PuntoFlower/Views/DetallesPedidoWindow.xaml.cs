@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data.SqlClient;
 using System.Windows;
+using System.Windows.Controls;
 using PuntoFlower.Data;
 using PuntoFlower.Models;
 
@@ -33,10 +34,13 @@ namespace PuntoFlower.Views
 
             lblCostoEnvio.Text = string.Format("{0:C}", envioMonto);
 
+            // Cargamos las cuentas de la configuración al iniciar la ventana
+            CargarCuentasAbono();
+
             if (_saldoPendienteNum <= 0)
             {
                 if (panelMetodoLiquidacion != null) panelMetodoLiquidacion.Visibility = Visibility.Collapsed;
-                if (btnAbonar != null) btnAbonar.Visibility = Visibility.Collapsed;
+                if (btnAbrirPanelAbono != null) btnAbrirPanelAbono.Visibility = Visibility.Collapsed;
                 lblSaldo.Foreground = System.Windows.Media.Brushes.SeaGreen;
             }
         }
@@ -59,15 +63,71 @@ namespace PuntoFlower.Views
             catch { return 0; }
         }
 
-        private void btnAbonar_Click(object sender, RoutedEventArgs e)
+        // CARGA LAS CUENTAS DESDE CONFIGURACIÓN (Misma lógica que en Punto de Venta)
+        private void CargarCuentasAbono()
+        {
+            try
+            {
+                if (cbCuentaAbono == null) return;
+                cbCuentaAbono.Items.Clear();
+
+                ConexionDB db = new ConexionDB();
+                string e1 = db.ObtenerEncargadoCuenta1();
+
+                if (!string.IsNullOrWhiteSpace(e1))
+                {
+                    string[] listaEncargados = e1.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var encargado in listaEncargados)
+                    {
+                        if (!string.IsNullOrWhiteSpace(encargado))
+                        {
+                            cbCuentaAbono.Items.Add(encargado.Trim());
+                        }
+                    }
+                }
+
+                if (cbCuentaAbono.Items.Count == 0)
+                {
+                    cbCuentaAbono.Items.Add("Encargado 1");
+                }
+
+                cbCuentaAbono.SelectedIndex = 0;
+            }
+            catch { }
+        }
+
+        // CONTROLADORES DE LA INTERFAZ DEL PANEL DE ABONOS
+        private void btnAbrirPanelAbono_Click(object sender, RoutedEventArgs e)
+        {
+            panelAbono.Visibility = Visibility.Visible;
+            btnAbrirPanelAbono.Visibility = Visibility.Collapsed;
+            txtMontoAbono.Text = _saldoPendienteNum.ToString("F2");
+        }
+
+        private void btnCancelarAbono_Click(object sender, RoutedEventArgs e)
+        {
+            panelAbono.Visibility = Visibility.Collapsed;
+            btnAbrirPanelAbono.Visibility = Visibility.Visible;
+        }
+
+        private void cbMetodoAbono_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (panelTransferenciaAbono == null) return;
+            var item = cbMetodoAbono.SelectedItem as ComboBoxItem;
+            string metodo = item != null ? item.Content.ToString() : "Efectivo";
+            panelTransferenciaAbono.Visibility = metodo == "Transferencia" ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // PROCESO MAESTRO DE COBRO DE ABONO CON REFERENCIA Y CUENTA
+        private void btnConfirmarAbono_Click(object sender, RoutedEventArgs e)
         {
             if (_saldoPendienteNum <= 0) return;
 
-            string montoStr = Microsoft.VisualBasic.Interaction.InputBox(
-                $"El saldo pendiente es de {_saldoPendienteNum:C}.\n¿Qué cantidad está abonando el cliente en este momento?",
-                "Registrar Abono", _saldoPendienteNum.ToString("F2"));
-
-            if (string.IsNullOrEmpty(montoStr) || !decimal.TryParse(montoStr, out decimal abono) || abono <= 0) return;
+            if (string.IsNullOrEmpty(txtMontoAbono.Text) || !decimal.TryParse(txtMontoAbono.Text.Trim(), out decimal abono) || abono <= 0)
+            {
+                MessageBox.Show("Por favor ingresa un monto válido mayor a cero.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             if (abono > _saldoPendienteNum)
             {
@@ -75,8 +135,17 @@ namespace PuntoFlower.Views
                 return;
             }
 
-            string metodo = Microsoft.VisualBasic.Interaction.InputBox("Método de Pago (Efectivo, Tarjeta, Transferencia):", "Método de Pago", "Efectivo");
-            if (string.IsNullOrEmpty(metodo)) return;
+            var itemMetodo = cbMetodoAbono.SelectedItem as ComboBoxItem;
+            string metodo = itemMetodo != null ? itemMetodo.Content.ToString() : "Efectivo";
+
+            object cuentaDestino = DBNull.Value;
+            object numeroRef = DBNull.Value;
+
+            if (metodo == "Transferencia")
+            {
+                if (cbCuentaAbono.SelectedItem != null) cuentaDestino = cbCuentaAbono.SelectedItem.ToString();
+                if (!string.IsNullOrWhiteSpace(txtReferenciaAbono.Text)) numeroRef = txtReferenciaAbono.Text.Trim();
+            }
 
             ConexionDB db = new ConexionDB();
             try
@@ -86,6 +155,7 @@ namespace PuntoFlower.Views
                 {
                     try
                     {
+                        // 1. Descontar saldo y sumar al anticipo en Pedidos
                         string qPed = "UPDATE Pedidos SET Anticipo = Anticipo + @m, SaldoPendiente = SaldoPendiente - @m WHERE Id = @id";
                         using (SqlCommand cP = new SqlCommand(qPed, con, tra))
                         {
@@ -94,29 +164,36 @@ namespace PuntoFlower.Views
                             cP.ExecuteNonQuery();
                         }
 
-                        string qVen = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado)
-                                        VALUES (GETDATE(), @con, 1, @tot, @met, @tot, 0, 0)";
+                        // 2. Insertar Venta para el Corte de Caja con todos los detalles
+                        string qVen = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado, CuentaTransferencia, NumeroReferencia)
+                                        VALUES (GETDATE(), @con, 1, @tot, @met, @tot, 0, 0, @cuenta, @numRef)";
                         using (SqlCommand cV = new SqlCommand(qVen, con, tra))
                         {
                             cV.Parameters.AddWithValue("@con", $"Abono Pedido #{_pedidoId}: {lblCliente.Text}");
                             cV.Parameters.AddWithValue("@tot", abono);
-                            cV.Parameters.AddWithValue("@met", metodo.Trim());
+                            cV.Parameters.AddWithValue("@met", metodo);
+                            cV.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                            cV.Parameters.AddWithValue("@numRef", numeroRef);
                             cV.ExecuteNonQuery();
                         }
 
-                        string qAb = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, UsuarioRegistro)
-                                       VALUES (@id, GETDATE(), @m, @met, @usr)";
+                        // 3. Historial de Abonos (Mejora 6 Completa)
+                        string qAb = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, UsuarioRegistro, CuentaTransferencia, NumeroReferencia)
+                                       VALUES (@id, GETDATE(), @m, @met, @usr, @cuenta, @numRef)";
                         using (SqlCommand cA = new SqlCommand(qAb, con, tra))
                         {
                             cA.Parameters.AddWithValue("@id", _pedidoId);
                             cA.Parameters.AddWithValue("@m", abono);
-                            cA.Parameters.AddWithValue("@met", metodo.Trim());
+                            cA.Parameters.AddWithValue("@met", metodo);
                             cA.Parameters.AddWithValue("@usr", Session.UsuarioActual ?? "Empleado");
+                            cA.Parameters.AddWithValue("@cuenta", cuentaDestino);
+                            cA.Parameters.AddWithValue("@numRef", numeroRef);
                             cA.ExecuteNonQuery();
                         }
 
                         tra.Commit();
 
+                        // Actualizar UI
                         _saldoPendienteNum -= abono;
                         lblSaldo.Text = _saldoPendienteNum.ToString("C");
 
@@ -126,14 +203,19 @@ namespace PuntoFlower.Views
                             lblAnticipo.Text = (antActual + abono).ToString("C");
                         }
 
+                        // Restaurar interfaz
+                        panelAbono.Visibility = Visibility.Collapsed;
+                        btnAbrirPanelAbono.Visibility = Visibility.Visible;
+                        txtReferenciaAbono.Clear();
+
                         if (_saldoPendienteNum <= 0)
                         {
-                            btnAbonar.Visibility = Visibility.Collapsed;
+                            btnAbrirPanelAbono.Visibility = Visibility.Collapsed;
                             panelMetodoLiquidacion.Visibility = Visibility.Collapsed;
                             lblSaldo.Foreground = System.Windows.Media.Brushes.SeaGreen;
                         }
 
-                        MessageBox.Show("Abono registrado con éxito. El dinero ya está reflejado en el corte de caja.", "Abono Exitoso", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show("Abono registrado con éxito.\nEl dinero y la referencia ya están reflejados en el Corte de Caja.", "Abono Exitoso", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     catch
                     {
@@ -182,6 +264,7 @@ namespace PuntoFlower.Views
             }
         }
 
+        // ORQUESTADOR MAESTRO DE ENTREGA
         private void btnEntregar_Click(object sender, RoutedEventArgs e)
         {
             var conf = MessageBox.Show("¿Confirmas que el pedido ya se entregó o está saliendo a ruta en este momento?", "Confirmar Entrega", MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -259,10 +342,8 @@ namespace PuntoFlower.Views
                             }
                         }
 
-                        // CORRECCIÓN 2: El Flete ahora entra como un valor negativo en Ventas para aparecer en el Corte de Caja.
                         if (!fleteCobrado && costoEnvio > 0)
                         {
-                            // A) Se guarda en Gastos para el historial general
                             string qGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago, RegistradoPor) 
                                               VALUES (@desc, @monto, GETDATE(), 'Servicios', 'Efectivo', @user)";
                             using (SqlCommand cmdG = new SqlCommand(qGasto, con, tra))
@@ -273,7 +354,6 @@ namespace PuntoFlower.Views
                                 cmdG.ExecuteNonQuery();
                             }
 
-                            // B) Se guarda en Ventas como número negativo para el Corte de Caja
                             string qVentaFlete = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado)
                                                    VALUES (GETDATE(), @descV, 1, @montoNeg, 'Efectivo', @montoNeg, 0, 0)";
                             using (SqlCommand cmdVF = new SqlCommand(qVentaFlete, con, tra))
