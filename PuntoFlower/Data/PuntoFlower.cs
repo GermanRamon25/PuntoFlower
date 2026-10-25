@@ -10,13 +10,12 @@ namespace PuntoFlower.Data
 {
     public class ConexionDB
     {
-        private readonly string _cadenaSQL = ConfigurationManager.ConnectionStrings["PuntoFlowerDBConnection"].ConnectionString;
-
         public SqlConnection OpenConnection()
         {
             try
             {
-                SqlConnection conexion = new SqlConnection(_cadenaSQL);
+                // Lee directamente la cadena global en memoria en tiempo real
+                SqlConnection conexion = new SqlConnection(ConexionGlobal.CadenaConexionActiva);
                 conexion.Open();
                 return conexion;
             }
