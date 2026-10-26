@@ -535,6 +535,7 @@ namespace PuntoFlower.Views
                                     int stockTransaccional = 0;
                                     using (SqlCommand cmdCheck = new SqlCommand(qCheck, con, tra))
                                     {
+                                        cmdCheck.CommandTimeout = 15; // Blindaje: Fallo rápido si hay latencia
                                         cmdCheck.Parameters.AddWithValue("@nom", req.Nombre);
                                         stockTransaccional = Convert.ToInt32(cmdCheck.ExecuteScalar());
                                     }
@@ -575,6 +576,7 @@ namespace PuntoFlower.Views
                                     string qFindId = "SELECT TOP 1 Id FROM Productos WHERE Nombre = @fn AND Categoria = 'Venta'";
                                     using (SqlCommand cmdFind = new SqlCommand(qFindId, con, tra))
                                     {
+                                        cmdFind.CommandTimeout = 15; // Blindaje
                                         cmdFind.Parameters.AddWithValue("@fn", primerInsumo.Nombre);
                                         object resId = cmdFind.ExecuteScalar();
                                         if (resId != null && resId != DBNull.Value) firstProductoIdDB = Convert.ToInt32(resId);
@@ -584,7 +586,6 @@ namespace PuntoFlower.Views
 
                             if (chkEsPedidoApartado.IsChecked == true)
                             {
-                                // CAMINO 1: APARTAR UN PEDIDO NUEVO (SOLO ENTRA EL ANTICIPO, NO SE DESCUENTAN LAS FLORES)
                                 decimal.TryParse(txtFleteNuevoPedido.Text.Trim(), out decimal fleteNeto);
                                 decimal saldoPendienteNuevo = totalNetoArreglo - pagoRecibido;
                                 string estadoNuevoCalculado = "Pendiente";
@@ -608,6 +609,7 @@ namespace PuntoFlower.Views
                                 int nuevoPedidoId = 0;
                                 using (SqlCommand cmdPed = new SqlCommand(insPed, con, tra))
                                 {
+                                    cmdPed.CommandTimeout = 15; // Blindaje
                                     cmdPed.Parameters.AddWithValue("@nom", txtClientePedidoCaja.Text.Trim());
                                     cmdPed.Parameters.AddWithValue("@tel", txtTelPedidoCaja.Text.Trim());
                                     cmdPed.Parameters.AddWithValue("@fec", dpFechaPedidoCaja.SelectedDate.HasValue ? dpFechaPedidoCaja.SelectedDate.Value : DateTime.Now.AddDays(1));
@@ -630,6 +632,7 @@ namespace PuntoFlower.Views
                                                 VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
                                     using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
                                     {
+                                        cmdV.CommandTimeout = 15; // Blindaje
                                         cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
                                         cmdV.Parameters.AddWithValue("@t", pagoRecibido);
                                         cmdV.Parameters.AddWithValue("@cant", totalPiezasContadas);
@@ -647,6 +650,7 @@ namespace PuntoFlower.Views
                                                           VALUES (@pedId, GETDATE(), @monto, @metodo, @cuenta, @ref, @user)";
                                     using (SqlCommand cmdAb = new SqlCommand(qAbonoHist, con, tra))
                                     {
+                                        cmdAb.CommandTimeout = 15; // Blindaje
                                         cmdAb.Parameters.AddWithValue("@pedId", nuevoPedidoId);
                                         cmdAb.Parameters.AddWithValue("@monto", pagoRecibido);
                                         cmdAb.Parameters.AddWithValue("@metodo", metodoPago);
@@ -659,7 +663,6 @@ namespace PuntoFlower.Views
                             }
                             else
                             {
-                                // CAMINO 2: VENTA TRADICIONAL DE MOSTRADOR AL INSTANTE (SE COBRA COMPLETO Y SE DESCUENTAN LAS FLORES DE INMEDIATO)
                                 imprimirCliente = true;
                                 imprimirProduccion = true;
 
@@ -678,6 +681,7 @@ namespace PuntoFlower.Views
                                             VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
                                 using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
                                 {
+                                    cmdV.CommandTimeout = 15; // Blindaje
                                     cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
                                     cmdV.Parameters.AddWithValue("@t", totalNetoArreglo);
                                     cmdV.Parameters.AddWithValue("@cant", totalPiezasContadas);
@@ -691,13 +695,13 @@ namespace PuntoFlower.Views
                                     cmdV.ExecuteNonQuery();
                                 }
 
-                                // Se descuenta el stock de inmediato porque el cliente se lo lleva AHORA MISMO
                                 foreach (var item in ProductosEnTicket)
                                 {
                                     foreach (var insumo in item.InsumosADescontar)
                                     {
                                         using (SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom AND Categoria = 'Venta'", con, tra))
                                         {
+                                            cmdS.CommandTimeout = 15; // Blindaje
                                             cmdS.Parameters.AddWithValue("@c", insumo.Quantity ?? insumo.Cantidad);
                                             cmdS.Parameters.AddWithValue("@nom", insumo.Nombre);
                                             cmdS.ExecuteNonQuery();
@@ -737,17 +741,34 @@ namespace PuntoFlower.Views
                             cbMetodoPago.SelectedIndex = 0;
                             ActualizarTotal();
                         }
+                        catch (SqlException sqlEx)
+                        {
+                            tra.Rollback();
+                            // Blindaje: Detección de fallos de red específicos
+                            if (sqlEx.Number == -2 || sqlEx.Number == 53 || sqlEx.Number == 11001 || sqlEx.Class == 20)
+                            {
+                                MessageBox.Show("Se perdió la conexión a internet durante el cobro.\nLa venta NO se registró y el dinero no ha entrado al sistema.\n\nPor favor, revisa tu conexión WiFi e intenta cobrar de nuevo.", "Sin Internet", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            }
+                            else
+                            {
+                                MessageBox.Show("Error en la base de datos al registrar la venta: " + sqlEx.Message, "Error SQL", MessageBoxButton.OK, MessageBoxImage.Error);
+                            }
+                        }
                         catch (Exception ex)
                         {
                             tra.Rollback();
-                            MessageBox.Show("Transacción revertida por integridad: " + ex.Message, "Error Crítico", MessageBoxButton.OK, MessageBoxImage.Stop);
+                            MessageBox.Show("La venta fue cancelada por seguridad: " + ex.Message, "Operación Detenida", MessageBoxButton.OK, MessageBoxImage.Stop);
                         }
                     }
                 }
             }
+            catch (SqlException)
+            {
+                MessageBox.Show("No hay conexión a internet. No se pudo enlazar con el servidor de la sucursal para iniciar el cobro.\n\nRevisa tu red WiFi.", "Sin Conexión", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
             catch (Exception exCon)
             {
-                MessageBox.Show("Error de enlace: " + exCon.Message, "Fallo");
+                MessageBox.Show("Error de enlace: " + exCon.Message, "Fallo", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {

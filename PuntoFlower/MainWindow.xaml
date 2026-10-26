@@ -137,6 +137,17 @@
                 <DockPanel LastChildFill="False">
                     <TextBlock Text="Bienvenido al Sistema" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"/>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+
+                        <!-- Selector de Sucursales -->
+                        <ComboBox x:Name="cmbSucursales" Width="180" Height="30" Margin="0,0,20,0" 
+                                  VerticalAlignment="Center" SelectionChanged="CmbSucursales_SelectionChanged" 
+                                  Visibility="Collapsed">
+                            <ComboBoxItem Content="Matriz (Pruebas)" IsSelected="True"/>
+                            <ComboBoxItem Content="Sucursal Los Mochis"/>
+                            <ComboBoxItem Content="Sucursal Guasave"/>
+                            <ComboBoxItem Content="Sucursal Culiacán"/>
+                        </ComboBox>
+
                         <TextBlock x:Name="txtUsuarioLogueado" Text="Usuario: -" Foreground="#27AE60" FontWeight="Bold" Margin="0,0,20,0" VerticalAlignment="Center"/>
                         <TextBlock Text="" FontFamily="Segoe MDL2 Assets" Foreground="#BDC3C7" Margin="0,0,10,0" VerticalAlignment="Center"/>
                         <TextBlock x:Name="txtFechaActual" Text="Cargando fecha..." Foreground="#7F8C8D" FontSize="14" VerticalAlignment="Center"/>
