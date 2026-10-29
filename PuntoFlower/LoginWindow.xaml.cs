@@ -45,7 +45,7 @@ namespace PuntoFlower
             btnShowPassword.Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)); // Vuelve a gris obscuro
         }
 
-        // --- LÓGICA DE ACCESO EN TEXTO PLANO ORIGINAL (CON SOPORTE DE MINÚSCULAS AUTOMÁTICO) ---
+        // --- LÓGICA DE ACCESO CON BLINDAJE MULTI-SUCURSAL ---
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(txtUsername.Text) || string.IsNullOrEmpty(txtPassword.Password))
@@ -54,7 +54,6 @@ namespace PuntoFlower
                 return;
             }
 
-            // CORRECCIÓN DE BLINDAJE: .ToLower() convierte "Admin" a "admin" automáticamente antes de ir a la BD
             string usuarioFormateado = txtUsername.Text.Trim().ToLower();
             string passwordIngresada = txtPassword.Password.Trim();
 
@@ -63,8 +62,8 @@ namespace PuntoFlower
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // Consultamos usando la contraseña en texto plano, tal cual la tienes en tu BD
-                    string query = "SELECT Estado, Rol FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
+                    // MODIFICACIÓN CLAVE: Agregamos la descarga de la 'Sucursal'
+                    string query = "SELECT Estado, Rol, Sucursal FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@u", usuarioFormateado);
                     cmd.Parameters.AddWithValue("@p", passwordIngresada);
@@ -75,12 +74,13 @@ namespace PuntoFlower
                         {
                             string estado = reader["Estado"].ToString();
                             string rol = reader["Rol"].ToString();
+                            string sucursal = reader["Sucursal"].ToString(); // Rescatamos su sucursal de origen
 
                             if (estado == "Activo")
                             {
                                 reader.Close();
 
-                                // Auditoría de acceso (También con el usuario formateado en minúsculas)
+                                // Auditoría de acceso
                                 string queryAuditoria = "UPDATE Usuarios SET UltimoAcceso = GETDATE() WHERE Username = @u";
                                 using (SqlCommand cmdAudit = new SqlCommand(queryAuditoria, con))
                                 {
@@ -88,9 +88,13 @@ namespace PuntoFlower
                                     cmdAudit.ExecuteNonQuery();
                                 }
 
-                                // Guardamos los datos limpios en la sesión global
+                                // 1. Guardamos los datos en la memoria temporal (Session)
                                 Session.UsuarioActual = usuarioFormateado;
                                 Session.RolActual = rol;
+                                Session.SucursalAsignada = sucursal;
+
+                                // 2. EL BLINDAJE: Forzamos la variable global a su sucursal asignada
+                                ConexionGlobal.SucursalActual = sucursal;
 
                                 MainWindow main = new MainWindow();
                                 main.Show();
@@ -110,7 +114,7 @@ namespace PuntoFlower
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al enlazar con la base de datos de la sucursal: " + ex.Message, "Fallo de Conexión", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Error al enlazar con la base de datos central: " + ex.Message, "Fallo de Conexión", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

@@ -14,7 +14,7 @@ namespace PuntoFlower.Data
         {
             try
             {
-                // Lee directamente la cadena global en memoria en tiempo real
+                // Lee directamente la cadena global hacia Azure
                 SqlConnection conexion = new SqlConnection(ConexionGlobal.CadenaConexionActiva);
                 conexion.Open();
                 return conexion;
@@ -32,9 +32,11 @@ namespace PuntoFlower.Data
             {
                 using (SqlConnection con = OpenConnection())
                 {
-                    string query = "SELECT Valor FROM ConfiguracionSistema WHERE Clave = 'NombreSucursal'";
+                    // FILTRO MULTI-SUCURSAL APLICADO
+                    string query = "SELECT Valor FROM ConfiguracionSistema WHERE Clave = 'NombreSucursal' AND Sucursal = @sucursal";
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
+                        cmd.Parameters.AddWithValue("@sucursal", ConexionGlobal.SucursalActual);
                         object resultado = cmd.ExecuteScalar();
                         if (resultado != null)
                         {
@@ -43,10 +45,7 @@ namespace PuntoFlower.Data
                     }
                 }
             }
-            catch
-            {
-                // Evita que el sistema falle si la tabla aún no tiene registros o no está creada
-            }
+            catch { }
             return nombre;
         }
 
@@ -55,24 +54,20 @@ namespace PuntoFlower.Data
             using (SqlConnection con = OpenConnection())
             {
                 string query = @"
-                    IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'NombreSucursal')
-                        UPDATE ConfiguracionSistema SET Valor = @v WHERE Clave = 'NombreSucursal';
+                    IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'NombreSucursal' AND Sucursal = @s)
+                        UPDATE ConfiguracionSistema SET Valor = @v WHERE Clave = 'NombreSucursal' AND Sucursal = @s;
                     ELSE
-                        INSERT INTO ConfiguracionSistema (Clave, Valor) VALUES ('NombreSucursal', @v);";
+                        INSERT INTO ConfiguracionSistema (Clave, Valor, Sucursal) VALUES ('NombreSucursal', @v, @s);";
 
                 using (SqlCommand cmd = new SqlCommand(query, con))
                 {
                     cmd.Parameters.AddWithValue("@v", nuevoNombre);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     cmd.ExecuteNonQuery();
                 }
             }
         }
 
-        // =========================================================================
-        // NUEVOS MÉTODOS COMPLEMENTARIOS PARA LA GESTIÓN DINÁMICA DE ENCARGADOS
-        // =========================================================================
-
-        // NUEVO: Recupera el nombre guardado para el Encargado de la Cuenta 1
         public string ObtenerEncargadoCuenta1()
         {
             string nombre = "Encargado 1";
@@ -80,9 +75,10 @@ namespace PuntoFlower.Data
             {
                 using (SqlConnection con = OpenConnection())
                 {
-                    string query = "SELECT Valor FROM ConfiguracionSistema WHERE Clave = 'EncargadoCuenta1'";
+                    string query = "SELECT Valor FROM ConfiguracionSistema WHERE Clave = 'EncargadoCuenta1' AND Sucursal = @sucursal";
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
+                        cmd.Parameters.AddWithValue("@sucursal", ConexionGlobal.SucursalActual);
                         object resultado = cmd.ExecuteScalar();
                         if (resultado != null)
                         {
@@ -91,14 +87,10 @@ namespace PuntoFlower.Data
                     }
                 }
             }
-            catch
-            {
-                // Respaldo por si ocurre un fallo en caliente o apagón
-            }
+            catch { }
             return nombre;
         }
 
-        // NUEVO: Recupera el nombre guardado para el Encargado de la Cuenta 2
         public string ObtenerEncargadoCuenta2()
         {
             string nombre = "Encargado 2";
@@ -106,9 +98,10 @@ namespace PuntoFlower.Data
             {
                 using (SqlConnection con = OpenConnection())
                 {
-                    string query = "SELECT Valor FROM ConfiguracionSistema WHERE Clave = 'EncargadoCuenta2'";
+                    string query = "SELECT Valor FROM ConfiguracionSistema WHERE Clave = 'EncargadoCuenta2' AND Sucursal = @sucursal";
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
+                        cmd.Parameters.AddWithValue("@sucursal", ConexionGlobal.SucursalActual);
                         object resultado = cmd.ExecuteScalar();
                         if (resultado != null)
                         {
@@ -117,50 +110,43 @@ namespace PuntoFlower.Data
                     }
                 }
             }
-            catch
-            {
-                // Respaldo por si ocurre un fallo en caliente o apagón
-            }
+            catch { }
             return nombre;
         }
 
-        // NUEVO: Guarda o actualiza de manera transaccional los tres parámetros comerciales de la sucursal
-        public void GuardarDatosSucursal(string sucursal, string encargado1, string encargado2)
+        public void GuardarDatosSucursal(string nombreMostrar, string encargado1, string encargado2)
         {
             using (SqlConnection con = OpenConnection())
             {
                 string query = @"
                     -- Nombre de la Sucursal
-                    IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'NombreSucursal')
-                        UPDATE ConfiguracionSistema SET Valor = @sucursal WHERE Clave = 'NombreSucursal';
+                    IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'NombreSucursal' AND Sucursal = @s)
+                        UPDATE ConfiguracionSistema SET Valor = @sucursal WHERE Clave = 'NombreSucursal' AND Sucursal = @s;
                     ELSE
-                        INSERT INTO ConfiguracionSistema (Clave, Valor) VALUES ('NombreSucursal', @sucursal);
+                        INSERT INTO ConfiguracionSistema (Clave, Valor, Sucursal) VALUES ('NombreSucursal', @sucursal, @s);
 
                     -- Encargado de Cuenta 1
-                    IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'EncargadoCuenta1')
-                        UPDATE ConfiguracionSistema SET Valor = @e1 WHERE Clave = 'EncargadoCuenta1';
+                    IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'EncargadoCuenta1' AND Sucursal = @s)
+                        UPDATE ConfiguracionSistema SET Valor = @e1 WHERE Clave = 'EncargadoCuenta1' AND Sucursal = @s;
                     ELSE
-                        INSERT INTO ConfiguracionSistema (Clave, Valor) VALUES ('EncargadoCuenta1', @e1);
+                        INSERT INTO ConfiguracionSistema (Clave, Valor, Sucursal) VALUES ('EncargadoCuenta1', @e1, @s);
 
                     -- Encargado de Cuenta 2
-                    IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'EncargadoCuenta2')
-                        UPDATE ConfiguracionSistema SET Valor = @e2 WHERE Clave = 'EncargadoCuenta2';
+                    IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'EncargadoCuenta2' AND Sucursal = @s)
+                        UPDATE ConfiguracionSistema SET Valor = @e2 WHERE Clave = 'EncargadoCuenta2' AND Sucursal = @s;
                     ELSE
-                        INSERT INTO ConfiguracionSistema (Clave, Valor) VALUES ('EncargadoCuenta2', @e2);";
+                        INSERT INTO ConfiguracionSistema (Clave, Valor, Sucursal) VALUES ('EncargadoCuenta2', @e2, @s);";
 
                 using (SqlCommand cmd = new SqlCommand(query, con))
                 {
-                    cmd.Parameters.AddWithValue("@sucursal", sucursal.Trim());
+                    cmd.Parameters.AddWithValue("@sucursal", nombreMostrar.Trim());
                     cmd.Parameters.AddWithValue("@e1", encargado1.Trim());
                     cmd.Parameters.AddWithValue("@e2", encargado2.Trim());
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual); // Llave de aislamiento
                     cmd.ExecuteNonQuery();
                 }
             }
         }
-
-        // =========================================================================
-        // NUEVOS MÉTODOS PARA PERSISTENCIA CONTABLE DEL FONDO DE CAJA DIARIO
-        // =========================================================================
 
         public decimal ObtenerFondoCaja()
         {
@@ -169,9 +155,10 @@ namespace PuntoFlower.Data
             {
                 using (SqlConnection con = OpenConnection())
                 {
-                    string query = "SELECT Valor FROM ConfiguracionSistema WHERE Clave = 'FondoCajaUltimo'";
+                    string query = "SELECT Valor FROM ConfiguracionSistema WHERE Clave = 'FondoCajaUltimo' AND Sucursal = @sucursal";
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
+                        cmd.Parameters.AddWithValue("@sucursal", ConexionGlobal.SucursalActual);
                         object res = cmd.ExecuteScalar();
                         if (res != null)
                         {
@@ -180,10 +167,7 @@ namespace PuntoFlower.Data
                     }
                 }
             }
-            catch
-            {
-                // Manejo de excepción silenciosa para evitar cierres del software
-            }
+            catch { }
             return fondo;
         }
 
@@ -194,23 +178,20 @@ namespace PuntoFlower.Data
                 using (SqlConnection con = OpenConnection())
                 {
                     string query = @"
-                        IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'FondoCajaUltimo')
-                            UPDATE ConfiguracionSistema SET Valor = @v WHERE Clave = 'FondoCajaUltimo';
+                        IF EXISTS (SELECT 1 FROM ConfiguracionSistema WHERE Clave = 'FondoCajaUltimo' AND Sucursal = @s)
+                            UPDATE ConfiguracionSistema SET Valor = @v WHERE Clave = 'FondoCajaUltimo' AND Sucursal = @s;
                         ELSE
-                            INSERT INTO ConfiguracionSistema (Clave, Valor) VALUES ('FondoCajaUltimo', @v);";
+                            INSERT INTO ConfiguracionSistema (Clave, Valor, Sucursal) VALUES ('FondoCajaUltimo', @v, @s);";
 
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
-                        // Formateamos con invariante decimal para asegurar compatibilidad de puntos/comas
                         cmd.Parameters.AddWithValue("@v", monto.ToString("F2"));
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmd.ExecuteNonQuery();
                     }
                 }
             }
-            catch
-            {
-                // Captura por fallos de interrupción de red local
-            }
+            catch { }
         }
     }
 }

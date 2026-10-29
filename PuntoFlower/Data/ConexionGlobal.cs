@@ -1,17 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Configuration;
 
 namespace PuntoFlower.Data
 {
     public static class ConexionGlobal
     {
-        // Al arrancar, lee lo que está en el App.config de la computadora física
+        // Única cadena de conexión para todo el sistema (apunta siempre a PuntoFlowerDB en Azure)
         public static string CadenaConexionActiva = ConfigurationManager.ConnectionStrings["PuntoFlowerDB"].ConnectionString;
 
-        public static string SucursalActual = "Matriz (Pruebas)";
+        // EL CORAZÓN DEL SISTEMA MULTI-SUCURSAL:
+        // Esta variable filtrará absolutamente todos los SELECT, INSERT, UPDATE y DELETE del sistema.
+        // Se actualizará automáticamente en la pantalla de Login dependiendo de quién inicie sesión.
+        public static string SucursalActual = "Guasave";
     }
 }

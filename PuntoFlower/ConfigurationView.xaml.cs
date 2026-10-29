@@ -34,7 +34,7 @@ namespace PuntoFlower.Views
                 ConexionDB db = new ConexionDB();
                 txtNombreSucursalInput.Text = db.ObtenerNombreSucursal();
 
-                // Leemos los encargados guardados en la BD
+                // Leemos los encargados guardados en la BD (Ya viene filtrado por sucursal desde ConexionDB)
                 string encargadosRaw = db.ObtenerEncargadoCuenta1();
                 coleccionEncargados.Clear();
 
@@ -118,12 +118,12 @@ namespace PuntoFlower.Views
                     encargadosUnificados
                 );
 
-                MessageBox.Show("Identidad de la sucursal y lista de encargados guardados con éxito.", "Configuración Guardada", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Identidad y encargados guardados con éxito para: {ConexionGlobal.SucursalActual}", "Configuración Guardada", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 Window parentWindow = Window.GetWindow(this);
                 if (parentWindow is MainWindow main)
                 {
-                    main.Title = $"PuntoFlower - {txtNombreSucursalInput.Text.Trim().ToUpper()}";
+                    main.Title = $"PuntoFlower - Viendo datos de: {ConexionGlobal.SucursalActual}";
                 }
             }
             catch (Exception ex)
@@ -146,6 +146,9 @@ namespace PuntoFlower.Views
             }
         }
 
+        // =========================================================================
+        // GESTIÓN DE USUARIOS - ASIGNACIÓN DINÁMICA DE SUCURSAL
+        // =========================================================================
         private void CargarUsuariosPendientes()
         {
             ConexionDB db = new ConexionDB();
@@ -153,6 +156,7 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
+                    // Mostramos todos los pendientes para que el Admin los asigne a la sucursal que desee
                     string sql = "SELECT Username FROM Usuarios WHERE Estado = 'Pendiente'";
                     SqlCommand cmd = new SqlCommand(sql, con);
                     DataTable dt = new DataTable();
@@ -170,22 +174,33 @@ namespace PuntoFlower.Views
             if (row == null) return;
 
             string usuario = row["Username"].ToString();
+
+            // Confirmación estratégica para evitar errores de asignación
+            var confirmacion = MessageBox.Show($"¿Deseas activar a '{usuario}' y asignarlo permanentemente a la sucursal '{ConexionGlobal.SucursalActual}'?\n\nSi pertenece a otra ciudad, presiona 'No', cambia de sucursal en el menú superior y vuelve a intentarlo.", "Confirmar Asignación", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (confirmacion == MessageBoxResult.No) return;
+
             ConexionDB db = new ConexionDB();
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string sql = "UPDATE Usuarios SET Estado = 'Activo' WHERE Username = @u";
+                    // MODIFICACIÓN CLAVE: Inyectamos la sucursal al activar la cuenta
+                    string sql = "UPDATE Usuarios SET Estado = 'Activo', Sucursal = @s WHERE Username = @u";
                     SqlCommand cmd = new SqlCommand(sql, con);
                     cmd.Parameters.AddWithValue("@u", usuario);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     cmd.ExecuteNonQuery();
                 }
-                MessageBox.Show("Usuario " + usuario + " activado correctamente.");
+                MessageBox.Show($"Usuario '{usuario}' activado y asignado correctamente a {ConexionGlobal.SucursalActual}.");
                 CargarUsuariosPendientes();
             }
             catch (Exception ex) { MessageBox.Show("Error al activar: " + ex.Message); }
         }
 
+        // =========================================================================
+        // AISLAMIENTO MULTI-SUCURSAL PARA PRECIOS Y FLORES
+        // =========================================================================
         private void CargarPreciosActuales()
         {
             ConexionDB db = new ConexionDB();
@@ -193,7 +208,10 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    SqlCommand cmd = new SqlCommand("SELECT Capacidad, Precio FROM PreciosRamos", con);
+                    // Filtramos los precios para cargar únicamente los de la sucursal actual
+                    SqlCommand cmd = new SqlCommand("SELECT Capacidad, Precio FROM PreciosRamos WHERE Sucursal = @s", con);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
+
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -235,7 +253,7 @@ namespace PuntoFlower.Views
                     GuardarPrecioRamo(con, 200, txtPrecio200.Text);
                     GuardarPrecioRamo(con, 250, txtPrecio250.Text);
                 }
-                MessageBox.Show("Todos los precios de ramos han sido actualizados.");
+                MessageBox.Show($"Precios de ramos actualizados exclusivamente para {ConexionGlobal.SucursalActual}.");
             }
             catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
@@ -245,10 +263,12 @@ namespace PuntoFlower.Views
             if (string.IsNullOrEmpty(precioTxt)) return;
             if (decimal.TryParse(precioTxt, out decimal p))
             {
-                string sql = "IF EXISTS(SELECT 1 FROM PreciosRamos WHERE Capacidad=@c) UPDATE PreciosRamos SET Precio=@p WHERE Capacidad=@c ELSE INSERT INTO PreciosRamos (Capacidad, Precio) VALUES(@c, @p)";
+                // Respetamos la llave compuesta (Capacidad + Sucursal)
+                string sql = "IF EXISTS(SELECT 1 FROM PreciosRamos WHERE Capacidad=@c AND Sucursal=@s) UPDATE PreciosRamos SET Precio=@p WHERE Capacidad=@c AND Sucursal=@s ELSE INSERT INTO PreciosRamos (Capacidad, Precio, Sucursal) VALUES(@c, @p, @s)";
                 SqlCommand cmd = new SqlCommand(sql, con);
                 cmd.Parameters.AddWithValue("@c", cap);
                 cmd.Parameters.AddWithValue("@p", p);
+                cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                 cmd.ExecuteNonQuery();
             }
         }
@@ -261,8 +281,11 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = "SELECT Id, Nombre, PrecioCompra, PrecioVenta FROM Productos WHERE Categoria = 'Venta' ORDER BY Nombre ASC";
+                    // Aislamiento: Solo cargamos el catálogo de flores de la sucursal actual
+                    string query = "SELECT Id, Nombre, PrecioCompra, PrecioVenta FROM Productos WHERE Categoria = 'Venta' AND Sucursal = @s ORDER BY Nombre ASC";
                     SqlCommand cmd = new SqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
+
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -311,13 +334,15 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    SqlCommand cmd = new SqlCommand("UPDATE Productos SET PrecioCompra=@pc, PrecioVenta=@pv WHERE Id=@id", con);
+                    // Aislamiento: Aseguramos que la actualización del precio solo afecte a la sucursal actual
+                    SqlCommand cmd = new SqlCommand("UPDATE Productos SET PrecioCompra=@pc, PrecioVenta=@pv WHERE Id=@id AND Sucursal=@s", con);
                     cmd.Parameters.AddWithValue("@pc", txtEditCosto.Text);
                     cmd.Parameters.AddWithValue("@pv", txtEditVenta.Text);
                     cmd.Parameters.AddWithValue("@id", florSeleccionada.Id);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     cmd.ExecuteNonQuery();
                 }
-                MessageBox.Show("Precio actualizado.");
+                MessageBox.Show("Precio de la flor actualizado correctamente.");
                 CargarTablaFlores();
             }
             catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }

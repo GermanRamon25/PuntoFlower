@@ -3,8 +3,7 @@ using System.Windows;
 using PuntoFlower.Views;
 using System.Globalization;
 using PuntoFlower.Data;
-using PuntoFlower.Models;
-using System.Configuration; // Agregado para leer el App.config de forma segura
+using System.Configuration;
 
 namespace PuntoFlower
 {
@@ -17,19 +16,19 @@ namespace PuntoFlower
             // Configurar fecha actual con cultura de México
             txtFechaActual.Text = DateTime.Now.ToString("dddd dd 'de' MMMM, yyyy", new CultureInfo("es-MX"));
 
-            // Mostrar nombre del usuario logueado y su rol
-            txtUsuarioLogueado.Text = $"{Session.RolActual}: {Session.UsuarioActual}";
+            // Mostrar nombre del usuario, rol y sucursal base
+            txtUsuarioLogueado.Text = $"{Session.RolActual}: {Session.UsuarioActual} ({Session.SucursalAsignada})";
 
-            // ASIGNACIÓN DINÁMICA DE LA SUCURSAL LOCAL
+            // ASIGNACIÓN DINÁMICA DEL TÍTULO DE VENTANA
             try
             {
                 ConexionDB db = new ConexionDB();
-                string sucursalActual = db.ObtenerNombreSucursal();
-                this.Title = $"PuntoFlower - {sucursalActual}";
+                string nombreFisico = db.ObtenerNombreSucursal();
+                this.Title = $"PuntoFlower - {nombreFisico} | Viendo datos de: {ConexionGlobal.SucursalActual}";
             }
             catch
             {
-                this.Title = "PuntoFlower - Gestión de Florería";
+                this.Title = $"PuntoFlower - Viendo datos de: {ConexionGlobal.SucursalActual}";
             }
 
             // Aplicar restricciones de seguridad según el Rol
@@ -41,83 +40,67 @@ namespace PuntoFlower
 
         private void ConfigurarAccesoSegunRol()
         {
-            // Caso 1: Si el usuario es un Empleado operativo en mostrador
             if (Session.RolActual == "Empleado")
             {
-                // Ocultamos los módulos gerenciales clásicos administrativos
                 if (btnDashboard != null) btnDashboard.Visibility = Visibility.Collapsed;
                 if (btnInventario != null) btnInventario.Visibility = Visibility.Collapsed;
                 if (btnReportes != null) btnReportes.Visibility = Visibility.Collapsed;
                 if (btnConfiguracion != null) btnConfiguracion.Visibility = Visibility.Collapsed;
 
-                // Ocultamos el selector de sucursales para que no cambien de BD
+                // El empleado NO puede ver ni tocar el selector de sucursales
                 if (cmbSucursales != null) cmbSucursales.Visibility = Visibility.Collapsed;
 
-                // CORRECCIÓN: El módulo de gastos se mantiene visible pero adaptado a servicios operativos
                 if (btnGastos != null)
                 {
                     btnGastos.Visibility = Visibility.Visible;
-                    txtTextoGastosButton.Text = "Gastos de Servicios"; // Contextualiza la etiqueta para el empleado
+                    txtTextoGastosButton.Text = "Gastos de Servicios";
                 }
             }
-            // Caso 2: Si el usuario es Administrador o Dueño
             else
             {
-                // El sistema habilita todas las funciones de auditoría y configuración al 100%
                 if (btnDashboard != null) btnDashboard.Visibility = Visibility.Visible;
                 if (btnInventario != null) btnInventario.Visibility = Visibility.Visible;
                 if (btnReportes != null) btnReportes.Visibility = Visibility.Visible;
 
-                // Habilitamos el selector de sucursales en la nube
+                // Habilitamos el selector de sucursales en la nube para el Administrador
                 if (cmbSucursales != null) cmbSucursales.Visibility = Visibility.Visible;
 
                 if (btnGastos != null)
                 {
                     btnGastos.Visibility = Visibility.Visible;
-                    txtTextoGastosButton.Text = "Gastos y Surtido"; // Restaura la etiqueta administrativa para gerencia
+                    txtTextoGastosButton.Text = "Gastos y Surtido";
                 }
                 if (btnConfiguracion != null) btnConfiguracion.Visibility = Visibility.Visible;
             }
         }
 
-        // --- Evento del Selector de Sucursales en la Nube ---
+        // --- Evento del Selector de Sucursales en la Nube (MODIFICADO PARA MULTI-TENANT) ---
         private void CmbSucursales_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            // Validamos que el componente ya esté cargado
             if (cmbSucursales != null && cmbSucursales.SelectedItem is System.Windows.Controls.ComboBoxItem seleccion)
             {
-                string sucursalSeleccionada = seleccion.Content.ToString();
+                // Limpiamos el texto por si tu XAML incluye la palabra "Sucursal " (ej: "Sucursal Los Mochis")
+                // Esto garantiza que empate exactamente con el nombre de la BD ("Los Mochis")
+                string sucursalSeleccionada = seleccion.Content.ToString().Replace("Sucursal ", "").Trim();
 
-                // 1. Actualizamos la variable global para saber dónde estamos parados
+                // 1. ACTUALIZAMOS LA VARIABLE GLOBAL (El filtro mágico)
                 ConexionGlobal.SucursalActual = sucursalSeleccionada;
 
-                // 2. Cambiamos la conexión dinámicamente según la selección
-                if (sucursalSeleccionada == "Matriz (Pruebas)")
-                {
-                    // Solución segura: Leemos la conexión original de tu App.config, sin exponer contraseñas aquí
-                    ConexionGlobal.CadenaConexionActiva = ConfigurationManager.ConnectionStrings["PuntoFlowerDB"].ConnectionString;
-                }
-                else if (sucursalSeleccionada == "Sucursal Los Mochis")
-                {
-                    // Espacio preparado para cuando crees la BD de Los Mochis en tu servidor de Azure
-                    // ConexionGlobal.CadenaConexionActiva = "Server=tcp:servidor-puntoflower-sin.database.windows.net,1433;Initial Catalog=PuntoFlower_Mochis;Persist Security Info=False;User ID=puntofloweradmin;Password=TU_CONTRASEÑA;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;";
-                }
-                else if (sucursalSeleccionada == "Sucursal Guasave")
-                {
-                    // Espacio preparado para Guasave
-                }
-                else if (sucursalSeleccionada == "Sucursal Culiacán")
-                {
-                    // Espacio preparado para Culiacán
-                }
+                // 2. Actualizamos el título de la ventana para confirmar dónde estamos
+                this.Title = $"PuntoFlower - Viendo datos de: {ConexionGlobal.SucursalActual}";
 
-                // 3. Actualizamos el título de la ventana
-                this.Title = $"PuntoFlower - {sucursalSeleccionada}";
-
-                // 4. Si el administrador está viendo el Dashboard, lo recargamos para que muestre los números de la nueva sucursal
-                if (MainContent != null && MainContent.Content is DashboardView)
+                // 3. Recargamos la vista actual para que renderice los datos de la nueva ciudad seleccionada
+                if (MainContent != null)
                 {
-                    MainContent.Content = new DashboardView();
+                    if (MainContent.Content is DashboardView) MainContent.Content = new DashboardView();
+                    else if (MainContent.Content is InventoryView) MainContent.Content = new InventoryView();
+                    else if (MainContent.Content is CatalogView) MainContent.Content = new CatalogView();
+                    else if (MainContent.Content is SalesView) MainContent.Content = new SalesView();
+                    else if (MainContent.Content is AgendaView) MainContent.Content = new AgendaView();
+                    else if (MainContent.Content is ExpensesView) MainContent.Content = new ExpensesView();
+                    else if (MainContent.Content is ReportsView) MainContent.Content = new ReportsView();
+                    else if (MainContent.Content is CashCloseOutView) MainContent.Content = new CashCloseOutView();
+                    else if (MainContent.Content is ConfigurationView) MainContent.Content = new ConfigurationView();
                 }
             }
         }
