@@ -128,7 +128,8 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    SqlCommand cmd = new SqlCommand("SELECT Capacidad, Precio FROM PreciosRamos", con);
+                    SqlCommand cmd = new SqlCommand("SELECT Capacidad, Precio FROM PreciosRamos WHERE Sucursal = @s", con);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -170,8 +171,9 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = "SELECT Nombre, PrecioVenta, RutaImagen FROM Productos WHERE StockActual > 0 AND Categoria = 'Venta'";
+                    string query = "SELECT Nombre, PrecioVenta, RutaImagen FROM Productos WHERE StockActual > 0 AND Categoria = 'Venta' AND Sucursal = @s";
                     SqlCommand cmd = new SqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read()) lista.Add(new Producto
@@ -206,10 +208,11 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string q = "SELECT ISNULL(StockActual, 0) FROM Productos WHERE Nombre = @nom AND Categoria = 'Venta'";
+                    string q = "SELECT ISNULL(StockActual, 0) FROM Productos WHERE Nombre = @nom AND Categoria = 'Venta' AND Sucursal = @s";
                     using (SqlCommand cmd = new SqlCommand(q, con))
                     {
                         cmd.Parameters.AddWithValue("@nom", nombreProducto);
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         stock = Convert.ToInt32(cmd.ExecuteScalar());
                     }
                 }
@@ -233,7 +236,7 @@ namespace PuntoFlower.Views
 
                 if ((yaAgregadoAlTicket + cant) > stockReal)
                 {
-                    MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.\nYa comprometido en venta: {yaAgregadoAlTicket} pz.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show($"¡Inventario Insuficiente en {ConexionGlobal.SucursalActual}!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.\nYa comprometido en venta: {yaAgregadoAlTicket} pz.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
             }
@@ -271,7 +274,7 @@ namespace PuntoFlower.Views
 
                 if ((yaAgregadoAlTicket + cant) > stockReal)
                 {
-                    MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {prod.Nombre}\nExistencia actual: {stockReal} pz.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show($"¡Inventario Insuficiente en {ConexionGlobal.SucursalActual}!\n\nFlor: {prod.Nombre}\nExistencia actual: {stockReal} pz.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
             }
@@ -302,7 +305,7 @@ namespace PuntoFlower.Views
 
                 if ((yaAgregadoAlTicket + cant) > stockReal)
                 {
-                    MessageBox.Show($"¡Inventario Insuficiente en Mostrador!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show($"¡Inventario Insuficiente en {ConexionGlobal.SucursalActual}!\n\nFlor: {flor.Nombre}\nExistencia actual: {stockReal} pz.", "Stock Agotado", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
             }
@@ -519,9 +522,6 @@ namespace PuntoFlower.Views
                     {
                         try
                         {
-                            // =========================================================================
-                            // BLINDAJE LOGÍSTICO: Solo bloqueamos stock si es venta de mostrador inmediata
-                            // =========================================================================
                             if (chkEsPedidoApartado.IsChecked == false)
                             {
                                 var totalesRequeridos = ProductosEnTicket
@@ -531,22 +531,22 @@ namespace PuntoFlower.Views
 
                                 foreach (var req in totalesRequeridos)
                                 {
-                                    string qCheck = "SELECT ISNULL(StockActual, 0) FROM Productos WITH (UPDLOCK) WHERE Nombre = @nom AND Categoria = 'Venta'";
+                                    string qCheck = "SELECT ISNULL(StockActual, 0) FROM Productos WITH (UPDLOCK) WHERE Nombre = @nom AND Categoria = 'Venta' AND Sucursal = @s";
                                     int stockTransaccional = 0;
                                     using (SqlCommand cmdCheck = new SqlCommand(qCheck, con, tra))
                                     {
-                                        cmdCheck.CommandTimeout = 15; // Blindaje: Fallo rápido si hay latencia
+                                        cmdCheck.CommandTimeout = 15;
                                         cmdCheck.Parameters.AddWithValue("@nom", req.Nombre);
+                                        cmdCheck.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                         stockTransaccional = Convert.ToInt32(cmdCheck.ExecuteScalar());
                                     }
 
                                     if (req.CantidadRequerida > stockTransaccional)
                                     {
-                                        throw new Exception($"¡Venta Cancelada por falta de Stock simultáneo!\n\nLa flor '{req.Nombre}' ya fue vendida en otra caja. Existencia real: {stockTransaccional} pz. Requerido en nota: {req.CantidadRequerida} pz.");
+                                        throw new Exception($"¡Venta Cancelada por falta de Stock simultáneo!\n\nLa flor '{req.Nombre}' ya fue vendida en otra caja de esta sucursal. Existencia real: {stockTransaccional} pz. Requerido en nota: {req.CantidadRequerida} pz.");
                                     }
                                 }
                             }
-                            // =========================================================================
 
                             string detProdNombres = string.Join(", ", ProductosEnTicket.Select(x => x.ProductoNombre));
                             string detVisualConcat = string.Join(" | ", ProductosEnTicket.Select(x => x.DetalleVisual));
@@ -573,11 +573,12 @@ namespace PuntoFlower.Views
                                     totalPiezasContadas = primerInsumo.Quantity ?? primerInsumo.Cantidad;
                                     if (totalPiezasContadas <= 0) totalPiezasContadas = 1;
 
-                                    string qFindId = "SELECT TOP 1 Id FROM Productos WHERE Nombre = @fn AND Categoria = 'Venta'";
+                                    string qFindId = "SELECT TOP 1 Id FROM Productos WHERE Nombre = @fn AND Categoria = 'Venta' AND Sucursal = @s";
                                     using (SqlCommand cmdFind = new SqlCommand(qFindId, con, tra))
                                     {
-                                        cmdFind.CommandTimeout = 15; // Blindaje
+                                        cmdFind.CommandTimeout = 15;
                                         cmdFind.Parameters.AddWithValue("@fn", primerInsumo.Nombre);
+                                        cmdFind.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                         object resId = cmdFind.ExecuteScalar();
                                         if (resId != null && resId != DBNull.Value) firstProductoIdDB = Convert.ToInt32(resId);
                                     }
@@ -603,16 +604,18 @@ namespace PuntoFlower.Views
                                 imprimirAnticipo = true;
                                 imprimirProduccion = true;
 
-                                string insPed = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago, CostoEnvio, ProductoId, CantidadFlores, InventarioDescontado, FleteCobradoEnCaja) 
-                                                 VALUES (@nom, @tel, @fec, GETDATE(), 'Mostrador Caja', '', @estFinal, @des, @tot, @ant, @saldo, @met, @flete, @prodId, @cantFlores, 0, 0);
+                                // BLINDAJE DE ZONA HORARIA: Se inyecta la hora local exacta
+                                string insPed = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago, CostoEnvio, ProductoId, CantidadFlores, InventarioDescontado, FleteCobradoEnCaja, Sucursal) 
+                                                 VALUES (@nom, @tel, @fec, @fechaLocal, 'Mostrador Caja', '', @estFinal, @des, @tot, @ant, @saldo, @met, @flete, @prodId, @cantFlores, 0, 0, @s);
                                                  SELECT SCOPE_IDENTITY();";
                                 int nuevoPedidoId = 0;
                                 using (SqlCommand cmdPed = new SqlCommand(insPed, con, tra))
                                 {
-                                    cmdPed.CommandTimeout = 15; // Blindaje
+                                    cmdPed.CommandTimeout = 15;
                                     cmdPed.Parameters.AddWithValue("@nom", txtClientePedidoCaja.Text.Trim());
                                     cmdPed.Parameters.AddWithValue("@tel", txtTelPedidoCaja.Text.Trim());
                                     cmdPed.Parameters.AddWithValue("@fec", dpFechaPedidoCaja.SelectedDate.HasValue ? dpFechaPedidoCaja.SelectedDate.Value : DateTime.Now.AddDays(1));
+                                    cmdPed.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                     cmdPed.Parameters.AddWithValue("@des", detProdNombres + " (" + detVisualConcat + ")");
                                     cmdPed.Parameters.AddWithValue("@tot", totalNetoArreglo);
                                     cmdPed.Parameters.AddWithValue("@ant", pagoRecibido);
@@ -622,20 +625,23 @@ namespace PuntoFlower.Views
                                     cmdPed.Parameters.AddWithValue("@flete", fleteNeto);
                                     cmdPed.Parameters.AddWithValue("@prodId", (object)firstProductoIdDB ?? DBNull.Value);
                                     cmdPed.Parameters.AddWithValue("@cantFlores", totalPiezasContadas);
+                                    cmdPed.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                     nuevoPedidoId = Convert.ToInt32(cmdPed.ExecuteScalar());
                                 }
 
                                 if (pagoRecibido > 0)
                                 {
                                     string nombreConceptoVenta = $"Anticipo Nuevo Pedido #{nuevoPedidoId}: {txtClientePedidoCaja.Text.Trim()} ({detProdNombres})";
-                                    string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId) 
-                                                VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
+
+                                    string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId, Sucursal) 
+                                                VALUES (@fechaLocal, @n, @cant, @t, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId, @s)";
                                     using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
                                     {
-                                        cmdV.CommandTimeout = 15; // Blindaje
+                                        cmdV.CommandTimeout = 15;
+                                        cmdV.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                         cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
-                                        cmdV.Parameters.AddWithValue("@t", pagoRecibido);
                                         cmdV.Parameters.AddWithValue("@cant", totalPiezasContadas);
+                                        cmdV.Parameters.AddWithValue("@t", pagoRecibido);
                                         cmdV.Parameters.AddWithValue("@metodo", metodoPago);
                                         cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
                                         cmdV.Parameters.AddWithValue("@cam", cambioFinal);
@@ -643,20 +649,23 @@ namespace PuntoFlower.Views
                                         cmdV.Parameters.AddWithValue("@desc", totalDineroDescontado);
                                         cmdV.Parameters.AddWithValue("@numRef", numeroRefValor);
                                         cmdV.Parameters.AddWithValue("@pId", (object)firstProductoIdDB ?? DBNull.Value);
+                                        cmdV.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                         cmdV.ExecuteNonQuery();
                                     }
 
-                                    string qAbonoHist = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, CuentaTransferencia, NumeroReferencia, UsuarioRegistro)
-                                                          VALUES (@pedId, GETDATE(), @monto, @metodo, @cuenta, @ref, @user)";
+                                    string qAbonoHist = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, CuentaTransferencia, NumeroReferencia, UsuarioRegistro, Sucursal)
+                                                          VALUES (@pedId, @fechaLocal, @monto, @metodo, @cuenta, @ref, @user, @s)";
                                     using (SqlCommand cmdAb = new SqlCommand(qAbonoHist, con, tra))
                                     {
-                                        cmdAb.CommandTimeout = 15; // Blindaje
+                                        cmdAb.CommandTimeout = 15;
                                         cmdAb.Parameters.AddWithValue("@pedId", nuevoPedidoId);
+                                        cmdAb.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                         cmdAb.Parameters.AddWithValue("@monto", pagoRecibido);
                                         cmdAb.Parameters.AddWithValue("@metodo", metodoPago);
                                         cmdAb.Parameters.AddWithValue("@cuenta", cuentaDestino);
                                         cmdAb.Parameters.AddWithValue("@ref", numeroRefValor);
                                         cmdAb.Parameters.AddWithValue("@user", Session.UsuarioActual ?? "Empleado");
+                                        cmdAb.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                         cmdAb.ExecuteNonQuery();
                                     }
                                 }
@@ -677,14 +686,16 @@ namespace PuntoFlower.Views
 
                                 string nombreConceptoVenta = $"Venta Mostrador: ({detProdNombres})";
 
-                                string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Total, Cantidad, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId) 
-                                            VALUES (GETDATE(), @n, @t, @cant, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId)";
+                                // BLINDAJE DE ZONA HORARIA: Se inyecta la hora local exacta
+                                string qV = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId, Sucursal) 
+                                            VALUES (@fechaLocal, @n, @cant, @t, @metodo, @rec, @cam, @cuenta, @desc, @numRef, @pId, @s)";
                                 using (SqlCommand cmdV = new SqlCommand(qV, con, tra))
                                 {
-                                    cmdV.CommandTimeout = 15; // Blindaje
+                                    cmdV.CommandTimeout = 15;
+                                    cmdV.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                     cmdV.Parameters.AddWithValue("@n", nombreConceptoVenta);
-                                    cmdV.Parameters.AddWithValue("@t", totalNetoArreglo);
                                     cmdV.Parameters.AddWithValue("@cant", totalPiezasContadas);
+                                    cmdV.Parameters.AddWithValue("@t", totalNetoArreglo);
                                     cmdV.Parameters.AddWithValue("@metodo", metodoPago);
                                     cmdV.Parameters.AddWithValue("@rec", pagoRecibido);
                                     cmdV.Parameters.AddWithValue("@cam", cambioFinal);
@@ -692,6 +703,7 @@ namespace PuntoFlower.Views
                                     cmdV.Parameters.AddWithValue("@desc", totalDineroDescontado);
                                     cmdV.Parameters.AddWithValue("@numRef", numeroRefValor);
                                     cmdV.Parameters.AddWithValue("@pId", (object)firstProductoIdDB ?? DBNull.Value);
+                                    cmdV.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                     cmdV.ExecuteNonQuery();
                                 }
 
@@ -699,11 +711,12 @@ namespace PuntoFlower.Views
                                 {
                                     foreach (var insumo in item.InsumosADescontar)
                                     {
-                                        using (SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom AND Categoria = 'Venta'", con, tra))
+                                        using (SqlCommand cmdS = new SqlCommand("UPDATE Productos SET StockActual = StockActual - @c WHERE Nombre = @nom AND Categoria = 'Venta' AND Sucursal = @s", con, tra))
                                         {
-                                            cmdS.CommandTimeout = 15; // Blindaje
+                                            cmdS.CommandTimeout = 15;
                                             cmdS.Parameters.AddWithValue("@c", insumo.Quantity ?? insumo.Cantidad);
                                             cmdS.Parameters.AddWithValue("@nom", insumo.Nombre);
+                                            cmdS.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                             cmdS.ExecuteNonQuery();
                                         }
                                     }
@@ -720,7 +733,7 @@ namespace PuntoFlower.Views
                             ticketPorcentajeAplicado = porcText;
                             ticketReferencia = numeroRefValor != DBNull.Value ? numeroRefValor.ToString() : "";
 
-                            MessageBoxResult result = MessageBox.Show("Operación registrada con éxito contable.\n\n¿Deseas imprimir el ticket físico en este momento?", "Venta Exitosa", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                            MessageBoxResult result = MessageBox.Show($"Operación registrada con éxito contable en {ConexionGlobal.SucursalActual}.\n\n¿Deseas imprimir el ticket físico en este momento?", "Venta Exitosa", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                             if (result == MessageBoxResult.Yes)
                             {
@@ -744,7 +757,6 @@ namespace PuntoFlower.Views
                         catch (SqlException sqlEx)
                         {
                             tra.Rollback();
-                            // Blindaje: Detección de fallos de red específicos
                             if (sqlEx.Number == -2 || sqlEx.Number == 53 || sqlEx.Number == 11001 || sqlEx.Class == 20)
                             {
                                 MessageBox.Show("Se perdió la conexión a internet durante el cobro.\nLa venta NO se registró y el dinero no ha entrado al sistema.\n\nPor favor, revisa tu conexión WiFi e intenta cobrar de nuevo.", "Sin Internet", MessageBoxButton.OK, MessageBoxImage.Warning);

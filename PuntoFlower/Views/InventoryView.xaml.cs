@@ -20,7 +20,7 @@ namespace PuntoFlower.Views
 {
     public class HistorialTrasladoClass
     {
-        public int Id { get; set; } // Identificador físico único de la fila en SQL Server
+        public int Id { get; set; }
         public DateTime Fecha { get; set; }
         public string ProductoNombre { get; set; }
         public int Cantidad { get; set; }
@@ -61,8 +61,8 @@ namespace PuntoFlower.Views
             ConexionDB db = new ConexionDB();
             try
             {
-                string origenLocal = db.ObtenerNombreSucursal();
-                txtSucursalOrigen.Text = string.IsNullOrEmpty(origenLocal) ? "Guasave" : origenLocal;
+                // Aseguramos que el origen sea estrictamente la sucursal activa en la sesión
+                txtSucursalOrigen.Text = ConexionGlobal.SucursalActual;
 
                 List<string> sucursalesDestino = new List<string>();
                 using (SqlConnection con = db.OpenConnection())
@@ -75,7 +75,7 @@ namespace PuntoFlower.Views
                             while (r.Read())
                             {
                                 string nombreSucursalBD = r["Nombre"].ToString();
-                                if (txtSucursalOrigen.Text.ToUpper().Contains(nombreSucursalBD.ToUpper())) continue;
+                                if (txtSucursalOrigen.Text.ToUpper() == nombreSucursalBD.ToUpper()) continue;
                                 sucursalesDestino.Add(nombreSucursalBD);
                             }
                         }
@@ -97,8 +97,11 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = "SELECT Id, Fecha, ProductoNombre, Cantidad, SucursalDestino, UsuarioResponsable FROM HistorialTraslados ORDER BY Fecha DESC";
+                    // Solo mostramos los traslados que salieron de esta sucursal específica
+                    string query = "SELECT Id, Fecha, ProductoNombre, Cantidad, SucursalDestino, UsuarioResponsable FROM HistorialTraslados WHERE SucursalOrigen = @s ORDER BY Fecha DESC";
                     SqlCommand cmd = new SqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
+
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -149,19 +152,22 @@ namespace PuntoFlower.Views
 
                 try
                 {
-                    string qDevolver = "UPDATE Productos SET StockActual = StockActual + @cantOriginal WHERE Nombre = @nomOriginal AND Categoria = 'Venta'";
+                    // BLINDAJE: Afectar solo el stock de la sucursal actual
+                    string qDevolver = "UPDATE Productos SET StockActual = StockActual + @cantOriginal WHERE Nombre = @nomOriginal AND Categoria = 'Venta' AND Sucursal = @s";
                     using (SqlCommand cmdDev = new SqlCommand(qDevolver, con, transaccion))
                     {
                         cmdDev.Parameters.AddWithValue("@cantOriginal", traslado.Cantidad);
                         cmdDev.Parameters.AddWithValue("@nomOriginal", traslado.ProductoNombre);
+                        cmdDev.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdDev.ExecuteNonQuery();
                     }
 
-                    string qCheck = "SELECT StockActual FROM Productos WHERE Nombre = @nom AND Categoria = 'Venta'";
+                    string qCheck = "SELECT StockActual FROM Productos WHERE Nombre = @nom AND Categoria = 'Venta' AND Sucursal = @s";
                     int stockDisponibleTemporal = 0;
                     using (SqlCommand cmdCheck = new SqlCommand(qCheck, con, transaccion))
                     {
                         cmdCheck.Parameters.AddWithValue("@nom", traslado.ProductoNombre);
+                        cmdCheck.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         object res = cmdCheck.ExecuteScalar();
                         stockDisponibleTemporal = res != null ? Convert.ToInt32(res) : 0;
                     }
@@ -173,11 +179,12 @@ namespace PuntoFlower.Views
                         return;
                     }
 
-                    string qDescontar = "UPDATE Productos SET StockActual = StockActual - @cantNueva WHERE Nombre = @nom AND Categoria = 'Venta'";
+                    string qDescontar = "UPDATE Productos SET StockActual = StockActual - @cantNueva WHERE Nombre = @nom AND Categoria = 'Venta' AND Sucursal = @s";
                     using (SqlCommand cmdDesc = new SqlCommand(qDescontar, con, transaccion))
                     {
                         cmdDesc.Parameters.AddWithValue("@cantNueva", nuevaCant);
                         cmdDesc.Parameters.AddWithValue("@nom", traslado.ProductoNombre);
+                        cmdDesc.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdDesc.ExecuteNonQuery();
                     }
 
@@ -209,14 +216,13 @@ namespace PuntoFlower.Views
             }
         }
 
-        // NUEVO MÉTODO: Elimina el registro del traslado y devuelve el stock al mostrador (Venta)
         private void btnEliminarTraslado_Click(object sender, RoutedEventArgs e)
         {
             var boton = sender as Button;
             var traslado = boton?.DataContext as HistorialTrasladoClass;
             if (traslado == null) return;
 
-            var conf = MessageBox.Show($"¿Deseas cancelar y borrar permanentemente este traslado?\nSe devolverán las {traslado.Cantidad} piezas de '{traslado.ProductoNombre}' al inventario de mostrador.", "Confirmar Cancelación de Traslado", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var conf = MessageBox.Show($"¿Deseas cancelar y borrar permanentemente este traslado?\nSe devolverán las {traslado.Cantidad} piezas de '{traslado.ProductoNombre}' al inventario de mostrador de {ConexionGlobal.SucursalActual}.", "Confirmar Cancelación", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (conf != MessageBoxResult.Yes) return;
 
             ConexionDB db = new ConexionDB();
@@ -225,16 +231,16 @@ namespace PuntoFlower.Views
                 SqlTransaction transaccion = con.BeginTransaction();
                 try
                 {
-                    // PASO 1: Devolución física de stock de flores
-                    string qRestaurar = "UPDATE Productos SET StockActual = StockActual + @cant WHERE Nombre = @nom AND Categoria = 'Venta'";
+                    // BLINDAJE: Afectar solo el stock de la sucursal actual
+                    string qRestaurar = "UPDATE Productos SET StockActual = StockActual + @cant WHERE Nombre = @nom AND Categoria = 'Venta' AND Sucursal = @s";
                     using (SqlCommand cmdRes = new SqlCommand(qRestaurar, con, transaccion))
                     {
                         cmdRes.Parameters.AddWithValue("@cant", traslado.Cantidad);
                         cmdRes.Parameters.AddWithValue("@nom", traslado.ProductoNombre);
+                        cmdRes.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdRes.ExecuteNonQuery();
                     }
 
-                    // PASO 2: Borrado físico del registro en la bitácora
                     string qDelete = "DELETE FROM HistorialTraslados WHERE Id = @id";
                     using (SqlCommand cmdDel = new SqlCommand(qDelete, con, transaccion))
                     {
@@ -264,9 +270,11 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = "SELECT Id, ProductoNombre, Cantidad, Motivo, Fecha FROM Mermas ORDER BY Fecha DESC";
+                    // BLINDAJE: Ver solo las mermas registradas en esta sucursal
+                    string query = "SELECT Id, ProductoNombre, Cantidad, Motivo, Fecha FROM Mermas WHERE Sucursal = @s ORDER BY Fecha DESC";
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         using (SqlDataReader r = cmd.ExecuteReader())
                         {
                             while (r.Read())
@@ -299,12 +307,14 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection conexion = db.OpenConnection())
                 {
-                    string query = "SELECT * FROM Productos";
+                    // BLINDAJE: Cargar exclusivamente el catálogo de la sucursal actual
+                    string query = "SELECT * FROM Productos WHERE Sucursal = @s";
                     if (!string.IsNullOrEmpty(filtro))
-                        query += " WHERE Nombre LIKE @buscar OR Categoria LIKE @buscar";
+                        query += " AND (Nombre LIKE @buscar OR Categoria LIKE @buscar)";
 
                     using (SqlCommand comando = new SqlCommand(query, conexion))
                     {
+                        comando.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         if (!string.IsNullOrEmpty(filtro))
                             comando.Parameters.AddWithValue("@buscar", "%" + filtro + "%");
 
@@ -377,11 +387,13 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string qUpdate = "UPDATE Productos SET StockActual = StockActual - @cant WHERE Id = @id";
+                    // BLINDAJE: Descontar solo del stock de origen (sucursal actual)
+                    string qUpdate = "UPDATE Productos SET StockActual = StockActual - @cant WHERE Id = @id AND Sucursal = @s";
                     using (SqlCommand cmdUp = new SqlCommand(qUpdate, con))
                     {
                         cmdUp.Parameters.AddWithValue("@cant", cantMover);
                         cmdUp.Parameters.AddWithValue("@id", florSeleccionada.Id);
+                        cmdUp.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdUp.ExecuteNonQuery();
                     }
 
@@ -429,7 +441,7 @@ namespace PuntoFlower.Views
             }
 
             string cantidadStr = Microsoft.VisualBasic.Interaction.InputBox(
-                $"¿Cuántas unidades de '{seleccionado.Nombre}' ({seleccionado.Categoria}) se perdieron?", "Registro de Merma", "1");
+                $"¿Cuántas unidades de '{seleccionado.Nombre}' ({seleccionado.Categoria}) se perdieron en {ConexionGlobal.SucursalActual}?", "Registro de Merma", "1");
 
             if (string.IsNullOrEmpty(cantidadStr)) return;
 
@@ -449,20 +461,23 @@ namespace PuntoFlower.Views
                 {
                     using (SqlConnection con = db.OpenConnection())
                     {
-                        string qUpdate = "UPDATE Productos SET StockActual = StockActual - @cant WHERE Id = @id";
+                        // BLINDAJE: Afectar solo el stock y registrar la merma en la sucursal actual
+                        string qUpdate = "UPDATE Productos SET StockActual = StockActual - @cant WHERE Id = @id AND Sucursal = @s";
                         SqlCommand cmdUp = new SqlCommand(qUpdate, con);
                         cmdUp.Parameters.AddWithValue("@cant", cantBaja);
                         cmdUp.Parameters.AddWithValue("@id", seleccionado.Id);
+                        cmdUp.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdUp.ExecuteNonQuery();
 
-                        string qInsert = "INSERT INTO Mermas (ProductoNombre, Cantidad, Motivo, Fecha) VALUES (@nom, @cant, @mot, GETDATE())";
+                        string qInsert = "INSERT INTO Mermas (ProductoNombre, Cantidad, Motivo, Fecha, Sucursal) VALUES (@nom, @cant, @mot, GETDATE(), @s)";
                         SqlCommand cmdIn = new SqlCommand(qInsert, con);
                         cmdIn.Parameters.AddWithValue("@nom", $"{seleccionado.Nombre} ({seleccionado.Categoria})");
                         cmdIn.Parameters.AddWithValue("@cant", cantBaja);
                         cmdIn.Parameters.AddWithValue("@mot", motivo);
+                        cmdIn.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdIn.ExecuteNonQuery();
                     }
-                    MessageBox.Show("Inventario actualizado. Merma registrada en el historial.");
+                    MessageBox.Show("Inventario actualizado. Merma registrada en el historial de la sucursal.");
                     CargarDesdeSQL();
                     CargarHistorialMermas();
                 }
@@ -491,26 +506,29 @@ namespace PuntoFlower.Views
                 using (SqlConnection con = db.OpenConnection())
                 {
                     int diferencia = nuevaCant - merma.Cantidad;
-                    string qStock = "UPDATE Productos SET StockActual = StockActual - @dif WHERE Nombre = @nom AND Categoria = @cat";
+                    // BLINDAJE
+                    string qStock = "UPDATE Productos SET StockActual = StockActual - @dif WHERE Nombre = @nom AND Categoria = @cat AND Sucursal = @s";
                     using (SqlCommand cmdStock = new SqlCommand(qStock, con))
                     {
                         cmdStock.Parameters.AddWithValue("@dif", diferencia);
                         cmdStock.Parameters.AddWithValue("@nom", nombreFlor);
                         cmdStock.Parameters.AddWithValue("@cat", catFlor);
+                        cmdStock.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdStock.ThemeExecuteNonQuerySafe();
                     }
 
-                    string qUpdate = "UPDATE Mermas SET Cantidad = @cant, Motivo = @mot WHERE Id = @id";
+                    string qUpdate = "UPDATE Mermas SET Cantidad = @cant, Motivo = @mot WHERE Id = @id AND Sucursal = @s";
                     using (SqlCommand cmdUp = new SqlCommand(qUpdate, con))
                     {
                         cmdUp.Parameters.AddWithValue("@cant", nuevaCant);
                         cmdUp.Parameters.AddWithValue("@mot", nuevoMotivo);
                         cmdUp.Parameters.AddWithValue("@id", merma.Id);
+                        cmdUp.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdUp.ExecuteNonQuery();
                     }
                 }
 
-                MessageBox.Show("Merma corregida y conciliada con el inventario físico.", "Éxito");
+                MessageBox.Show("Merma corregida y conciliada con el inventario físico de la sucursal.", "Éxito");
                 CargarDesdeSQL();
                 支配HistorialMermas();
             }
@@ -523,7 +541,7 @@ namespace PuntoFlower.Views
             var merma = boton?.DataContext as MermasControlClass;
             if (merma == null) return;
 
-            var conf = MessageBox.Show($"¿Deseas cancelar y borrar esta merma? Se devolverán las {merma.Cantidad} piezas al inventario.", "Confirmar Cancelación", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var conf = MessageBox.Show($"¿Deseas cancelar y borrar esta merma? Se devolverán las {merma.Cantidad} piezas al inventario de {ConexionGlobal.SucursalActual}.", "Confirmar Cancelación", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (conf != MessageBoxResult.Yes) return;
 
             string nombreFlor = merma.ProductoNombre.Split('(')[0].Trim();
@@ -534,24 +552,27 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string qRestaurar = "UPDATE Productos SET StockActual = StockActual + @cant WHERE Nombre = @nom AND Categoria = @cat";
+                    // BLINDAJE
+                    string qRestaurar = "UPDATE Productos SET StockActual = StockActual + @cant WHERE Nombre = @nom AND Categoria = @cat AND Sucursal = @s";
                     using (SqlCommand cmdRes = new SqlCommand(qRestaurar, con))
                     {
                         cmdRes.Parameters.AddWithValue("@cant", merma.Cantidad);
                         cmdRes.Parameters.AddWithValue("@nom", nombreFlor);
                         cmdRes.Parameters.AddWithValue("@cat", catFlor);
+                        cmdRes.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdRes.ExecuteNonQuery();
                     }
 
-                    string qDelete = "DELETE FROM Mermas WHERE Id = @id";
+                    string qDelete = "DELETE FROM Mermas WHERE Id = @id AND Sucursal = @s";
                     using (SqlCommand cmdDel = new SqlCommand(qDelete, con))
                     {
                         cmdDel.Parameters.AddWithValue("@id", merma.Id);
+                        cmdDel.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmdDel.ExecuteNonQuery();
                     }
                 }
 
-                MessageBox.Show("Merma eliminada. El stock ha sido reincorporado.");
+                MessageBox.Show("Merma eliminada. El stock ha sido reincorporado a la sucursal activa.");
                 CargarDesdeSQL();
                 CargarHistorialMermas();
             }
@@ -563,7 +584,7 @@ namespace PuntoFlower.Views
         private void btnSurtirStock_Click(object sender, RoutedEventArgs e)
         {
             var seleccionado = ObtenerProductoSeleccionado();
-            if (seleccionado != null) // Corregido el error ortográfico a 'seleccionado'
+            if (seleccionado != null)
             {
                 PuntoFlower.Views.SurtirStockWindow ventanaSurtir = new PuntoFlower.Views.SurtirStockWindow(seleccionado.Nombre);
                 ventanaSurtir.Owner = Window.GetWindow(this);
@@ -580,7 +601,7 @@ namespace PuntoFlower.Views
             var seleccionado = ObtenerProductoSeleccionado();
             if (seleccionado == null) return;
 
-            var result = MessageBox.Show($"¿Deseas eliminar '{seleccionado.Nombre}' ({seleccionado.Categoria}) del catálogo permanentemente?", "Confirmar Eliminación", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            var result = MessageBox.Show($"¿Deseas eliminar '{seleccionado.Nombre}' ({seleccionado.Categoria}) del catálogo de {ConexionGlobal.SucursalActual} permanentemente?", "Confirmar Eliminación", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result == MessageBoxResult.Yes)
             {
                 ConexionDB db = new ConexionDB();
@@ -588,14 +609,16 @@ namespace PuntoFlower.Views
                 {
                     using (SqlConnection conexion = db.OpenConnection())
                     {
-                        string query = "DELETE FROM Productos WHERE Id = @id";
+                        // BLINDAJE: Eliminar solo del catálogo de esta sucursal
+                        string query = "DELETE FROM Productos WHERE Id = @id AND Sucursal = @s";
                         SqlCommand cmd = new SqlCommand(query, conexion);
                         cmd.Parameters.AddWithValue("@id", seleccionado.Id);
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         cmd.ExecuteNonQuery();
                     }
                     CargarDesdeSQL();
                 }
-                catch (Exception) { MessageBox.Show("No se puede eliminar porque tiene historial de movimientos vinculados."); }
+                catch (Exception) { MessageBox.Show("No se puede eliminar porque tiene historial de movimientos vinculados en esta sucursal."); }
             }
         }
 
@@ -623,14 +646,14 @@ namespace PuntoFlower.Views
 
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "PDF Files (*.pdf)|*.pdf";
-            sfd.FileName = $"Reporte_Inventario_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+            sfd.FileName = $"Reporte_Inventario_{ConexionGlobal.SucursalActual.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
 
             if (sfd.ShowDialog() == true)
             {
                 try
                 {
                     ConexionDB db = new ConexionDB();
-                    string sucursalNombre = db.ObtenerNombreSucursal();
+                    string sucursalNombre = ConexionGlobal.SucursalActual; // Utilizamos directamente la variable blindada
 
                     int totalVariedades = itemsVenta.Select(x => x.Nombre).Union(itemsBodega.Select(y => y.Nombre)).Distinct().Count();
                     int piezasTotales = itemsVenta.Sum(x => x.StockActual) + itemsBodega.Sum(y => y.StockActual);
@@ -732,7 +755,9 @@ namespace PuntoFlower.Views
 
                     using (SqlConnection con = db.OpenConnection())
                     {
-                        SqlCommand cmdM = new SqlCommand("SELECT TOP 15 ProductoNombre, Cantidad, Motivo, Fecha FROM Mermas ORDER BY Fecha DESC", con);
+                        // BLINDAJE: Solo las mermas de esta sucursal se imprimen en su auditoría
+                        SqlCommand cmdM = new SqlCommand("SELECT TOP 15 ProductoNombre, Cantidad, Motivo, Fecha FROM Mermas WHERE Sucursal = @s ORDER BY Fecha DESC", con);
+                        cmdM.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         using (SqlDataReader rm = cmdM.ExecuteReader())
                         {
                             while (rm.Read())
@@ -767,16 +792,13 @@ namespace PuntoFlower.Views
 
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "PDF Files (*.pdf)|*.pdf";
-            sfd.FileName = $"Bitacora_Traslados_Sucursales_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+            sfd.FileName = $"Bitacora_Traslados_{ConexionGlobal.SucursalActual.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
             sfd.Title = "Exportar Bitácora de Traslados";
 
             if (sfd.ShowDialog() == true)
             {
                 try
                 {
-                    ConexionDB db = new ConexionDB();
-                    string sucursalOrigenNombre = txtSucursalOrigen.Text;
-
                     iTextDocument doc = new iTextDocument(PageSize.A4, 30, 30, 35, 35);
                     PdfWriter writer = PdfWriter.GetInstance(doc, new FileStream(sfd.FileName, FileMode.Create));
                     doc.Open();
@@ -787,7 +809,7 @@ namespace PuntoFlower.Views
                     iTextFont fTablaHead = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
 
                     doc.Add(new iTextParagraph("PUNTO FLOWER - MANIFESTO DE TRASLADO ENTRE SUCURSALES", fTitulo));
-                    doc.Add(new iTextParagraph($"Planta / Sucursal Emisora (Origen): {sucursalOrigenNombre}", fBold));
+                    doc.Add(new iTextParagraph($"Planta / Sucursal Emisora (Origen): {ConexionGlobal.SucursalActual}", fBold));
                     doc.Add(new iTextParagraph($"Fecha de Reporte: {DateTime.Now:dd/MM/yyyy HH:mm:ss}", fCuerpo));
                     doc.Add(new iTextParagraph($"Auditor a Cargo: {Session.UsuarioActual}", fCuerpo));
                     doc.Add(new iTextParagraph("----------------------------------------------------------------------------------------------------------------------------------"));

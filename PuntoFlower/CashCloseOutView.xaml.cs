@@ -6,7 +6,6 @@ using PuntoFlower.Models;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Drawing.Printing;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -46,7 +45,6 @@ namespace PuntoFlower.Views
         private string nombreEncargado1 = "Encargado 1";
         private string nombreEncargado2 = "Encargado 2";
 
-        // Variable bandera para evitar bucles infinitos al cargar el componente
         private bool esCargaInicial = true;
 
         public CashCloseOutView()
@@ -60,8 +58,6 @@ namespace PuntoFlower.Views
                 if ((bool)e.NewValue)
                 {
                     EvaluarVisibilidadBotonEliminar();
-
-                    // Al regresar a la pestaña, volvemos a leer el fondo desde la base de datos
                     CargarFondoCajaDesdeBD();
                     ProcesarCorteFiltrado();
                 }
@@ -77,13 +73,10 @@ namespace PuntoFlower.Views
                 dpHastaCorte.SelectedDate = DateTime.Today;
 
             EvaluarVisibilidadBotonEliminar();
-
-            // Primera carga del fondo al iniciar la vista
             CargarFondoCajaDesdeBD();
             ProcesarCorteFiltrado();
         }
 
-        // Método auxiliar para recuperar de la BD y pintar en el TextBox sin disparar eventos erróneos
         private void CargarFondoCajaDesdeBD()
         {
             if (txtFondoCaja == null) return;
@@ -154,7 +147,7 @@ namespace PuntoFlower.Views
             DateTime fechaHasta = dpHastaCorte?.SelectedDate ?? DateTime.Today;
 
             if (txtTituloCorte != null)
-                txtTituloCorte.Text = $"Corte: {fechaDesde:dd/MM/yyyy} al {fechaHasta:dd/MM/yyyy}";
+                txtTituloCorte.Text = $"Corte: {fechaDesde:dd/MM/yyyy} al {fechaHasta:dd/MM/yyyy} | Sucursal: {ConexionGlobal.SucursalActual}";
 
             fechaHasta = fechaHasta.Date.AddDays(1).AddTicks(-1);
 
@@ -162,15 +155,17 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
+                    // BLINDAJE FINANCIERO: Filtrar el corte de caja estrictamente por la sucursal actual
                     string query = @"SELECT Id, Fecha, ProductoNombre, Total, MontoRecibido, MontoCambio, MetodoPago, 
                                             CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId, Cantidad 
                                      FROM Ventas 
-                                     WHERE Fecha BETWEEN @desde AND @hasta
+                                     WHERE Fecha BETWEEN @desde AND @hasta AND Sucursal = @s
                                      ORDER BY Fecha DESC";
 
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@desde", fechaDesde);
                     cmd.Parameters.AddWithValue("@hasta", fechaHasta);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
 
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
@@ -250,7 +245,6 @@ namespace PuntoFlower.Views
                 txtTotalGastosTurno.Text = acumuladoGastosEfectivo.ToString("C");
                 txtTotalCambio.Text = sumaCambio.ToString("C");
 
-                // SE LEE EL FONDO DIRECTO DE LA INTERFAZ (EL CUAL YA SE CARGÓ DE LA BD)
                 decimal fondoActual = 0;
                 if (txtFondoCaja != null)
                 {
@@ -269,7 +263,7 @@ namespace PuntoFlower.Views
             var ventaSeleccionada = dgCorte.SelectedItem as MovimientoVentaClass;
             if (ventaSeleccionada == null) return;
 
-            var result = MessageBox.Show($"¿Eliminar venta #{ventaSeleccionada.Id} y restaurar stock?", "Confirmar", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            var result = MessageBox.Show($"¿Eliminar venta #{ventaSeleccionada.Id} y restaurar stock en {ConexionGlobal.SucursalActual}?", "Confirmar", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result != MessageBoxResult.Yes) return;
 
             ConexionDB db = new ConexionDB();
@@ -286,32 +280,38 @@ namespace PuntoFlower.Views
                             if (concepto.Contains("Liquidación / Abono:") || concepto.Contains("Anticipo Nuevo Pedido:"))
                             {
                                 string cliente = concepto.Replace("Liquidación / Abono:", "").Replace("Anticipo Nuevo Pedido:", "").Split('(')[0].Trim();
-                                string qPed = "UPDATE Pedidos SET SaldoPendiente = SaldoPendiente + @monto, Estado = 'Pendiente' WHERE ClienteNombre = @cliente AND Estado != 'Entregado'";
+                                // BLINDAJE LOGÍSTICO: Asegurar que el pedido que reabrimos pertenece a la sucursal activa
+                                string qPed = "UPDATE Pedidos SET SaldoPendiente = SaldoPendiente + @monto, Estado = 'Pendiente' WHERE ClienteNombre = @cliente AND Estado != 'Entregado' AND Sucursal = @s";
                                 using (SqlCommand cmdP = new SqlCommand(qPed, con, tra))
                                 {
                                     cmdP.Parameters.AddWithValue("@monto", ventaSeleccionada.Total);
                                     cmdP.Parameters.AddWithValue("@cliente", cliente);
+                                    cmdP.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                     cmdP.ExecuteNonQuery();
                                 }
                             }
 
                             if (ventaSeleccionada.ProductoId.HasValue && ventaSeleccionada.ProductoId.Value > 0)
                             {
-                                string qUpdateStockById = "UPDATE Productos SET StockActual = StockActual + @c WHERE Id = @prodId";
+                                // BLINDAJE INVENTARIO: Retornar stock a la sucursal correcta
+                                string qUpdateStockById = "UPDATE Productos SET StockActual = StockActual + @c WHERE Id = @prodId AND Sucursal = @s";
                                 using (SqlCommand cmdUpId = new SqlCommand(qUpdateStockById, con, tra))
                                 {
                                     cmdUpId.Parameters.AddWithValue("@c", ventaSeleccionada.Cantidad);
                                     cmdUpId.Parameters.AddWithValue("@prodId", ventaSeleccionada.ProductoId.Value);
+                                    cmdUpId.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                     cmdUpId.ExecuteNonQuery();
                                 }
                             }
                             else
                             {
-                                string queryInsumos = "SELECT Id, Nombre, PrecioVenta FROM Productos WHERE Categoria = 'Venta'";
+                                // BLINDAJE INVENTARIO: Buscar y retornar flor desglosada a la sucursal correcta
+                                string queryInsumos = "SELECT Id, Nombre, PrecioVenta FROM Productos WHERE Categoria = 'Venta' AND Sucursal = @s";
                                 List<Tuple<int, string, decimal>> listaProductosConfig = new List<Tuple<int, string, decimal>>();
 
                                 using (SqlCommand cmdGet = new SqlCommand(queryInsumos, con, tra))
                                 {
+                                    cmdGet.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                     using (SqlDataReader reader = cmdGet.ExecuteReader())
                                     {
                                         while (reader.Read())
@@ -335,11 +335,12 @@ namespace PuntoFlower.Views
 
                                         if (piezasRegresar <= 0) piezasRegresar = 1;
 
-                                        string qUpdateStockByName = "UPDATE Productos SET StockActual = StockActual + @c WHERE Id = @nomId";
+                                        string qUpdateStockByName = "UPDATE Productos SET StockActual = StockActual + @c WHERE Id = @nomId AND Sucursal = @s";
                                         using (SqlCommand cmdUpName = new SqlCommand(qUpdateStockByName, con, tra))
                                         {
                                             cmdUpName.Parameters.AddWithValue("@c", piezasRegresar);
                                             cmdUpName.Parameters.AddWithValue("@nomId", prod.Item1);
+                                            cmdUpName.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                             cmdUpName.ExecuteNonQuery();
                                         }
                                         break;
@@ -347,14 +348,16 @@ namespace PuntoFlower.Views
                                 }
                             }
 
-                            using (SqlCommand cmdDel = new SqlCommand("DELETE FROM Ventas WHERE Id = @id", con, tra))
+                            // BLINDAJE FINANCIERO: Eliminar ticket asegurando que pertenece a la sucursal
+                            using (SqlCommand cmdDel = new SqlCommand("DELETE FROM Ventas WHERE Id = @id AND Sucursal = @s", con, tra))
                             {
                                 cmdDel.Parameters.AddWithValue("@id", ventaSeleccionada.Id);
+                                cmdDel.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                 cmdDel.ExecuteNonQuery();
                             }
 
                             tra.Commit();
-                            MessageBox.Show("Venta revertida exitosamente.");
+                            MessageBox.Show("Venta revertida y balance recalculado exitosamente.");
                             ProcesarCorteFiltrado();
                         }
                         catch { tra.Rollback(); throw; }
@@ -379,7 +382,7 @@ namespace PuntoFlower.Views
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
                 Filter = "Archivo PDF (*.pdf)|*.pdf",
-                FileName = $"Corte_Caja_{fechaDesde:yyyyMMdd}_A_{fechaHasta:yyyyMMdd}.pdf",
+                FileName = $"Corte_Caja_{ConexionGlobal.SucursalActual.Replace(" ", "_")}_{fechaDesde:yyyyMMdd}_A_{fechaHasta:yyyyMMdd}.pdf",
                 Title = "Guardar Reporte de Corte de Caja"
             };
 
@@ -399,7 +402,6 @@ namespace PuntoFlower.Views
                         iTextFont fontDiaHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 11, new BaseColor(31, 97, 141));
                         iTextFont fontTablaHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
                         iTextFont fontTablaBody = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
-                        // NUEVO: Fuente en cursiva/itálica para resaltar el fondo virtual en la tabla de abajo
                         iTextFont fontTablaVirtual = FontFactory.GetFont(FontFactory.HELVETICA_OBLIQUE, 9, new BaseColor(46, 134, 193));
                         iTextFont fontResumenBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.BLACK);
                         iTextFont fontResumenValue = FontFactory.GetFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
@@ -407,7 +409,8 @@ namespace PuntoFlower.Views
                         iTextParagraph pTitulo = new iTextParagraph("PUNTO FLOWER - REPORTE DE CAJA", fontTitulo);
                         doc.Add(pTitulo);
 
-                        iTextParagraph pMeta = new iTextParagraph($"Rango Evaluado: Desde {fechaDesde:dd/MM/yyyy} Hasta {fechaHasta:dd/MM/yyyy} | Fecha de Emisión: {DateTime.Now:dd/MM/yyyy HH:mm:ss}\nGenerado por: {Session.UsuarioActual}", fontSubtitulo);
+                        // Inyectar el nombre de la sucursal blindada en el subtítulo del PDF
+                        iTextParagraph pMeta = new iTextParagraph($"Sucursal: {ConexionGlobal.SucursalActual}\nRango Evaluado: Desde {fechaDesde:dd/MM/yyyy} Hasta {fechaHasta:dd/MM/yyyy} | Fecha de Emisión: {DateTime.Now:dd/MM/yyyy HH:mm:ss}\nGenerado por: {Session.UsuarioActual}", fontSubtitulo);
                         pMeta.SpacingAfter = 20;
                         doc.Add(pMeta);
 
@@ -432,7 +435,6 @@ namespace PuntoFlower.Views
                             tabla.AddCell(cellValor);
                         };
 
-                        // CAPTURAMOS EL FONDO DE CAJA ACTUAL DE LA INTERFAZ PARA EL PDF
                         decimal fondoCajaPDF = 0;
                         if (txtFondoCaja != null)
                         {
@@ -441,14 +443,12 @@ namespace PuntoFlower.Views
                         }
 
                         decimal totalVentasBrutasEfectivo = acumuladoEfectivo + acumuladoGastosEfectivo;
-
                         decimal totalTransferenciasAcumuladas = 0;
                         foreach (var b in balanceTransferenciasPorEncargado.Values) totalTransferenciasAcumuladas += b;
 
                         decimal efectivoNetoTotalConFondo = acumuladoEfectivo + fondoCajaPDF;
                         decimal totalIngresosCalculados = totalVentasBrutasEfectivo + acumuladoTarjeta + totalTransferenciasAcumuladas;
 
-                        // Sección Superior: Totales Acumulados
                         agregarCeldaResumen(tablaResumen, "Fondo Inversión / Dinero Base de Caja Inicial (+):", fondoCajaPDF.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "Ingresos Brutos en Efectivo (Ventas de Mostrador):", totalVentasBrutasEfectivo.ToString("C"), false);
                         agregarCeldaResumen(tablaResumen, "Gastos de Turno Pagados en Efectivo (-):", acumuladoGastosEfectivo.ToString("C"), false);
@@ -478,8 +478,6 @@ namespace PuntoFlower.Views
                         {
                             string nombreDiaTexto = grupoDia.Key.ToString("dddd dd 'de' MMMM 'de' yyyy").ToUpper();
                             decimal totalVendidoDelDia = grupoDia.Sum(v => v.Total);
-
-                            // Ajuste contable del header por día: sumamos el fondo de caja al encabezado de la jornada si aplica
                             decimal totalDiaConFondo = totalVendidoDelDia + fondoCajaPDF;
 
                             iTextParagraph pDiaHeader = new iTextParagraph($"■ {nombreDiaTexto} — (Balance de Jornada + Fondo Inicial: {totalDiaConFondo:C})", fontDiaHeader);
@@ -504,20 +502,15 @@ namespace PuntoFlower.Views
                                 tablaVentasDia.AddCell(cellHeader);
                             }
 
-                            // ==========================================================
-                            // INYECCIÓN VISUAL DEL FONDO DE CAJA COMO PRIMERA FILA DEL DESGLOSE
-                            // ==========================================================
                             if (fondoCajaPDF > 0)
                             {
-                                BaseColor fondoVirtualColor = new BaseColor(244, 246, 247); // Gris muy tenue para distinguirlo de las ventas puras
-
+                                BaseColor fondoVirtualColor = new BaseColor(244, 246, 247);
                                 PdfPCell cellId = new PdfPCell(new Phrase("INICIO", fontTablaVirtual)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4, BackgroundColor = fondoVirtualColor };
                                 PdfPCell cellHora = new PdfPCell(new Phrase("00:00:00", fontTablaVirtual)) { HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4, BackgroundColor = fondoVirtualColor };
                                 PdfPCell cellConcepto = new PdfPCell(new Phrase("APERTURA: FONDO BASE DE CAJA DE RELEVACIÓN", fontTablaVirtual)) { Padding = 4, BackgroundColor = fondoVirtualColor };
                                 PdfPCell cellMetodo = new PdfPCell(new Phrase("Efectivo Fijo", fontTablaVirtual)) { Padding = 4, BackgroundColor = fondoVirtualColor };
                                 PdfPCell cellDesc = new PdfPCell(new Phrase("—", fontTablaVirtual)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4, BackgroundColor = fondoVirtualColor };
                                 PdfPCell cellImporte = new PdfPCell(new Phrase(fondoCajaPDF.ToString("C"), fontTablaVirtual)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4, BackgroundColor = fondoVirtualColor };
-
                                 tablaVentasDia.AddCell(cellId);
                                 tablaVentasDia.AddCell(cellHora);
                                 tablaVentasDia.AddCell(cellConcepto);
@@ -526,7 +519,6 @@ namespace PuntoFlower.Views
                                 tablaVentasDia.AddCell(cellImporte);
                             }
 
-                            // Renderizado ordenado del resto de las transacciones del día
                             foreach (var v in grupoDia.OrderBy(m => m.Fecha.TimeOfDay))
                             {
                                 string importeTexto = v.Total < 0 ? $"-{Math.Abs(v.Total):C}" : v.Total.ToString("C");
@@ -545,7 +537,6 @@ namespace PuntoFlower.Views
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(v.Descuento > 0 ? v.Descuento.ToString("C") : "—", fontTablaBody)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                                 tablaVentasDia.AddCell(new PdfPCell(new Phrase(importeTexto, fontTablaBody)) { HorizontalAlignment = Element.ALIGN_RIGHT, Padding = 4 });
                             }
-
                             doc.Add(tablaVentasDia);
                         }
 
@@ -562,10 +553,9 @@ namespace PuntoFlower.Views
                         tablaFirmas.AddCell(cellFirma1);
                         tablaFirmas.AddCell(cellFirma2);
                         doc.Add(tablaFirmas);
- 
+
                         doc.Close();
                     }
-
                     MessageBox.Show("El reporte PDF del corte de caja se ha generado agrupado por días de manera exitosa.", "Operación Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
@@ -575,12 +565,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        private void ImprimirTicketTermico() { /* Lógica de impresión igual */ }
-        private void DrawTicketPage(object sender, PrintPageEventArgs e) { /* Lógica de impresión igual */ }
-
-        // ========================================================
-        // MODIFICADO: PERSISTENCIA EN BD EN TIEMPO REAL
-        // ========================================================
         private void txtFondoCaja_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (txtEfectivoReal == null || txtFondoCaja == null || esCargaInicial) return;
@@ -594,11 +578,9 @@ namespace PuntoFlower.Views
                 decimal.TryParse(textoLimpio, out fondoIngresado);
             }
 
-            // GUARDAR AUTOMÁTICAMENTE EN LA BASE DE DATOS
             ConexionDB db = new ConexionDB();
             db.GuardarFondoCaja(fondoIngresado);
 
-            // Actualizar la interfaz
             decimal efectivoTotalConFondo = acumuladoEfectivo + fondoIngresado;
             txtEfectivoReal.Text = efectivoTotalConFondo.ToString("C");
         }

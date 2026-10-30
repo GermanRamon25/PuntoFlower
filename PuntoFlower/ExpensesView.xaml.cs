@@ -9,7 +9,6 @@ using Microsoft.Win32;
 using PuntoFlower.Data;
 using PuntoFlower.Models;
 
-// Alias para iTextSharp (Uso seguro sin fallos de casteo)
 using iTextFont = iTextSharp.text.Font;
 using iTextParagraph = iTextSharp.text.Paragraph;
 using iTextDocument = iTextSharp.text.Document;
@@ -21,7 +20,7 @@ namespace PuntoFlower.Views
     public partial class ExpensesView : UserControl
     {
         private bool esPerfilEmpleado = false;
-        private bool mostrandoModuloAdmin = false; // Bandera para conmutar la visibilidad
+        private bool mostrandoModuloAdmin = false;
 
         public ExpensesView()
         {
@@ -64,7 +63,6 @@ namespace PuntoFlower.Views
                 if (panelCategoria != null) panelCategoria.Visibility = Visibility.Collapsed;
                 if (lblTituloGastos != null) lblTituloGastos.Text = "Registro Operativo de Gastos de Servicios";
 
-                // Ocultar botón del panel de administración a la empleada por seguridad
                 if (btnModuloAdmin != null) btnModuloAdmin.Visibility = Visibility.Collapsed;
             }
             else
@@ -77,17 +75,14 @@ namespace PuntoFlower.Views
                 if (panelCategoria != null) panelCategoria.Visibility = Visibility.Visible;
                 if (lblTituloGastos != null) lblTituloGastos.Text = "Gastos y Surtido de Mercancía";
 
-                // Mostrar botón de administración solo a dueños/admin
                 if (btnModuloAdmin != null) btnModuloAdmin.Visibility = Visibility.Visible;
             }
         }
 
-        // NUEVO MANEJADOR: Conmuta en tiempo real entre lo operativo y tu nuevo panel de caja de la semana
         private void btnModuloAdmin_Click(object sender, RoutedEventArgs e)
         {
             if (mostrandoModuloAdmin)
             {
-                // Regresar a la vista de la empleada
                 ContenedorAdmin.Visibility = Visibility.Collapsed;
                 tcGastosPrincipal.Visibility = Visibility.Visible;
                 btnModuloAdmin.Content = "💼 Panel Administrador";
@@ -97,7 +92,6 @@ namespace PuntoFlower.Views
             }
             else
             {
-                // Cargar e Inyectar dinámicamente tu panel exclusivo
                 tcGastosPrincipal.Visibility = Visibility.Collapsed;
                 ContenedorAdmin.Visibility = Visibility.Visible;
                 ContenedorAdmin.Content = new PuntoFlower.Views.AdminExpensesView();
@@ -140,15 +134,17 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // FILTRADO DE SEGURIDAD: La tabla de esta vista solo mostrará lo operativo de la tienda
                     string query = @"SELECT Fecha, Descripcion, Categoria, MetodoPago, Monto 
                                      FROM Gastos 
-                                     WHERE RegistradoPor = 'Empleado' AND Fecha BETWEEN @desde AND @hasta
+                                     WHERE RegistradoPor = 'Empleado' 
+                                     AND Fecha BETWEEN @desde AND @hasta
+                                     AND Sucursal = @s
                                      ORDER BY Fecha DESC";
 
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@desde", fechaDesde);
                     cmd.Parameters.AddWithValue("@hasta", fechaHasta);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
 
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
@@ -204,28 +200,33 @@ namespace PuntoFlower.Views
                     {
                         try
                         {
-                            // Inserción explícita con tag 'Empleado' para amarrar el corte
-                            string queryGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago, RegistradoPor) 
-                                                 VALUES (@desc, @monto, GETDATE(), @cat, @metodo, 'Empleado')";
+                            // ZONA HORARIA BLINDADA: Guardar el gasto con hora local
+                            string queryGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago, RegistradoPor, Sucursal) 
+                                                 VALUES (@desc, @monto, @fechaLocal, @cat, @metodo, 'Empleado', @s)";
 
                             using (SqlCommand cmdGasto = new SqlCommand(queryGasto, con, transaccion))
                             {
                                 cmdGasto.Parameters.AddWithValue("@desc", descripcionFinal);
                                 cmdGasto.Parameters.AddWithValue("@monto", montoValidado);
+                                cmdGasto.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                 cmdGasto.Parameters.AddWithValue("@cat", SampleCategory);
                                 cmdGasto.Parameters.AddWithValue("@metodo", metodoPago);
+                                cmdGasto.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                 cmdGasto.ExecuteNonQuery();
                             }
 
                             if (metodoPago == "Efectivo")
                             {
-                                string queryCajaSalida = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado) 
-                                                          VALUES (GETDATE(), @conceptoSalida, 1, @montoNegativo, 'Efectivo', @montoNegativo, 0, 0)";
+                                // ZONA HORARIA BLINDADA: Restar de la caja física local
+                                string queryCajaSalida = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado, Sucursal) 
+                                                          VALUES (@fechaLocal, @conceptoSalida, 1, @montoNegativo, 'Efectivo', @montoNegativo, 0, 0, @s)";
 
                                 using (SqlCommand cmdCaja = new SqlCommand(queryCajaSalida, con, transaccion))
                                 {
+                                    cmdCaja.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                     cmdCaja.Parameters.AddWithValue("@conceptoSalida", $"Salida de Caja (Gasto): {descripcionFinal}");
                                     cmdCaja.Parameters.AddWithValue("@montoNegativo", montoValidado * -1);
+                                    cmdCaja.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                     cmdCaja.ExecuteNonQuery();
                                 }
                             }
@@ -239,7 +240,7 @@ namespace PuntoFlower.Views
                     }
                 }
 
-                MessageBox.Show($"¡Gasto por '{descripcionFinal}' guardado exitosamente!", "Egreso Confirmado", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"¡Gasto por '{descripcionFinal}' guardado exitosamente en caja de {ConexionGlobal.SucursalActual}!", "Egreso Confirmado", MessageBoxButton.OK, MessageBoxImage.Information);
                 txtMonto.Clear();
                 txtDesc.Clear();
                 if (cbConceptoServicio != null) cbConceptoServicio.SelectedIndex = 0;
@@ -263,14 +264,14 @@ namespace PuntoFlower.Views
             DateTime fechaHasta = dpHastaGastos?.SelectedDate ?? DateTime.Now;
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Filter = "PDF Files (*.pdf)|*.pdf";
-            sfd.FileName = $"Reporte_Egresos_{fechaDesde:yyyyMMdd}_A_{fechaHasta:yyyyMMdd}.pdf";
+            sfd.FileName = $"Reporte_Egresos_{ConexionGlobal.SucursalActual.Replace(" ", "_")}_{fechaDesde:yyyyMMdd}_A_{fechaHasta:yyyyMMdd}.pdf";
 
             if (sfd.ShowDialog() == true)
             {
                 try
                 {
                     ConexionDB db = new ConexionDB();
-                    string sucursalNombre = db.ObtenerNombreSucursal();
+                    string sucursalNombre = ConexionGlobal.SucursalActual;
                     decimal totalGeneral = 0, totalEfectivoPuro = 0;
 
                     foreach (dynamic item in dgGastos.ItemsSource)

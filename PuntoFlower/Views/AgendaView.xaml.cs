@@ -28,18 +28,18 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string condicion = "WHERE Estado != 'Entregado'";
+                    // BLINDAJE LOGÍSTICO: Aseguramos que solo cargue pedidos de la sucursal actual
+                    string condicion = "WHERE Estado != 'Entregado' AND Sucursal = @s";
 
                     if (modoFiltro == "HOY")
                     {
-                        condicion = "WHERE Estado != 'Entregado' AND CAST(FechaEntrega AS DATE) = CAST(GETDATE() AS DATE)";
+                        condicion = "WHERE Estado != 'Entregado' AND CAST(FechaEntrega AS DATE) = CAST(GETDATE() AS DATE) AND Sucursal = @s";
                     }
                     else if (modoFiltro == "CERRADOS")
                     {
-                        condicion = "WHERE Estado = 'Entregado'";
+                        condicion = "WHERE Estado = 'Entregado' AND Sucursal = @s";
                     }
 
-                    // Se agrega FechaEntregaReal a la consulta para cumplir con la Mejora #4
                     string query = $@"SELECT Id, ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Descripcion, Direccion, 
                                     NotaTarjeta, Estado, PrecioTotal, Anticipo, SaldoPendiente, FechaEntregaReal 
                                     FROM Pedidos 
@@ -47,6 +47,8 @@ namespace PuntoFlower.Views
                                     ORDER BY FechaEntrega ASC";
 
                     SqlCommand cmd = new SqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
+
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -55,7 +57,6 @@ namespace PuntoFlower.Views
                             string estadoBD = r["Estado"].ToString();
                             string subtitulo = "";
 
-                            // MEJORA #4: Mostrar fecha/hora exacta de entrega si ya está cerrado
                             if (estadoBD == "Entregado" && r["FechaEntregaReal"] != DBNull.Value)
                             {
                                 subtitulo = "Entregado el: " + Convert.ToDateTime(r["FechaEntregaReal"]).ToString("dd/MM/yy h:mm tt");
@@ -65,7 +66,6 @@ namespace PuntoFlower.Views
                                 subtitulo = "Agendado: " + (r["FechaRegistro"] != DBNull.Value ? Convert.ToDateTime(r["FechaRegistro"]).ToString("h:mm tt") : "12:00 AM");
                             }
 
-                            // MEJORA #3: Reflejar estatus financiero "Liquidado" si el saldo es 0, manteniendo el estado logístico
                             string estadoVis = estadoBD;
                             if (estadoBD != "Entregado" && saldo == 0)
                             {
@@ -85,11 +85,10 @@ namespace PuntoFlower.Views
                                 Anticipo = r["Anticipo"] != DBNull.Value ? Convert.ToDecimal(r["Anticipo"]) : 0,
                                 SaldoPendiente = saldo,
 
-                                // Propiedades de apoyo para la Interfaz (UI) mejorada:
-                                EstadoOriginal = estadoBD,           // Para mantener los colores de los bordes de la tarjeta
-                                EstadoVisual = estadoVis,            // El texto que lee la florista (Ej: "Pendiente (Liquidado)")
-                                SubtituloSuperior = subtitulo,       // Hora de registro u hora de entrega
-                                ColorSaldo = saldo == 0 ? "#27AE60" : "#E74C3C" // Verde si ya pagó, Rojo si debe
+                                EstadoOriginal = estadoBD,
+                                EstadoVisual = estadoVis,
+                                SubtituloSuperior = subtitulo,
+                                ColorSaldo = saldo == 0 ? "#27AE60" : "#E74C3C"
                             });
                         }
                     }
@@ -167,18 +166,15 @@ namespace PuntoFlower.Views
             var boton = sender as Button;
             if (boton == null) return;
 
-            // Extrae el objeto anónimo enlazado a la tarjeta de la Agenda
             dynamic pedidoSeleccionado = boton.DataContext;
 
             if (pedidoSeleccionado != null)
             {
-                // Invocamos la ventana de Nuevo Pedido enviando el objeto para activar el "Modo Edición"
                 NuevoPedidoWindow ventana = new NuevoPedidoWindow(pedidoSeleccionado);
                 ventana.Owner = Window.GetWindow(this);
 
                 if (ventana.ShowDialog() == true)
                 {
-                    // Si guardó cambios con éxito, refresca la pantalla de inmediato en el filtro que estabas viendo
                     CargarPedidos(filtroActual);
                 }
             }

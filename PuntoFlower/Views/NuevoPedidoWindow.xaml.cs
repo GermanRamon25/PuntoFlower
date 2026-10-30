@@ -18,7 +18,7 @@ namespace PuntoFlower.Views
         {
             InitializeComponent();
             dpFecha.SelectedDate = DateTime.Today;
-            cbHoraEntrega.SelectedIndex = 3; // Selecciona "12:00 PM" por defecto
+            cbHoraEntrega.SelectedIndex = 3;
             CargarCatalogosAuxiliares();
         }
 
@@ -29,7 +29,7 @@ namespace PuntoFlower.Views
                 esModoEdicion = true;
                 pedidoIdEditar = Convert.ToInt32(pedido.Id);
 
-                this.Title = "Modificar e Igualar Pedido";
+                this.Title = $"Modificar e Igualar Pedido - {ConexionGlobal.SucursalActual}";
                 lblTituloVentana.Text = "Editar Datos del Pedido";
                 btnGuardar.Content = "APLICAR CAMBIOS";
                 btnGuardar.Background = System.Windows.Media.Brushes.DarkOrange;
@@ -37,7 +37,6 @@ namespace PuntoFlower.Views
                 txtCliente.Text = pedido.ClienteNombre;
                 txtTelefono.Text = pedido.Telefono;
 
-                // Mapear Fecha y Hora por separado
                 DateTime fechaCompleta = pedido.FechaEntrega;
                 dpFecha.SelectedDate = fechaCompleta.Date;
                 cbHoraEntrega.Text = fechaCompleta.ToString("hh:mm tt");
@@ -54,10 +53,11 @@ namespace PuntoFlower.Views
                 ConexionDB db = new ConexionDB();
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string queryFija = @"SELECT ISNULL(CostoEnvio, 0), ISNULL(MetodoPago, 'Efectivo'), ProductoId, ISNULL(CantidadFlores, 0) FROM Pedidos WHERE Id = @id";
+                    string queryFija = @"SELECT ISNULL(CostoEnvio, 0), ISNULL(MetodoPago, 'Efectivo'), ProductoId, ISNULL(CantidadFlores, 0) FROM Pedidos WHERE Id = @id AND Sucursal = @s";
                     using (SqlCommand cmd = new SqlCommand(queryFija, con))
                     {
                         cmd.Parameters.AddWithValue("@id", pedidoIdEditar);
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
@@ -120,13 +120,16 @@ namespace PuntoFlower.Views
                 List<Producto> listaFlores = new List<Producto> { new Producto { Id = 0, Nombre = "-- Detectar por descripción / Sin flor fija --" } };
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string q = "SELECT Id, Nombre, StockActual FROM Productos WHERE Categoria = 'Venta' ORDER BY Nombre ASC";
+                    string q = "SELECT Id, Nombre, StockActual FROM Productos WHERE Categoria = 'Venta' AND Sucursal = @s ORDER BY Nombre ASC";
                     using (SqlCommand cmd = new SqlCommand(q, con))
-                    using (SqlDataReader r = cmd.ExecuteReader())
                     {
-                        while (r.Read())
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
+                        using (SqlDataReader r = cmd.ExecuteReader())
                         {
-                            listaFlores.Add(new Producto { Id = Convert.ToInt32(r["Id"]), Nombre = r["Nombre"].ToString(), StockActual = Convert.ToInt32(r["StockActual"]) });
+                            while (r.Read())
+                            {
+                                listaFlores.Add(new Producto { Id = Convert.ToInt32(r["Id"]), Nombre = r["Nombre"].ToString(), StockActual = Convert.ToInt32(r["StockActual"]) });
+                            }
                         }
                     }
                 }
@@ -207,9 +210,8 @@ namespace PuntoFlower.Views
                 return;
             }
 
-            // CORRECCIÓN 1: Lógica para fusionar Fecha + Hora seleccionada
             DateTime fechaBase = dpFecha.SelectedDate.Value.Date;
-            TimeSpan horaAdicional = new TimeSpan(12, 0, 0); // 12 PM por defecto
+            TimeSpan horaAdicional = new TimeSpan(12, 0, 0);
             try
             {
                 if (!string.IsNullOrWhiteSpace(cbHoraEntrega.Text))
@@ -218,7 +220,7 @@ namespace PuntoFlower.Views
                     horaAdicional = parsedTime.TimeOfDay;
                 }
             }
-            catch { /* Si escriben algo raro, usa 12PM por defecto */ }
+            catch { }
             DateTime fechaEntregaFinal = fechaBase.Add(horaAdicional);
 
             decimal saldoPendiente = precioTotalFinal - anticipo;
@@ -247,7 +249,7 @@ namespace PuntoFlower.Views
                             string queryUpdate = @"UPDATE Pedidos SET 
                                                     ClienteNombre = @nom, Telefono = @tel, FechaEntrega = @fec, Direccion = @dir, NotaTarjeta = @not, Descripcion = @des, 
                                                     PrecioTotal = @total, Anticipo = @ant, SaldoPendiente = @saldo, MetodoPago = @metodo, CostoEnvio = @envio, ProductoId = @prodId, CantidadFlores = @cantFlores
-                                                   WHERE Id = @id";
+                                                   WHERE Id = @id AND Sucursal = @s";
                             using (SqlCommand cmd = new SqlCommand(queryUpdate, con, tra))
                             {
                                 cmd.Parameters.AddWithValue("@nom", txtCliente.Text.Trim());
@@ -264,15 +266,17 @@ namespace PuntoFlower.Views
                                 cmd.Parameters.AddWithValue("@prodId", (object)prodIdSeleccionado ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@cantFlores", cantFlores);
                                 cmd.Parameters.AddWithValue("@id", pedidoIdEditar);
+                                cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                 cmd.ExecuteNonQuery();
                             }
                             tra.Commit();
-                            MessageBox.Show("¡Los cambios al pedido se guardaron correctamente!", "Pedido Modificado", MessageBoxButton.OK, MessageBoxImage.Information);
+                            MessageBox.Show($"¡Los cambios al pedido de {ConexionGlobal.SucursalActual} se guardaron correctamente!", "Pedido Modificado", MessageBoxButton.OK, MessageBoxImage.Information);
                         }
                         else
                         {
-                            string queryInsert = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago, CostoEnvio, ProductoId, CantidadFlores, InventarioDescontado, FleteCobradoEnCaja) 
-                                                   VALUES (@nom, @tel, @fec, @fecReg, @dir, @not, 'Pendiente', @des, @total, @ant, @saldo, @metodo, @envio, @prodId, @cantFlores, 0, 0);
+                            // ZONA HORARIA BLINDADA: Insertar pedido
+                            string queryInsert = @"INSERT INTO Pedidos (ClienteNombre, Telefono, FechaEntrega, FechaRegistro, Direccion, NotaTarjeta, Estado, Descripcion, PrecioTotal, Anticipo, SaldoPendiente, MetodoPago, CostoEnvio, ProductoId, CantidadFlores, InventarioDescontado, FleteCobradoEnCaja, Sucursal) 
+                                                   VALUES (@nom, @tel, @fec, @fechaLocal, @dir, @not, 'Pendiente', @des, @total, @ant, @saldo, @metodo, @envio, @prodId, @cantFlores, 0, 0, @s);
                                                    SELECT SCOPE_IDENTITY();";
                             int nuevoPedidoId = 0;
                             using (SqlCommand cmd = new SqlCommand(queryInsert, con, tra))
@@ -280,7 +284,7 @@ namespace PuntoFlower.Views
                                 cmd.Parameters.AddWithValue("@nom", txtCliente.Text.Trim());
                                 cmd.Parameters.AddWithValue("@tel", txtTelefono.Text.Trim());
                                 cmd.Parameters.AddWithValue("@fec", fechaEntregaFinal);
-                                cmd.Parameters.AddWithValue("@fecReg", DateTime.Now);
+                                cmd.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                 cmd.Parameters.AddWithValue("@dir", string.IsNullOrWhiteSpace(txtDireccion.Text) ? "Recoge en Tienda" : txtDireccion.Text.Trim());
                                 cmd.Parameters.AddWithValue("@not", txtNota.Text.Trim());
                                 cmd.Parameters.AddWithValue("@des", txtDescripcion.Text.Trim());
@@ -291,41 +295,49 @@ namespace PuntoFlower.Views
                                 cmd.Parameters.AddWithValue("@envio", envio);
                                 cmd.Parameters.AddWithValue("@prodId", (object)prodIdSeleccionado ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@cantFlores", cantFlores);
+                                cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                 nuevoPedidoId = Convert.ToInt32(cmd.ExecuteScalar());
                             }
 
                             if (anticipo > 0)
                             {
-                                string qAbono = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, CuentaTransferencia, NumeroReferencia, UsuarioRegistro)
-                                                  VALUES (@pedId, GETDATE(), @monto, @metodo, @cuenta, @ref, @user)";
+                                // ZONA HORARIA BLINDADA: Historial de abonos
+                                string qAbono = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, CuentaTransferencia, NumeroReferencia, UsuarioRegistro, Sucursal)
+                                                  VALUES (@pedId, @fechaLocal, @monto, @metodo, @cuenta, @ref, @user, @s)";
                                 using (SqlCommand cmdAb = new SqlCommand(qAbono, con, tra))
                                 {
                                     cmdAb.Parameters.AddWithValue("@pedId", nuevoPedidoId);
+                                    cmdAb.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                     cmdAb.Parameters.AddWithValue("@monto", anticipo);
                                     cmdAb.Parameters.AddWithValue("@metodo", metodoAnticipo);
                                     cmdAb.Parameters.AddWithValue("@cuenta", string.IsNullOrEmpty(cuentaTransf) ? (object)DBNull.Value : cuentaTransf);
                                     cmdAb.Parameters.AddWithValue("@ref", string.IsNullOrEmpty(refTransf) ? (object)DBNull.Value : refTransf);
                                     cmdAb.Parameters.AddWithValue("@user", Session.UsuarioActual ?? "Empleado");
+                                    cmdAb.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                     cmdAb.ExecuteNonQuery();
                                 }
 
                                 string etiquetaConcepto = saldoPendiente == 0 ? $"Anticipo Liquidación Pedido #{nuevoPedidoId}: {txtCliente.Text.Trim()} ({txtDescripcion.Text.Trim()})" : $"Anticipo Nuevo Pedido #{nuevoPedidoId}: {txtCliente.Text.Trim()} ({txtDescripcion.Text.Trim()})";
-                                string qVenta = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId)
-                                                  VALUES (GETDATE(), @concepto, 1, @total, @metodo, @recibido, 0, @cuenta, 0, @ref, NULL)";
+
+                                // ZONA HORARIA BLINDADA: Ingresar anticipo a la caja
+                                string qVenta = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, CuentaTransferencia, DescuentoAplicado, NumeroReferencia, ProductoId, Sucursal)
+                                                  VALUES (@fechaLocal, @concepto, 1, @total, @metodo, @recibido, 0, @cuenta, 0, @ref, NULL, @s)";
                                 using (SqlCommand cmdV = new SqlCommand(qVenta, con, tra))
                                 {
+                                    cmdV.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                     cmdV.Parameters.AddWithValue("@concepto", etiquetaConcepto);
                                     cmdV.Parameters.AddWithValue("@total", anticipo);
                                     cmdV.Parameters.AddWithValue("@metodo", metodoAnticipo);
                                     cmdV.Parameters.AddWithValue("@recibido", anticipo);
                                     cmdV.Parameters.AddWithValue("@cuenta", string.IsNullOrEmpty(cuentaTransf) ? (object)DBNull.Value : cuentaTransf);
                                     cmdV.Parameters.AddWithValue("@ref", string.IsNullOrEmpty(refTransf) ? (object)DBNull.Value : refTransf);
+                                    cmdV.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                     cmdV.ExecuteNonQuery();
                                 }
                             }
 
                             tra.Commit();
-                            MessageBox.Show("¡Pedido agendado con éxito!\n\n• El inventario y el gasto de flete se aplicarán automáticamente el día que se entregue el pedido.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+                            MessageBox.Show($"¡Pedido agendado con éxito en {ConexionGlobal.SucursalActual}!\n\n• El inventario y el gasto de flete se aplicarán automáticamente el día que se entregue el pedido.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                         }
                     }
                     catch { tra.Rollback(); throw; }

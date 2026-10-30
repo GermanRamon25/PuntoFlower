@@ -34,7 +34,6 @@ namespace PuntoFlower.Views
 
             lblCostoEnvio.Text = string.Format("{0:C}", envioMonto);
 
-            // Cargamos las cuentas de la configuración al iniciar la ventana
             CargarCuentasAbono();
 
             if (_saldoPendienteNum <= 0)
@@ -52,10 +51,11 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = "SELECT ISNULL(CostoEnvio, 0) FROM Pedidos WHERE Id = @id";
+                    string query = "SELECT ISNULL(CostoEnvio, 0) FROM Pedidos WHERE Id = @id AND Sucursal = @s";
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
                         cmd.Parameters.AddWithValue("@id", idPedido);
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                         return Convert.ToDecimal(cmd.ExecuteScalar());
                     }
                 }
@@ -63,7 +63,6 @@ namespace PuntoFlower.Views
             catch { return 0; }
         }
 
-        // CARGA LAS CUENTAS DESDE CONFIGURACIÓN (Misma lógica que en Punto de Venta)
         private void CargarCuentasAbono()
         {
             try
@@ -96,7 +95,6 @@ namespace PuntoFlower.Views
             catch { }
         }
 
-        // CONTROLADORES DE LA INTERFAZ DEL PANEL DE ABONOS
         private void btnAbrirPanelAbono_Click(object sender, RoutedEventArgs e)
         {
             panelAbono.Visibility = Visibility.Visible;
@@ -118,7 +116,6 @@ namespace PuntoFlower.Views
             panelTransferenciaAbono.Visibility = metodo == "Transferencia" ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        // PROCESO MAESTRO DE COBRO DE ABONO CON REFERENCIA Y CUENTA
         private void btnConfirmarAbono_Click(object sender, RoutedEventArgs e)
         {
             if (_saldoPendienteNum <= 0) return;
@@ -155,45 +152,48 @@ namespace PuntoFlower.Views
                 {
                     try
                     {
-                        // 1. Descontar saldo y sumar al anticipo en Pedidos
-                        string qPed = "UPDATE Pedidos SET Anticipo = Anticipo + @m, SaldoPendiente = SaldoPendiente - @m WHERE Id = @id";
+                        string qPed = "UPDATE Pedidos SET Anticipo = Anticipo + @m, SaldoPendiente = SaldoPendiente - @m WHERE Id = @id AND Sucursal = @s";
                         using (SqlCommand cP = new SqlCommand(qPed, con, tra))
                         {
                             cP.Parameters.AddWithValue("@m", abono);
                             cP.Parameters.AddWithValue("@id", _pedidoId);
+                            cP.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                             cP.ExecuteNonQuery();
                         }
 
-                        // 2. Insertar Venta para el Corte de Caja con todos los detalles
-                        string qVen = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado, CuentaTransferencia, NumeroReferencia)
-                                        VALUES (GETDATE(), @con, 1, @tot, @met, @tot, 0, 0, @cuenta, @numRef)";
+                        // BLINDAJE DE ZONA HORARIA: Insertar el abono al corte de caja con DateTime.Now
+                        string qVen = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado, CuentaTransferencia, NumeroReferencia, Sucursal)
+                                        VALUES (@fechaLocal, @con, 1, @tot, @met, @tot, 0, 0, @cuenta, @numRef, @s)";
                         using (SqlCommand cV = new SqlCommand(qVen, con, tra))
                         {
+                            cV.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                             cV.Parameters.AddWithValue("@con", $"Abono Pedido #{_pedidoId}: {lblCliente.Text}");
                             cV.Parameters.AddWithValue("@tot", abono);
                             cV.Parameters.AddWithValue("@met", metodo);
                             cV.Parameters.AddWithValue("@cuenta", cuentaDestino);
                             cV.Parameters.AddWithValue("@numRef", numeroRef);
+                            cV.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                             cV.ExecuteNonQuery();
                         }
 
-                        // 3. Historial de Abonos (Mejora 6 Completa)
-                        string qAb = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, UsuarioRegistro, CuentaTransferencia, NumeroReferencia)
-                                       VALUES (@id, GETDATE(), @m, @met, @usr, @cuenta, @numRef)";
+                        // BLINDAJE DE ZONA HORARIA: Guardar historial del abono local
+                        string qAb = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, UsuarioRegistro, CuentaTransferencia, NumeroReferencia, Sucursal)
+                                       VALUES (@id, @fechaLocal, @m, @met, @usr, @cuenta, @numRef, @s)";
                         using (SqlCommand cA = new SqlCommand(qAb, con, tra))
                         {
                             cA.Parameters.AddWithValue("@id", _pedidoId);
+                            cA.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                             cA.Parameters.AddWithValue("@m", abono);
                             cA.Parameters.AddWithValue("@met", metodo);
                             cA.Parameters.AddWithValue("@usr", Session.UsuarioActual ?? "Empleado");
                             cA.Parameters.AddWithValue("@cuenta", cuentaDestino);
                             cA.Parameters.AddWithValue("@numRef", numeroRef);
+                            cA.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                             cA.ExecuteNonQuery();
                         }
 
                         tra.Commit();
 
-                        // Actualizar UI
                         _saldoPendienteNum -= abono;
                         lblSaldo.Text = _saldoPendienteNum.ToString("C");
 
@@ -203,7 +203,6 @@ namespace PuntoFlower.Views
                             lblAnticipo.Text = (antActual + abono).ToString("C");
                         }
 
-                        // Restaurar interfaz
                         panelAbono.Visibility = Visibility.Collapsed;
                         btnAbrirPanelAbono.Visibility = Visibility.Visible;
                         txtReferenciaAbono.Clear();
@@ -215,7 +214,7 @@ namespace PuntoFlower.Views
                             lblSaldo.Foreground = System.Windows.Media.Brushes.SeaGreen;
                         }
 
-                        MessageBox.Show("Abono registrado con éxito.\nEl dinero y la referencia ya están reflejados en el Corte de Caja.", "Abono Exitoso", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show($"Abono registrado con éxito.\nEl dinero y la referencia ya están reflejados en el Corte de Caja de {ConexionGlobal.SucursalActual}.", "Abono Exitoso", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     catch
                     {
@@ -251,10 +250,11 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = "UPDATE Pedidos SET Estado = @estado WHERE Id = @id";
+                    string query = "UPDATE Pedidos SET Estado = @estado WHERE Id = @id AND Sucursal = @s";
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@estado", nuevoEstado);
                     cmd.Parameters.AddWithValue("@id", _pedidoId);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     cmd.ExecuteNonQuery();
                 }
             }
@@ -264,7 +264,6 @@ namespace PuntoFlower.Views
             }
         }
 
-        // ORQUESTADOR MAESTRO DE ENTREGA
         private void btnEntregar_Click(object sender, RoutedEventArgs e)
         {
             var conf = MessageBox.Show("¿Confirmas que el pedido ya se entregó o está saliendo a ruta en este momento?", "Confirmar Entrega", MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -284,10 +283,11 @@ namespace PuntoFlower.Views
                         bool invDesc = false;
                         bool fleteCobrado = false;
 
-                        string qInfo = "SELECT CostoEnvio, ProductoId, CantidadFlores, InventarioDescontado, FleteCobradoEnCaja FROM Pedidos WHERE Id = @id";
+                        string qInfo = "SELECT CostoEnvio, ProductoId, CantidadFlores, InventarioDescontado, FleteCobradoEnCaja FROM Pedidos WHERE Id = @id AND Sucursal = @s";
                         using (SqlCommand cmdInfo = new SqlCommand(qInfo, con, tra))
                         {
                             cmdInfo.Parameters.AddWithValue("@id", _pedidoId);
+                            cmdInfo.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                             using (SqlDataReader r = cmdInfo.ExecuteReader())
                             {
                                 if (r.Read())
@@ -305,24 +305,30 @@ namespace PuntoFlower.Views
 
                         if (_saldoPendienteNum > 0)
                         {
-                            string qVenta = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado)
-                                              VALUES (GETDATE(), @concepto, 1, @tot, @met, @tot, 0, 0)";
+                            // BLINDAJE DE ZONA HORARIA: Liquidación
+                            string qVenta = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado, Sucursal)
+                                              VALUES (@fechaLocal, @concepto, 1, @tot, @met, @tot, 0, 0, @s)";
                             using (SqlCommand cmdV = new SqlCommand(qVenta, con, tra))
                             {
+                                cmdV.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                 cmdV.Parameters.AddWithValue("@concepto", $"Liquidación contra Entrega Pedido #{_pedidoId}: {lblCliente.Text}");
                                 cmdV.Parameters.AddWithValue("@tot", _saldoPendienteNum);
                                 cmdV.Parameters.AddWithValue("@met", metLiqFinal);
+                                cmdV.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                 cmdV.ExecuteNonQuery();
                             }
 
-                            string qAbono = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, UsuarioRegistro)
-                                              VALUES (@p, GETDATE(), @m, @met, @usr)";
+                            // BLINDAJE DE ZONA HORARIA: Historial Abonos
+                            string qAbono = @"INSERT INTO HistorialAbonosPedidos (PedidoId, FechaAbono, Monto, MetodoPago, UsuarioRegistro, Sucursal)
+                                              VALUES (@p, @fechaLocal, @m, @met, @usr, @s)";
                             using (SqlCommand cmdA = new SqlCommand(qAbono, con, tra))
                             {
                                 cmdA.Parameters.AddWithValue("@p", _pedidoId);
+                                cmdA.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                 cmdA.Parameters.AddWithValue("@m", _saldoPendienteNum);
                                 cmdA.Parameters.AddWithValue("@met", metLiqFinal);
                                 cmdA.Parameters.AddWithValue("@usr", Session.UsuarioActual ?? "Empleado");
+                                cmdA.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                 cmdA.ExecuteNonQuery();
                             }
                         }
@@ -333,54 +339,64 @@ namespace PuntoFlower.Views
 
                         if (!invDesc && prodId.HasValue && cantFlores > 0)
                         {
-                            string qInv = "UPDATE Productos SET StockActual = StockActual - @c WHERE Id = @pid";
+                            string qInv = "UPDATE Productos SET StockActual = StockActual - @c WHERE Id = @pid AND Sucursal = @s";
                             using (SqlCommand cmdI = new SqlCommand(qInv, con, tra))
                             {
                                 cmdI.Parameters.AddWithValue("@c", cantFlores);
                                 cmdI.Parameters.AddWithValue("@pid", prodId.Value);
+                                cmdI.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                 cmdI.ExecuteNonQuery();
                             }
                         }
 
                         if (!fleteCobrado && costoEnvio > 0)
                         {
-                            string qGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago, RegistradoPor) 
-                                              VALUES (@desc, @monto, GETDATE(), 'Servicios', 'Efectivo', @user)";
+                            // BLINDAJE DE ZONA HORARIA: Gasto de Flete
+                            string qGasto = @"INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago, RegistradoPor, Sucursal) 
+                                              VALUES (@desc, @monto, @fechaLocal, 'Servicios', 'Efectivo', @user, @s)";
                             using (SqlCommand cmdG = new SqlCommand(qGasto, con, tra))
                             {
                                 cmdG.Parameters.AddWithValue("@desc", $"Flete a Domicilio: Pedido #{_pedidoId}");
                                 cmdG.Parameters.AddWithValue("@monto", costoEnvio);
+                                cmdG.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                 cmdG.Parameters.AddWithValue("@user", Session.UsuarioActual ?? "Empleado");
+                                cmdG.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                 cmdG.ExecuteNonQuery();
                             }
 
-                            string qVentaFlete = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado)
-                                                   VALUES (GETDATE(), @descV, 1, @montoNeg, 'Efectivo', @montoNeg, 0, 0)";
+                            // BLINDAJE DE ZONA HORARIA: Salida de Flete
+                            string qVentaFlete = @"INSERT INTO Ventas (Fecha, ProductoNombre, Cantidad, Total, MetodoPago, MontoRecibido, MontoCambio, DescuentoAplicado, Sucursal)
+                                                   VALUES (@fechaLocal, @descV, 1, @montoNeg, 'Efectivo', @montoNeg, 0, 0, @s)";
                             using (SqlCommand cmdVF = new SqlCommand(qVentaFlete, con, tra))
                             {
+                                cmdVF.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                 cmdVF.Parameters.AddWithValue("@descV", $"Salida de Caja (Gasto): Flete Pedido #{_pedidoId} - {lblCliente.Text}");
                                 cmdVF.Parameters.AddWithValue("@montoNeg", -costoEnvio);
+                                cmdVF.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                                 cmdVF.ExecuteNonQuery();
                             }
                         }
 
+                        // BLINDAJE DE ZONA HORARIA: Actualización del Pedido
                         string qUpdate = @"UPDATE Pedidos 
                                            SET Estado = 'Entregado', 
                                                SaldoPendiente = 0, 
                                                MetodoPagoLiquidacion = @metLiq,
-                                               FechaEntregaReal = GETDATE(),
+                                               FechaEntregaReal = @fechaLocal,
                                                InventarioDescontado = 1,
                                                FleteCobradoEnCaja = 1
-                                           WHERE Id = @id";
+                                           WHERE Id = @id AND Sucursal = @s";
                         using (SqlCommand cmdU = new SqlCommand(qUpdate, con, tra))
                         {
                             cmdU.Parameters.AddWithValue("@metLiq", metLiqFinal);
+                            cmdU.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                             cmdU.Parameters.AddWithValue("@id", _pedidoId);
+                            cmdU.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                             cmdU.ExecuteNonQuery();
                         }
 
                         tra.Commit();
-                        MessageBox.Show("¡Pedido entregado con éxito!\n\n• Se registró la fecha y hora exacta.\n• Se descontó el inventario.\n• El flete se registró como salida de caja automáticamente.", "Operación Completada", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show($"¡Pedido entregado con éxito en {ConexionGlobal.SucursalActual}!\n\n• Se registró la fecha y hora exacta.\n• Se descontó el inventario local.\n• El flete se registró como salida de caja automáticamente.", "Operación Completada", MessageBoxButton.OK, MessageBoxImage.Information);
 
                         this.DialogResult = true;
                     }

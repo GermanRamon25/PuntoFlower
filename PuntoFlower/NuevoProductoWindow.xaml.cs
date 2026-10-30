@@ -43,12 +43,13 @@ namespace PuntoFlower.Views
                     return;
                 }
 
-                // 3. Conexión e inserción segura en la base de datos local
+                // 3. Conexión e inserción segura en la base de datos centralizada
                 ConexionDB db = new ConexionDB();
                 using (SqlConnection conexion = db.OpenConnection())
                 {
-                    string query = "INSERT INTO Productos (Nombre, Categoria, TipoVenta, PrecioCompra, PrecioVenta, StockActual, StockMinimo, FechaIngreso, RutaImagen) " +
-                                   "VALUES (@nom, @cat, @tipo, @pc, @pv, @sa, @sm, @fecha, @ruta)";
+                    // BLINDAJE INVENTARIO: Se inyecta la sucursal actual para que la flor no se vaya a la sucursal por defecto
+                    string query = "INSERT INTO Productos (Nombre, Categoria, TipoVenta, PrecioCompra, PrecioVenta, StockActual, StockMinimo, FechaIngreso, RutaImagen, Sucursal) " +
+                                   "VALUES (@nom, @cat, @tipo, @pc, @pv, @sa, @sm, @fecha, @ruta, @s)";
 
                     using (SqlCommand cmd = new SqlCommand(query, conexion))
                     {
@@ -61,11 +62,12 @@ namespace PuntoFlower.Views
                         cmd.Parameters.AddWithValue("@sm", stockMinimo);
                         cmd.Parameters.AddWithValue("@fecha", DateTime.Now);
                         cmd.Parameters.AddWithValue("@ruta", ""); // Inicialización de fotografía vacía
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual); // Inyección de la llave Multi-tenant
 
                         cmd.ExecuteNonQuery();
                     }
 
-                    MessageBox.Show($"'{txtNombre.Text.Trim()}' registrado correctamente en el catálogo.\n\nPuedes agregar su fotografía desde el 'Catálogo de Fotos'.", "Alta Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"'{txtNombre.Text.Trim()}' registrado correctamente en el catálogo de {ConexionGlobal.SucursalActual}.\n\nPuedes agregar su fotografía desde el 'Catálogo de Fotos'.", "Alta Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
                     this.DialogResult = true;
                 }
             }
