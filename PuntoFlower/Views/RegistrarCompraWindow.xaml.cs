@@ -26,7 +26,9 @@ namespace PuntoFlower.Views
             ConexionDB db = new ConexionDB();
             using (SqlConnection con = db.OpenConnection())
             {
-                SqlCommand cmd = new SqlCommand("SELECT DISTINCT Nombre FROM Productos ORDER BY Nombre", con);
+                // BLINDAJE: Cargar nombres de productos de la sucursal actual para que no se mezclen.
+                SqlCommand cmd = new SqlCommand("SELECT DISTINCT Nombre FROM Productos WHERE Sucursal = @s ORDER BY Nombre", con);
+                cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                 using (SqlDataReader r = cmd.ExecuteReader())
                 {
                     while (r.Read()) lista.Add(new Producto { Nombre = r["Nombre"].ToString() });
@@ -122,19 +124,19 @@ namespace PuntoFlower.Views
                     SqlTransaction tra = con.BeginTransaction();
                     try
                     {
-                        // 1. ACTUALIZACIÓN AUTOMÁTICA EN INVENTARIO (EN BODEGA ÚNICAMENTE)
+                        // 1. ACTUALIZACIÓN AUTOMÁTICA EN INVENTARIO (EN BODEGA ÚNICAMENTE) Y BLINDAJE POR SUCURSAL
                         string queryStock = @"
-                            IF EXISTS (SELECT 1 FROM Productos WHERE Nombre = @nom AND Categoria = 'Bodega')
+                            IF EXISTS (SELECT 1 FROM Productos WHERE Nombre = @nom AND Categoria = 'Bodega' AND Sucursal = @s)
                             BEGIN
                                 UPDATE Productos 
                                 SET StockActual = StockActual + @cant, 
                                     PrecioCompra = @costoUnit 
-                                WHERE Nombre = @nom AND Categoria = 'Bodega';
+                                WHERE Nombre = @nom AND Categoria = 'Bodega' AND Sucursal = @s;
                             END
                             ELSE
                             BEGIN
-                                INSERT INTO Productos (Nombre, Categoria, TipoVenta, PrecioCompra, PrecioVenta, StockActual, StockMinimo, FechaIngreso, RutaImagen)
-                                VALUES (@nom, 'Bodega', 'Insumo', @costoUnit, 0.00, @cant, 10, GETDATE(), '');
+                                INSERT INTO Productos (Nombre, Categoria, TipoVenta, PrecioCompra, PrecioVenta, StockActual, StockMinimo, FechaIngreso, RutaImagen, Sucursal)
+                                VALUES (@nom, 'Bodega', 'Insumo', @costoUnit, 0.00, @cant, 10, @fechaLocal, '', @s);
                             END";
 
                         using (SqlCommand cmdStock = new SqlCommand(queryStock, con, tra))
@@ -142,22 +144,26 @@ namespace PuntoFlower.Views
                             cmdStock.Parameters.AddWithValue("@cant", piezasTotalesEntran);
                             cmdStock.Parameters.AddWithValue("@costoUnit", costoUnitarioFinal);
                             cmdStock.Parameters.AddWithValue("@nom", prod.Nombre);
+                            cmdStock.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
+                            cmdStock.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                             cmdStock.ExecuteNonQuery();
                         }
 
-                        // 2. REGISTRO EN HISTORIAL DE DETALLE COMPRAS
-                        string queryHist = "INSERT INTO DetalleCompras (ProveedorId, ProductoNombre, Cantidad, PrecioCosto) VALUES (@pId, @nom, @cant, @costoUnit)";
+                        // 2. REGISTRO EN HISTORIAL DE DETALLE COMPRAS (ZONA HORARIA LOCAL Y SUCURSAL)
+                        string queryHist = "INSERT INTO DetalleCompras (ProveedorId, ProductoNombre, Cantidad, PrecioCosto, Fecha, Sucursal) VALUES (@pId, @nom, @cant, @costoUnit, @fechaLocal, @s)";
                         using (SqlCommand cmdHist = new SqlCommand(queryHist, con, tra))
                         {
                             cmdHist.Parameters.AddWithValue("@pId", _provId);
                             cmdHist.Parameters.AddWithValue("@nom", prod.Nombre);
                             cmdHist.Parameters.AddWithValue("@cant", piezasTotalesEntran);
                             cmdHist.Parameters.AddWithValue("@costoUnit", costoUnitarioFinal);
+                            cmdHist.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
+                            cmdHist.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                             cmdHist.ExecuteNonQuery();
                         }
 
                         tra.Commit();
-                        MessageBox.Show($"¡Surtido exitoso!\n\nLas {piezasTotalesEntran} unidades entraron directamente a la BODEGA.\nNuevo costo unitario: {costoUnitarioFinal:C2}", "Ingreso de Mercancía", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show($"¡Surtido exitoso en {ConexionGlobal.SucursalActual}!\n\nLas {piezasTotalesEntran} unidades entraron directamente a la BODEGA.\nNuevo costo unitario: {costoUnitarioFinal:C2}", "Ingreso de Mercancía", MessageBoxButton.OK, MessageBoxImage.Information);
                         this.DialogResult = true;
                     }
                     catch (Exception ex)
@@ -174,5 +180,3 @@ namespace PuntoFlower.Views
         }
     }
 }
-
-
