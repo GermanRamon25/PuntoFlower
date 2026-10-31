@@ -14,7 +14,6 @@ namespace PuntoFlower.Views
             InitializeComponent();
             cmbMetodoAdmin.SelectedIndex = 0;
 
-            // Inicializar el período por defecto (Últimos 7 días)
             dpInicioAdmin.SelectedDate = DateTime.Now.AddDays(-7);
             dpFinAdmin.SelectedDate = DateTime.Now;
 
@@ -27,53 +26,56 @@ namespace PuntoFlower.Views
 
             ConexionDB db = new ConexionDB();
 
-            // Ajustamos los rangos de tiempo para que incluyan todas las operaciones del día completo
             DateTime inicioBusqueda = dpInicioAdmin.SelectedDate.Value.Date;
             DateTime finBusqueda = dpFinAdmin.SelectedDate.Value.Date.AddDays(1).AddTicks(-1);
 
             decimal totalIngresosCombinados = 0;
             decimal totalGastosEmpleado = 0;
-            decimal totalGastosAdminEfectivo = 0; // Contenedor para egresos en efectivo
+            decimal totalGastosAdminEfectivo = 0;
             List<object> listaGastosAdmin = new List<object>();
 
             using (SqlConnection con = db.OpenConnection())
             {
-                // 1. CALCULAR DINERO TOTAL COMBINADO FINANCIERO
-                string qVentas = "SELECT SUM(Total) FROM Ventas WHERE Fecha BETWEEN @i AND @f";
+                // BLINDAJE: Leer los ingresos solo de la sucursal activa
+                string qVentas = "SELECT SUM(Total) FROM Ventas WHERE Fecha BETWEEN @i AND @f AND Sucursal = @s";
                 using (SqlCommand cmd = new SqlCommand(qVentas, con))
                 {
                     cmd.Parameters.AddWithValue("@i", inicioBusqueda);
                     cmd.Parameters.AddWithValue("@f", finBusqueda);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     var res = cmd.ExecuteScalar();
                     if (res != DBNull.Value && res != null) totalIngresosCombinados = Convert.ToDecimal(res);
                 }
 
-                // 2. Calcular los gastos operativos de tienda hechos por la empleada
-                string qGastosEmp = "SELECT SUM(Monto) FROM Gastos WHERE RegistradoPor = 'Empleado' AND Fecha BETWEEN @i AND @f";
+                // BLINDAJE: Leer los gastos operativos del empleado solo de la sucursal activa
+                string qGastosEmp = "SELECT SUM(Monto) FROM Gastos WHERE RegistradoPor = 'Empleado' AND Fecha BETWEEN @i AND @f AND Sucursal = @s";
                 using (SqlCommand cmd = new SqlCommand(qGastosEmp, con))
                 {
                     cmd.Parameters.AddWithValue("@i", inicioBusqueda);
                     cmd.Parameters.AddWithValue("@f", finBusqueda);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     var res = cmd.ExecuteScalar();
                     if (res != DBNull.Value && res != null) totalGastosEmpleado = Convert.ToDecimal(res);
                 }
 
-                // 3. NUEVO: Calcular los gastos que tú como administrador retiraste en efectivo puro de la sucursal
-                string qGastosAdminEf = "SELECT SUM(Monto) FROM Gastos WHERE RegistradoPor = 'Admin' AND (MetodoPago = 'Efectivo de Caja' OR MetodoPago = 'Efectivo') AND Fecha BETWEEN @i AND @f";
+                // BLINDAJE: Calcular los retiros en efectivo que hiciste solo en esta sucursal
+                string qGastosAdminEf = "SELECT SUM(Monto) FROM Gastos WHERE RegistradoPor = 'Admin' AND (MetodoPago = 'Efectivo de Caja' OR MetodoPago = 'Efectivo') AND Fecha BETWEEN @i AND @f AND Sucursal = @s";
                 using (SqlCommand cmd = new SqlCommand(qGastosAdminEf, con))
                 {
                     cmd.Parameters.AddWithValue("@i", inicioBusqueda);
                     cmd.Parameters.AddWithValue("@f", finBusqueda);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     var res = cmd.ExecuteScalar();
                     if (res != DBNull.Value && res != null) totalGastosAdminEfectivo = Convert.ToDecimal(res);
                 }
 
-                // 4. Cargar el historial de los egresos administrativos aplicados en el período
-                string qHistorialAdmin = "SELECT Fecha, Descripcion, MetodoPago, Monto FROM Gastos WHERE RegistradoPor = 'Admin' AND Fecha BETWEEN @i AND @f ORDER BY Fecha DESC";
+                // BLINDAJE: Historial de egresos para la tabla (solo los de esta sucursal)
+                string qHistorialAdmin = "SELECT Fecha, Descripcion, MetodoPago, Monto FROM Gastos WHERE RegistradoPor = 'Admin' AND Fecha BETWEEN @i AND @f AND Sucursal = @s ORDER BY Fecha DESC";
                 using (SqlCommand cmd = new SqlCommand(qHistorialAdmin, con))
                 {
                     cmd.Parameters.AddWithValue("@i", inicioBusqueda);
                     cmd.Parameters.AddWithValue("@f", finBusqueda);
+                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
                     using (SqlDataReader r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -90,7 +92,6 @@ namespace PuntoFlower.Views
                 }
             }
 
-            // Operación contable: Ingresos Totales - Gastos Empleada - Gastos de Admin retirados en Efectivo físico
             decimal dineroDisponibleReal = totalIngresosCombinados - totalGastosEmpleado - totalGastosAdminEfectivo;
 
             txtDineroDisponible.Text = dineroDisponibleReal.ToString("C");
@@ -115,14 +116,16 @@ namespace PuntoFlower.Views
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string queryGasto = "INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago, RegistradoPor) VALUES (@desc, @monto, @fecha, @cat, @metodo, 'Admin')";
+                    // BLINDAJE COMPLETO: Registrar el gasto guardando la hora local de tu computadora y sellándolo a la sucursal conectada
+                    string queryGasto = "INSERT INTO Gastos (Descripcion, Monto, Fecha, Categoria, MetodoPago, RegistradoPor, Sucursal) VALUES (@desc, @monto, @fechaLocal, @cat, @metodo, 'Admin', @s)";
                     using (SqlCommand cmd = new SqlCommand(queryGasto, con))
                     {
                         cmd.Parameters.AddWithValue("@desc", txtConceptoAdmin.Text.Trim());
                         cmd.Parameters.AddWithValue("@monto", monto);
-                        cmd.Parameters.AddWithValue("@fecha", DateTime.Now);
+                        cmd.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                         cmd.Parameters.AddWithValue("@cat", "Administración / Surtido");
                         cmd.Parameters.AddWithValue("@metodo", ((ComboBoxItem)cmbMetodoAdmin.SelectedItem).Content.ToString());
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
 
                         cmd.ExecuteNonQuery();
                     }
@@ -131,7 +134,7 @@ namespace PuntoFlower.Views
                 txtConceptoAdmin.Clear();
                 txtMontoAdmin.Clear();
                 CargarDatosModulo();
-                MessageBox.Show("Gasto de administración registrado con éxito y amarrado al período consultado.", "Operación exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Gasto de administración registrado con éxito y amarrado correctamente a {ConexionGlobal.SucursalActual}.", "Operación exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
