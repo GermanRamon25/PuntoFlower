@@ -12,6 +12,7 @@
         Background="#FFFDF5">
 
     <Window.Resources>
+        <!-- Estilo original del menú lateral -->
         <Style x:Key="MenuButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="White"/>
@@ -34,6 +35,89 @@
                     <Setter Property="Foreground" Value="#CF8282"/>
                 </Trigger>
             </Style.Triggers>
+        </Style>
+
+        <!-- NUEVO ESTILO: Embellecimiento del ComboBox Multi-Sucursal -->
+        <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="#F4F6F6"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <!-- Fondo redondeado con ligero borde -->
+                            <Border x:Name="border" Background="{TemplateBinding Background}" 
+                                    BorderBrush="{TemplateBinding BorderBrush}" 
+                                    BorderThickness="{TemplateBinding BorderThickness}" 
+                                    CornerRadius="15">
+                            </Border>
+                            <!-- Botón para desplegar (Flecha transparente sobre el fondo) -->
+                            <ToggleButton x:Name="toggleButton" BorderBrush="Transparent" Background="Transparent" 
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
+                                          Padding="0,0,10,0" HorizontalContentAlignment="Right" VerticalContentAlignment="Center">
+                                <Path x:Name="arrow" Data="M 0 0 L 4 4 L 8 0 Z" Fill="#7F8C8D" VerticalAlignment="Center" Margin="0,2,5,0"/>
+                            </ToggleButton>
+                            <!-- Contenido del selector (Texto) -->
+                            <ContentPresenter x:Name="contentPresenter" IsHitTestVisible="False" Margin="{TemplateBinding Padding}" 
+                                              Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" 
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" VerticalAlignment="Center" HorizontalAlignment="Left" />
+
+                            <!-- Menú desplegable -->
+                            <Popup x:Name="PART_Popup" AllowsTransparency="True" Focusable="False" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" PopupAnimation="Slide">
+                                <Border x:Name="dropDownBorder" Background="White" BorderBrush="#BDC3C7" BorderThickness="1" CornerRadius="8" Margin="0,2,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Color="#E5E8E8" Opacity="0.5"/>
+                                    </Border.Effect>
+                                    <ScrollViewer Margin="2,4,2,4" SnapsToDevicePixels="True">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#3498DB"/>
+                                <Setter TargetName="arrow" Property="Fill" Value="#3498DB"/>
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#2980B9"/>
+                                <Setter TargetName="border" Property="Background" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Estilo de los items del ComboBox -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="0" CornerRadius="5" Margin="2">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EBF5FB"/>
+                                <Setter Property="Foreground" Value="#2980B9"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#D4E6F1"/>
+                                <Setter Property="Foreground" Value="#1A5276"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -138,10 +222,11 @@
                     <TextBlock Text="Bienvenido al Sistema" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Foreground="#2C3E50"/>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
 
-                        <!-- Selector de Sucursales -->
+                        <!-- Selector de Sucursales con el nuevo estilo redondeado y moderno -->
                         <ComboBox x:Name="cmbSucursales" Width="180" Height="30" Margin="0,0,20,0" 
                                   VerticalAlignment="Center" SelectionChanged="CmbSucursales_SelectionChanged" 
-                                  Visibility="Collapsed">
+                                  Visibility="Collapsed"
+                                  Style="{StaticResource ModernComboBoxStyle}">
                             <ComboBoxItem Content="Matriz (Pruebas)" IsSelected="True"/>
                             <ComboBoxItem Content="Sucursal Los Mochis"/>
                             <ComboBoxItem Content="Sucursal Guasave"/>
