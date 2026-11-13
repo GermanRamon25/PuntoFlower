@@ -21,7 +21,6 @@ namespace PuntoFlower.Views
             InitializeComponent();
             CargarPreciosActuales();
             CargarTablaFlores();
-            CargarUsuariosPendientes();
 
             // Asignamos el origen de datos al ListBox dinámico
             lbEncargadosCuentas.ItemsSource = coleccionEncargados;
@@ -147,55 +146,61 @@ namespace PuntoFlower.Views
         }
 
         // =========================================================================
-        // GESTIÓN DE USUARIOS - ASIGNACIÓN DINÁMICA DE SUCURSAL
+        // GESTIÓN DE USUARIOS - CREACIÓN Y ASIGNACIÓN DIRECTA
         // =========================================================================
-        private void CargarUsuariosPendientes()
+        private void btnGuardarNuevoUsuario_Click(object sender, RoutedEventArgs e)
         {
-            ConexionDB db = new ConexionDB();
-            try
+            string usuario = txtNuevoUsuario.Text.Trim().ToLower();
+            string password = txtNuevoPassword.Password.Trim();
+            string rol = (cmbNuevoRol.SelectedItem as ComboBoxItem)?.Content.ToString();
+            string sucursal = (cmbNuevaSucursal.SelectedItem as ComboBoxItem)?.Content.ToString();
+
+            if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(password))
             {
-                using (SqlConnection con = db.OpenConnection())
-                {
-                    // Mostramos todos los pendientes para que el Admin los asigne a la sucursal que desee
-                    string sql = "SELECT Username FROM Usuarios WHERE Estado = 'Pendiente'";
-                    SqlCommand cmd = new SqlCommand(sql, con);
-                    DataTable dt = new DataTable();
-                    new SqlDataAdapter(cmd).Fill(dt);
-                    dgUsuariosPendientes.ItemsSource = dt.DefaultView;
-                }
+                MessageBox.Show("El nombre de usuario y la contraseña son obligatorios.", "Campos Vacíos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
-            catch (Exception ex) { MessageBox.Show("Error cargando usuarios: " + ex.Message); }
-        }
-
-        private void btnActivarUsuario_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var row = btn.DataContext as DataRowView;
-            if (row == null) return;
-
-            string usuario = row["Username"].ToString();
-
-            // Confirmación estratégica para evitar errores de asignación
-            var confirmacion = MessageBox.Show($"¿Deseas activar a '{usuario}' y asignarlo permanentemente a la sucursal '{ConexionGlobal.SucursalActual}'?\n\nSi pertenece a otra ciudad, presiona 'No', cambia de sucursal en el menú superior y vuelve a intentarlo.", "Confirmar Asignación", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-            if (confirmacion == MessageBoxResult.No) return;
 
             ConexionDB db = new ConexionDB();
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // MODIFICACIÓN CLAVE: Inyectamos la sucursal al activar la cuenta
-                    string sql = "UPDATE Usuarios SET Estado = 'Activo', Sucursal = @s WHERE Username = @u";
-                    SqlCommand cmd = new SqlCommand(sql, con);
-                    cmd.Parameters.AddWithValue("@u", usuario);
-                    cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
-                    cmd.ExecuteNonQuery();
+                    // 1. Verificar si el usuario ya existe en la nube
+                    string queryCheck = "SELECT COUNT(*) FROM Usuarios WHERE Username = @u";
+                    SqlCommand cmdCheck = new SqlCommand(queryCheck, con);
+                    cmdCheck.Parameters.AddWithValue("@u", usuario);
+                    int existe = (int)cmdCheck.ExecuteScalar();
+
+                    if (existe > 0)
+                    {
+                        MessageBox.Show("Este nombre de usuario ya está registrado en el sistema. Por favor elige otro.", "Usuario Duplicado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    // 2. Insertar al usuario directamente como Activo y ligado a su Sucursal
+                    string sqlInsert = "INSERT INTO Usuarios (Username, PasswordHash, Rol, Estado, Sucursal) VALUES (@u, @p, @r, 'Activo', @s)";
+                    SqlCommand cmdInsert = new SqlCommand(sqlInsert, con);
+                    cmdInsert.Parameters.AddWithValue("@u", usuario);
+                    cmdInsert.Parameters.AddWithValue("@p", password);
+                    cmdInsert.Parameters.AddWithValue("@r", rol);
+                    cmdInsert.Parameters.AddWithValue("@s", sucursal);
+
+                    cmdInsert.ExecuteNonQuery();
                 }
-                MessageBox.Show($"Usuario '{usuario}' activado y asignado correctamente a {ConexionGlobal.SucursalActual}.");
-                CargarUsuariosPendientes();
+
+                MessageBox.Show($"¡Éxito! El usuario '{usuario}' fue creado como '{rol}' y asignado permanentemente a '{sucursal}'.\n\nYa puede iniciar sesión desde su computadora.", "Usuario Creado", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Limpiamos el formulario para el siguiente
+                txtNuevoUsuario.Clear();
+                txtNuevoPassword.Clear();
+                cmbNuevoRol.SelectedIndex = 0; // Vuelve a Empleado por defecto
+                cmbNuevaSucursal.SelectedIndex = 0; // Vuelve a Guasave por defecto
             }
-            catch (Exception ex) { MessageBox.Show("Error al activar: " + ex.Message); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al crear el usuario en la base de datos: " + ex.Message, "Error de Servidor", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // =========================================================================

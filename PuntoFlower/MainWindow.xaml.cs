@@ -3,52 +3,71 @@ using System.Windows;
 using PuntoFlower.Views;
 using System.Globalization;
 using PuntoFlower.Data;
-using System.Configuration;
+using System.Windows.Controls;
 
 namespace PuntoFlower
 {
     public partial class MainWindow : Window
     {
+        // Bandera para evitar recargas múltiples al arrancar
+        private bool isInicializando = true;
+
         public MainWindow()
         {
             InitializeComponent();
 
-            // Configurar fecha actual con cultura de México
+            // 1. Configurar fecha actual
             txtFechaActual.Text = DateTime.Now.ToString("dddd dd 'de' MMMM, yyyy", new CultureInfo("es-MX"));
 
-            // Mostrar nombre del usuario, rol y sucursal base
-            txtUsuarioLogueado.Text = $"{Session.RolActual}: {Session.UsuarioActual} ({Session.SucursalAsignada})";
+            // 2. Mostrar nombre del usuario y rol en el menú superior
+            txtUsuarioLogueado.Text = $"{Session.RolActual}: {Session.UsuarioActual}";
 
-            // ASIGNACIÓN DINÁMICA DEL TÍTULO DE VENTANA
-            try
-            {
-                ConexionDB db = new ConexionDB();
-                string nombreFisico = db.ObtenerNombreSucursal();
-                this.Title = $"PuntoFlower - {nombreFisico} | Viendo datos de: {ConexionGlobal.SucursalActual}";
-            }
-            catch
-            {
-                this.Title = $"PuntoFlower - Viendo datos de: {ConexionGlobal.SucursalActual}";
-            }
+            // 3. Forzamos el seleccionador visual a la sucursal de este usuario
+            AutoSeleccionarSucursalDeSesion();
 
-            // Aplicar restricciones de seguridad según el Rol
+            // 4. Aplicamos restricciones de seguridad (Bloqueos según rol)
             ConfigurarAccesoSegunRol();
 
-            // Vista inicial
+            isInicializando = false;
+
+            // 5. Vista inicial
             MainContent.Content = new DashboardView();
+        }
+
+        private void AutoSeleccionarSucursalDeSesion()
+        {
+            if (string.IsNullOrEmpty(Session.SucursalAsignada)) return;
+
+            // Garantizar que ConexionGlobal tenga la sucursal correcta
+            ConexionGlobal.SucursalActual = Session.SucursalAsignada;
+
+            this.Title = $"PuntoFlower - Viendo datos de: {ConexionGlobal.SucursalActual}";
+
+            // Buscar en el ComboBox el Item que coincide con la sucursal asignada
+            foreach (ComboBoxItem item in cmbSucursales.Items)
+            {
+                string nombreLimpioItem = item.Content.ToString().Replace("Sucursal ", "").Trim();
+
+                if (nombreLimpioItem.Equals(Session.SucursalAsignada, StringComparison.OrdinalIgnoreCase))
+                {
+                    cmbSucursales.SelectedItem = item;
+                    break;
+                }
+            }
         }
 
         private void ConfigurarAccesoSegunRol()
         {
             if (Session.RolActual == "Empleado")
             {
+                // Un empleado NO ve estas pestañas
                 if (btnDashboard != null) btnDashboard.Visibility = Visibility.Collapsed;
                 if (btnInventario != null) btnInventario.Visibility = Visibility.Collapsed;
                 if (btnReportes != null) btnReportes.Visibility = Visibility.Collapsed;
                 if (btnConfiguracion != null) btnConfiguracion.Visibility = Visibility.Collapsed;
 
-                // El empleado NO puede ver ni tocar el selector de sucursales
-                if (cmbSucursales != null) cmbSucursales.Visibility = Visibility.Collapsed;
+                // EL CANDADO PRINCIPAL: El empleado puede ver en qué sucursal está, pero NO puede cambiarla.
+                if (cmbSucursales != null) cmbSucursales.IsEnabled = false;
 
                 if (btnGastos != null)
                 {
@@ -58,38 +77,38 @@ namespace PuntoFlower
             }
             else
             {
+                // Un Administrador ve todo y puede cambiar de sucursal
                 if (btnDashboard != null) btnDashboard.Visibility = Visibility.Visible;
                 if (btnInventario != null) btnInventario.Visibility = Visibility.Visible;
                 if (btnReportes != null) btnReportes.Visibility = Visibility.Visible;
+                if (btnConfiguracion != null) btnConfiguracion.Visibility = Visibility.Visible;
 
-                // Habilitamos el selector de sucursales en la nube para el Administrador
-                if (cmbSucursales != null) cmbSucursales.Visibility = Visibility.Visible;
+                if (cmbSucursales != null) cmbSucursales.IsEnabled = true;
 
                 if (btnGastos != null)
                 {
                     btnGastos.Visibility = Visibility.Visible;
                     txtTextoGastosButton.Text = "Gastos y Surtido";
                 }
-                if (btnConfiguracion != null) btnConfiguracion.Visibility = Visibility.Visible;
             }
         }
 
-        // --- Evento del Selector de Sucursales en la Nube (MODIFICADO PARA MULTI-TENANT) ---
-        private void CmbSucursales_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        // --- Evento del Selector de Sucursales en la Nube ---
+        private void CmbSucursales_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cmbSucursales != null && cmbSucursales.SelectedItem is System.Windows.Controls.ComboBoxItem seleccion)
+            if (isInicializando) return; // Evita que se recargue la vista antes de estar listos
+
+            if (cmbSucursales != null && cmbSucursales.SelectedItem is ComboBoxItem seleccion)
             {
-                // Limpiamos el texto por si tu XAML incluye la palabra "Sucursal " (ej: "Sucursal Los Mochis")
-                // Esto garantiza que empate exactamente con el nombre de la BD ("Los Mochis")
                 string sucursalSeleccionada = seleccion.Content.ToString().Replace("Sucursal ", "").Trim();
 
-                // 1. ACTUALIZAMOS LA VARIABLE GLOBAL (El filtro mágico)
+                // 1. ACTUALIZAMOS LA VARIABLE GLOBAL
                 ConexionGlobal.SucursalActual = sucursalSeleccionada;
 
-                // 2. Actualizamos el título de la ventana para confirmar dónde estamos
+                // 2. Actualizamos el título de la ventana
                 this.Title = $"PuntoFlower - Viendo datos de: {ConexionGlobal.SucursalActual}";
 
-                // 3. Recargamos la vista actual para que renderice los datos de la nueva ciudad seleccionada
+                // 3. Recargamos la vista actual
                 if (MainContent != null)
                 {
                     if (MainContent.Content is DashboardView) MainContent.Content = new DashboardView();
@@ -117,23 +136,14 @@ namespace PuntoFlower
         }
 
         // --- Métodos de Navegación del Panel Izquierdo ---
-
         private void btnDashboard_Click(object sender, RoutedEventArgs e) => MainContent.Content = new DashboardView();
-
         private void btnInventario_Click(object sender, RoutedEventArgs e) => MainContent.Content = new InventoryView();
-
         private void btnCatalogo_Click(object sender, RoutedEventArgs e) => MainContent.Content = new CatalogView();
-
         private void btnVentas_Click(object sender, RoutedEventArgs e) => MainContent.Content = new SalesView();
-
         private void btnAgenda_Click(object sender, RoutedEventArgs e) => MainContent.Content = new AgendaView();
-
         private void btnGastos_Click(object sender, RoutedEventArgs e) => MainContent.Content = new ExpensesView();
-
         private void btnReportes_Click(object sender, RoutedEventArgs e) => MainContent.Content = new ReportsView();
-
         private void btnCorteCaja_Click(object sender, RoutedEventArgs e) => MainContent.Content = new CashCloseOutView();
-
         private void btnConfiguracion_Click(object sender, RoutedEventArgs e) => MainContent.Content = new ConfigurationView();
     }
 }

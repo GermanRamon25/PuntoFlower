@@ -8,6 +8,7 @@ namespace PuntoFlower.Data
 {
     public static class Session
     {
+        public static int IdUsuario { get; set; } // Agregado para buenas prácticas de SQL
         public static string UsuarioActual { get; set; }
         public static string RolActual { get; set; } // Clave para los permisos (Admin o Empleado)
 
@@ -16,6 +17,7 @@ namespace PuntoFlower.Data
 
         public static void CerrarSesion()
         {
+            IdUsuario = 0;
             UsuarioActual = null;
             RolActual = null;
             SucursalAsignada = null;

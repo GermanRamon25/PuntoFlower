@@ -62,8 +62,8 @@ namespace PuntoFlower
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    // MODIFICACIÓN CLAVE: Agregamos la descarga de la 'Sucursal'
-                    string query = "SELECT Estado, Rol, Sucursal FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
+                    // MODIFICACIÓN: Solicitamos también el Id para la clase Session
+                    string query = "SELECT Id, Estado, Rol, Sucursal FROM Usuarios WHERE Username = @u AND PasswordHash = @p";
                     SqlCommand cmd = new SqlCommand(query, con);
                     cmd.Parameters.AddWithValue("@u", usuarioFormateado);
                     cmd.Parameters.AddWithValue("@p", passwordIngresada);
@@ -73,11 +73,13 @@ namespace PuntoFlower
                         if (reader.Read())
                         {
                             string estado = reader["Estado"].ToString();
-                            string rol = reader["Rol"].ToString();
-                            string sucursal = reader["Sucursal"].ToString(); // Rescatamos su sucursal de origen
 
                             if (estado == "Activo")
                             {
+                                int idUsuario = Convert.ToInt32(reader["Id"]);
+                                string rol = reader["Rol"].ToString();
+                                string sucursal = reader["Sucursal"].ToString();
+
                                 reader.Close();
 
                                 // Auditoría de acceso
@@ -89,11 +91,12 @@ namespace PuntoFlower
                                 }
 
                                 // 1. Guardamos los datos en la memoria temporal (Session)
+                                Session.IdUsuario = idUsuario;
                                 Session.UsuarioActual = usuarioFormateado;
                                 Session.RolActual = rol;
                                 Session.SucursalAsignada = sucursal;
 
-                                // 2. EL BLINDAJE: Forzamos la variable global a su sucursal asignada
+                                // 2. EL BLINDAJE: Forzamos la variable global a su sucursal asignada (Si aún la usas)
                                 ConexionGlobal.SucursalActual = sucursal;
 
                                 MainWindow main = new MainWindow();
@@ -116,12 +119,6 @@ namespace PuntoFlower
             {
                 MessageBox.Show("Error al enlazar con la base de datos central: " + ex.Message, "Fallo de Conexión", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        private void BtnAbrirRegistro_Click(object sender, RoutedEventArgs e)
-        {
-            RegistroWindow registro = new RegistroWindow();
-            registro.ShowDialog();
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)

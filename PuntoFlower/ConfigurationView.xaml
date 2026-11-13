@@ -52,6 +52,7 @@
 
                 <TabControl Background="Transparent" BorderThickness="0">
 
+                    <!-- PESTAÑA: Ajuste de Ramos -->
                     <TabItem Header="Ajuste de Ramos" Style="{StaticResource SubTabItemStyle}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="480">
                             <StackPanel Margin="10">
@@ -111,6 +112,7 @@
                         </ScrollViewer>
                     </TabItem>
 
+                    <!-- PESTAÑA: Costos por Flor -->
                     <TabItem Header="Costos por Flor" Style="{StaticResource SubTabItemStyle}">
                         <Grid Margin="10">
                             <Grid.ColumnDefinitions>
@@ -147,31 +149,63 @@
                         </Grid>
                     </TabItem>
 
+                    <!-- PESTAÑA: Gestión de Usuarios (NUEVA VERSIÓN) -->
                     <TabItem Header="Gestión de Usuarios" Style="{StaticResource SubTabItemStyle}">
                         <Grid Margin="15">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+                            <StackPanel HorizontalAlignment="Left" Width="450">
+                                <TextBlock Text="Crear Nuevo Usuario" FontSize="18" FontWeight="Bold" Foreground="#CF8282" Margin="0,5,0,15"/>
+                                <TextBlock Text="Crea cuentas de acceso directo para empleados o administradores y asígnalos a su sucursal correspondiente." Foreground="#7F8C8D" FontStyle="Italic" Margin="0,0,0,20" TextWrapping="Wrap"/>
 
-                            <TextBlock Text="Usuarios Pendientes de Activar" Grid.Row="0" FontSize="18" FontWeight="Bold" Foreground="#CF8282" Margin="0,0,0,10"/>
-                            <DataGrid x:Name="dgUsuariosPendientes" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" Background="White" Height="380">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Usuario" Binding="{Binding Username}" Width="*"/>
+                                <Border Background="#F8F9FA" Padding="25" CornerRadius="12" BorderThickness="1" BorderBrush="#E5E7E9">
+                                    <StackPanel>
+                                        <TextBlock Text="Nombre de Usuario" Foreground="#7F8C8D" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                        <TextBox x:Name="txtNuevoUsuario" Height="38" VerticalContentAlignment="Center" FontSize="14" Padding="8,0" Margin="0,0,0,15"/>
 
-                                    <DataGridTemplateColumn Header="Acción" Width="150">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <Button Content="ACTIVAR" Click="btnActivarUsuario_Click" Background="#27AE60" Foreground="White" Cursor="Hand"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
+                                        <TextBlock Text="Contraseña" Foreground="#7F8C8D" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                        <PasswordBox x:Name="txtNuevoPassword" Height="38" VerticalContentAlignment="Center" FontSize="14" Padding="8,0" Margin="0,0,0,15"/>
 
-                                </DataGrid.Columns>
-                            </DataGrid>
+                                        <Grid Margin="0,0,0,25">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="15"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Selección de Rol -->
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Rol en el Sistema" Foreground="#7F8C8D" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                                <ComboBox x:Name="cmbNuevoRol" Height="38" FontSize="14">
+                                                    <ComboBoxItem Content="Empleado" IsSelected="True"/>
+                                                    <ComboBoxItem Content="Admin"/>
+                                                </ComboBox>
+                                            </StackPanel>
+
+                                            <!-- Selección de Sucursal -->
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Sucursal Asignada" Foreground="#7F8C8D" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                                <ComboBox x:Name="cmbNuevaSucursal" Height="38" FontSize="14">
+                                                    <ComboBoxItem Content="Guasave" IsSelected="True"/>
+                                                    <ComboBoxItem Content="Los Mochis"/>
+                                                    <ComboBoxItem Content="Guamúchil"/>
+                                                    <ComboBoxItem Content="Culiacán"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Button Content="CREAR Y ACTIVAR USUARIO" Click="btnGuardarNuevoUsuario_Click" Height="48" Background="#27AE60" Foreground="White" FontWeight="Bold" Cursor="Hand">
+                                            <Button.Resources>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="CornerRadius" Value="8"/>
+                                                </Style>
+                                            </Button.Resources>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </Grid>
                     </TabItem>
 
+                    <!-- PESTAÑA: Datos de Sucursal -->
                     <TabItem Header="Datos de Sucursal" Style="{StaticResource SubTabItemStyle}">
                         <Grid Margin="15">
                             <StackPanel>
@@ -230,6 +264,7 @@
                         </Grid>
                     </TabItem>
 
+                    <!-- PESTAÑA: Seguridad y Acceso -->
                     <TabItem Header="Seguridad y Acceso" Style="{StaticResource SubTabItemStyle}">
                         <Grid Margin="15">
                             <StackPanel HorizontalAlignment="Left" Width="450">
