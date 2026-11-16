@@ -4,6 +4,7 @@ using PuntoFlower.Views;
 using System.Globalization;
 using PuntoFlower.Data;
 using System.Windows.Controls;
+using System.Collections.Generic;
 
 namespace PuntoFlower
 {
@@ -19,13 +20,38 @@ namespace PuntoFlower
             // 1. Configurar fecha actual
             txtFechaActual.Text = DateTime.Now.ToString("dddd dd 'de' MMMM, yyyy", new CultureInfo("es-MX"));
 
-            // 2. Mostrar nombre del usuario y rol en el menú superior
-            txtUsuarioLogueado.Text = $"{Session.RolActual}: {Session.UsuarioActual}";
+            // ====================================================================
+            // 2. ETIQUETAS VISUALES PERSONALIZADAS PARA ADMINISTRADORES
+            // ====================================================================
+            string usuarioFiltro = Session.UsuarioActual.ToLower();
+            string etiquetaPersonalizada = $"{Session.RolActual}: {Session.UsuarioActual} ({Session.SucursalAsignada})"; // Etiqueta por defecto
+
+            if (Session.RolActual == "Admin")
+            {
+                if (usuarioFiltro == "crisbel" || usuarioFiltro == "yeseli")
+                {
+                    etiquetaPersonalizada = $"Admin Universal: {Session.UsuarioActual} (Todas)";
+                }
+                else if (usuarioFiltro == "omar")
+                {
+                    etiquetaPersonalizada = $"Admin: {Session.UsuarioActual} (Mochis, Gve, Gml)";
+                }
+                else if (usuarioFiltro == "leticia")
+                {
+                    etiquetaPersonalizada = $"Admin: {Session.UsuarioActual} (Gve, Mochis)";
+                }
+                else
+                {
+                    etiquetaPersonalizada = $"Admin: {Session.UsuarioActual} ({Session.SucursalAsignada})";
+                }
+            }
+
+            txtUsuarioLogueado.Text = etiquetaPersonalizada;
 
             // 3. Forzamos el seleccionador visual a la sucursal de este usuario
             AutoSeleccionarSucursalDeSesion();
 
-            // 4. Aplicamos restricciones de seguridad (Bloqueos según rol)
+            // 4. Aplicamos restricciones de seguridad
             ConfigurarAccesoSegunRol();
 
             isInicializando = false;
@@ -77,7 +103,7 @@ namespace PuntoFlower
             }
             else
             {
-                // Un Administrador ve todo y puede cambiar de sucursal
+                // Un Administrador ve todo y puede cambiar libremente entre todas las sucursales
                 if (btnDashboard != null) btnDashboard.Visibility = Visibility.Visible;
                 if (btnInventario != null) btnInventario.Visibility = Visibility.Visible;
                 if (btnReportes != null) btnReportes.Visibility = Visibility.Visible;
