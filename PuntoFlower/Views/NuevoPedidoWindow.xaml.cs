@@ -2,7 +2,10 @@
 using PuntoFlower.Models;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data.SqlClient;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -10,13 +13,24 @@ namespace PuntoFlower.Views
 {
     public partial class NuevoPedidoWindow : Window
     {
+        public class FlorRamoItem
+        {
+            public int ProductoId { get; set; }
+            public string Nombre { get; set; }
+            public int Cantidad { get; set; }
+            public string CantidadTexto => $"{Cantidad} tallos/pzs";
+        }
+
         private bool esModoEdicion = false;
         private int pedidoIdEditar = 0;
         private decimal anticipoOriginalEdicion = 0;
+        private ObservableCollection<FlorRamoItem> floresSeleccionadas = new ObservableCollection<FlorRamoItem>();
+        private List<Producto> catalogoFlores = new List<Producto>();
 
         public NuevoPedidoWindow()
         {
             InitializeComponent();
+            icFloresSeleccionadas.ItemsSource = floresSeleccionadas;
             dpFecha.SelectedDate = DateTime.Today;
             cbHoraEntrega.SelectedIndex = 3;
             CargarCatalogosAuxiliares();
@@ -43,17 +57,17 @@ namespace PuntoFlower.Views
 
                 txtDescripcion.Text = pedido.Descripcion;
                 txtDireccion.Text = pedido.Direccion == "Recoge en Tienda" ? "" : pedido.Direccion;
-                txtNota.Text = pedido.NotaTarjeta;
 
                 decimal costoEnvioOriginal = 0;
                 string metodoOriginal = "Efectivo";
                 int? productoIdOriginal = null;
                 int cantidadFloresOriginal = 0;
+                string notaBdOriginal = pedido.NotaTarjeta ?? "";
 
                 ConexionDB db = new ConexionDB();
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string queryFija = @"SELECT ISNULL(CostoEnvio, 0), ISNULL(MetodoPago, 'Efectivo'), ProductoId, ISNULL(CantidadFlores, 0) FROM Pedidos WHERE Id = @id AND Sucursal = @s";
+                    string queryFija = @"SELECT ISNULL(CostoEnvio, 0), ISNULL(MetodoPago, 'Efectivo'), ProductoId, ISNULL(CantidadFlores, 0), ISNULL(NotaTarjeta, '') FROM Pedidos WHERE Id = @id AND Sucursal = @s";
                     using (SqlCommand cmd = new SqlCommand(queryFija, con))
                     {
                         cmd.Parameters.AddWithValue("@id", pedidoIdEditar);
@@ -66,21 +80,58 @@ namespace PuntoFlower.Views
                                 metodoOriginal = reader[1].ToString();
                                 if (reader[2] != DBNull.Value) productoIdOriginal = Convert.ToInt32(reader[2]);
                                 cantidadFloresOriginal = Convert.ToInt32(reader[3]);
+                                notaBdOriginal = reader[4].ToString();
                             }
                         }
                     }
                 }
 
-                if (productoIdOriginal.HasValue && productoIdOriginal.Value > 0)
+                // Extraer etiqueta [FLORES:id1xcant1,id2xcant2] si existe y limpiar la nota visible
+                floresSeleccionadas.Clear();
+                Match matchFlores = Regex.Match(notaBdOriginal, @"\s*\[FLORES:([^\]]+)\]$");
+                if (matchFlores.Success)
                 {
-                    cbProductoInventario.SelectedValue = productoIdOriginal.Value;
-                    txtCantidadFlores.Text = cantidadFloresOriginal.ToString();
+                    txtNota.Text = notaBdOriginal.Substring(0, matchFlores.Index).Trim();
+                    string[] pares = matchFlores.Groups[1].Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string par in pares)
+                    {
+                        string[] partes = par.Split('x');
+                        if (partes.Length == 2 && int.TryParse(partes[0], out int pId) && int.TryParse(partes[1], out int cant) && pId > 0 && cant > 0)
+                        {
+                            var prod = catalogoFlores.FirstOrDefault(p => p.Id == pId);
+                            floresSeleccionadas.Add(new FlorRamoItem
+                            {
+                                ProductoId = pId,
+                                Nombre = prod != null ? prod.Nombre : $"Flor #{pId}",
+                                Cantidad = cant
+                            });
+                        }
+                    }
+                    cbProductoInventario.SelectedIndex = 0;
+                    txtCantidadFlores.Text = "12";
                 }
                 else
                 {
-                    cbProductoInventario.SelectedValue = 0;
-                    txtCantidadFlores.Text = "0";
+                    txtNota.Text = notaBdOriginal;
+                    if (productoIdOriginal.HasValue && productoIdOriginal.Value > 0 && cantidadFloresOriginal > 0)
+                    {
+                        var prod = catalogoFlores.FirstOrDefault(p => p.Id == productoIdOriginal.Value);
+                        floresSeleccionadas.Add(new FlorRamoItem
+                        {
+                            ProductoId = productoIdOriginal.Value,
+                            Nombre = prod != null ? prod.Nombre : $"Flor #{productoIdOriginal.Value}",
+                            Cantidad = cantidadFloresOriginal
+                        });
+                        cbProductoInventario.SelectedIndex = 0;
+                        txtCantidadFlores.Text = "12";
+                    }
+                    else
+                    {
+                        cbProductoInventario.SelectedValue = 0;
+                        txtCantidadFlores.Text = "0";
+                    }
                 }
+                ActualizarVisibilidadListaFlores();
 
                 decimal precioRamoPuro = pedido.PrecioTotal - costoEnvioOriginal;
                 anticipoOriginalEdicion = Convert.ToDecimal(pedido.Anticipo);
@@ -117,7 +168,7 @@ namespace PuntoFlower.Views
             ConexionDB db = new ConexionDB();
             try
             {
-                List<Producto> listaFlores = new List<Producto> { new Producto { Id = 0, Nombre = "-- Detectar por descripción / Sin flor fija --" } };
+                catalogoFlores = new List<Producto> { new Producto { Id = 0, Nombre = "-- Detectar por descripción / Sin flor fija --" } };
                 using (SqlConnection con = db.OpenConnection())
                 {
                     string q = "SELECT Id, Nombre, StockActual FROM Productos WHERE Categoria = 'Venta' AND Sucursal = @s ORDER BY Nombre ASC";
@@ -128,12 +179,12 @@ namespace PuntoFlower.Views
                         {
                             while (r.Read())
                             {
-                                listaFlores.Add(new Producto { Id = Convert.ToInt32(r["Id"]), Nombre = r["Nombre"].ToString(), StockActual = Convert.ToInt32(r["StockActual"]) });
+                                catalogoFlores.Add(new Producto { Id = Convert.ToInt32(r["Id"]), Nombre = r["Nombre"].ToString(), StockActual = Convert.ToInt32(r["StockActual"]) });
                             }
                         }
                     }
                 }
-                cbProductoInventario.ItemsSource = listaFlores;
+                cbProductoInventario.ItemsSource = catalogoFlores;
                 cbProductoInventario.SelectedIndex = 0;
 
                 List<string> cuentas = new List<string>();
@@ -146,6 +197,68 @@ namespace PuntoFlower.Views
                 cbCuentaAnticipo.SelectedIndex = 0;
             }
             catch { }
+        }
+
+        private void btnAgregarFlor_Click(object sender, RoutedEventArgs e)
+        {
+            if (cbProductoInventario.SelectedValue == null || Convert.ToInt32(cbProductoInventario.SelectedValue) <= 0)
+            {
+                MessageBox.Show("Selecciona primero una flor de mostrador válida de la lista.", "Seleccionar Flor", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (!int.TryParse(txtCantidadFlores.Text.Trim(), out int cant) || cant <= 0)
+            {
+                MessageBox.Show("Ingresa una cantidad válida mayor a 0.", "Cantidad Inválida", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            int prodId = Convert.ToInt32(cbProductoInventario.SelectedValue);
+            var prodSeleccionado = cbProductoInventario.SelectedItem as Producto;
+            string nombreFlor = prodSeleccionado != null ? prodSeleccionado.Nombre : "Flor";
+
+            var existente = floresSeleccionadas.FirstOrDefault(f => f.ProductoId == prodId);
+            if (existente != null)
+            {
+                int idx = floresSeleccionadas.IndexOf(existente);
+                floresSeleccionadas[idx] = new FlorRamoItem
+                {
+                    ProductoId = prodId,
+                    Nombre = existente.Nombre,
+                    Cantidad = existente.Cantidad + cant
+                };
+            }
+            else
+            {
+                floresSeleccionadas.Add(new FlorRamoItem
+                {
+                    ProductoId = prodId,
+                    Nombre = nombreFlor,
+                    Cantidad = cant
+                });
+            }
+
+            cbProductoInventario.SelectedIndex = 0;
+            txtCantidadFlores.Text = "12";
+            ActualizarVisibilidadListaFlores();
+        }
+
+        private void btnQuitarFlor_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag != null && int.TryParse(btn.Tag.ToString(), out int prodId))
+            {
+                var item = floresSeleccionadas.FirstOrDefault(f => f.ProductoId == prodId);
+                if (item != null)
+                {
+                    floresSeleccionadas.Remove(item);
+                    ActualizarVisibilidadListaFlores();
+                }
+            }
+        }
+
+        private void ActualizarVisibilidadListaFlores()
+        {
+            icFloresSeleccionadas.Visibility = floresSeleccionadas.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void cbMetodoAnticipo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -229,12 +342,39 @@ namespace PuntoFlower.Views
             string cuentaTransf = metodoAnticipo == "Transferencia" && cbCuentaAnticipo.SelectedItem != null ? cbCuentaAnticipo.SelectedItem.ToString() : "";
             string refTransf = metodoAnticipo == "Transferencia" ? txtReferenciaAnticipo.Text.Trim() : "";
 
-            int? prodIdSeleccionado = null;
+            // Consolidar flores seleccionadas (si hay algo pendiente en el combo sin dar '+', también se incluye)
+            List<FlorRamoItem> listaFinalFlores = floresSeleccionadas.ToList();
             if (cbProductoInventario.SelectedValue != null && Convert.ToInt32(cbProductoInventario.SelectedValue) > 0)
-                prodIdSeleccionado = Convert.ToInt32(cbProductoInventario.SelectedValue);
+            {
+                int comboProdId = Convert.ToInt32(cbProductoInventario.SelectedValue);
+                int.TryParse(txtCantidadFlores.Text.Trim(), out int comboCant);
+                if (comboCant > 0)
+                {
+                    var yaExiste = listaFinalFlores.FirstOrDefault(f => f.ProductoId == comboProdId);
+                    if (yaExiste != null)
+                        yaExiste.Cantidad += comboCant;
+                    else
+                        listaFinalFlores.Add(new FlorRamoItem { ProductoId = comboProdId, Cantidad = comboCant });
+                }
+            }
 
-            int.TryParse(txtCantidadFlores.Text.Trim(), out int cantFlores);
-            if (cantFlores < 0) cantFlores = 0;
+            int? prodIdSeleccionado = null;
+            int cantFlores = 0;
+            string notaFinalParaGuardar = Regex.Replace(txtNota.Text.Trim(), @"\s*\[FLORES:[^\]]+\]$", "").Trim();
+
+            if (listaFinalFlores.Count > 0)
+            {
+                prodIdSeleccionado = listaFinalFlores[0].ProductoId;
+                cantFlores = listaFinalFlores[0].Cantidad;
+
+                if (listaFinalFlores.Count > 1)
+                {
+                    string codificado = string.Join(",", listaFinalFlores.Select(f => $"{f.ProductoId}x{f.Cantidad}"));
+                    notaFinalParaGuardar = string.IsNullOrEmpty(notaFinalParaGuardar)
+                        ? $"[FLORES:{codificado}]"
+                        : $"{notaFinalParaGuardar} [FLORES:{codificado}]";
+                }
+            }
 
             ConexionDB db = new ConexionDB();
             try
@@ -256,7 +396,7 @@ namespace PuntoFlower.Views
                                 cmd.Parameters.AddWithValue("@tel", txtTelefono.Text.Trim());
                                 cmd.Parameters.AddWithValue("@fec", fechaEntregaFinal);
                                 cmd.Parameters.AddWithValue("@dir", string.IsNullOrWhiteSpace(txtDireccion.Text) ? "Recoge en Tienda" : txtDireccion.Text.Trim());
-                                cmd.Parameters.AddWithValue("@not", txtNota.Text.Trim());
+                                cmd.Parameters.AddWithValue("@not", notaFinalParaGuardar);
                                 cmd.Parameters.AddWithValue("@des", txtDescripcion.Text.Trim());
                                 cmd.Parameters.AddWithValue("@total", precioTotalFinal);
                                 cmd.Parameters.AddWithValue("@ant", anticipo);
@@ -286,7 +426,7 @@ namespace PuntoFlower.Views
                                 cmd.Parameters.AddWithValue("@fec", fechaEntregaFinal);
                                 cmd.Parameters.AddWithValue("@fechaLocal", DateTime.Now);
                                 cmd.Parameters.AddWithValue("@dir", string.IsNullOrWhiteSpace(txtDireccion.Text) ? "Recoge en Tienda" : txtDireccion.Text.Trim());
-                                cmd.Parameters.AddWithValue("@not", txtNota.Text.Trim());
+                                cmd.Parameters.AddWithValue("@not", notaFinalParaGuardar);
                                 cmd.Parameters.AddWithValue("@des", txtDescripcion.Text.Trim());
                                 cmd.Parameters.AddWithValue("@total", precioTotalFinal);
                                 cmd.Parameters.AddWithValue("@ant", anticipo);

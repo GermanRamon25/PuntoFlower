@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -72,6 +73,10 @@ namespace PuntoFlower.Views
                                 estadoVis = $"{estadoBD} (Liquidado)";
                             }
 
+                            // Limpiamos la etiqueta interna [FLORES:...] para que no se vea en la tarjeta de la Agenda
+                            string notaCruda = r["NotaTarjeta"] != DBNull.Value ? r["NotaTarjeta"].ToString() : "";
+                            string notaLimpia = Regex.Replace(notaCruda, @"\s*\[FLORES:[^\]]+\]$", "").Trim();
+
                             listaPedidos.Add(new
                             {
                                 Id = r["Id"],
@@ -80,7 +85,7 @@ namespace PuntoFlower.Views
                                 FechaEntrega = Convert.ToDateTime(r["FechaEntrega"]),
                                 Descripcion = r["Descripcion"].ToString(),
                                 Direccion = string.IsNullOrEmpty(r["Direccion"].ToString()) ? "Recoge en Tienda" : r["Direccion"].ToString(),
-                                NotaTarjeta = r["NotaTarjeta"].ToString(),
+                                NotaTarjeta = notaLimpia,
                                 PrecioTotal = r["PrecioTotal"] != DBNull.Value ? Convert.ToDecimal(r["PrecioTotal"]) : 0,
                                 Anticipo = r["Anticipo"] != DBNull.Value ? Convert.ToDecimal(r["Anticipo"]) : 0,
                                 SaldoPendiente = saldo,

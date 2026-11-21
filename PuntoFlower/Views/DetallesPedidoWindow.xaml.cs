@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using PuntoFlower.Data;
@@ -22,7 +25,9 @@ namespace PuntoFlower.Views
             lblFecha.Text = "Entrega programada: " + pedido.FechaEntrega.ToString("dd/MM/yyyy hh:mm tt");
             lblDescripcion.Text = pedido.Descripcion;
             lblDireccion.Text = pedido.Direccion;
-            txtNota.Text = pedido.NotaTarjeta;
+
+            string notaInicial = pedido.NotaTarjeta != null ? pedido.NotaTarjeta.ToString() : "";
+            txtNota.Text = Regex.Replace(notaInicial, @"\s*\[FLORES:[^\]]+\]$", "").Trim();
 
             lblTotal.Text = string.Format("{0:C}", pedido.PrecioTotal);
             lblAnticipo.Text = string.Format("{0:C}", pedido.Anticipo);
@@ -35,6 +40,7 @@ namespace PuntoFlower.Views
             lblCostoEnvio.Text = string.Format("{0:C}", envioMonto);
 
             CargarCuentasAbono();
+            CargarDesgloseFloresRamo();
 
             if (_saldoPendienteNum <= 0)
             {
@@ -42,6 +48,98 @@ namespace PuntoFlower.Views
                 if (btnAbrirPanelAbono != null) btnAbrirPanelAbono.Visibility = Visibility.Collapsed;
                 lblSaldo.Foreground = System.Windows.Media.Brushes.SeaGreen;
             }
+        }
+
+        private List<(int ProductoId, int Cantidad)> ExtraerListaFlores(string notaCruda, int? prodIdUnico, int cantUnica)
+        {
+            var resultado = new List<(int ProductoId, int Cantidad)>();
+
+            if (!string.IsNullOrEmpty(notaCruda))
+            {
+                Match match = Regex.Match(notaCruda, @"\[FLORES:([^\]]+)\]");
+                if (match.Success)
+                {
+                    string[] pares = match.Groups[1].Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string par in pares)
+                    {
+                        string[] partes = par.Split('x');
+                        if (partes.Length == 2 && int.TryParse(partes[0], out int pId) && int.TryParse(partes[1], out int cant) && pId > 0 && cant > 0)
+                        {
+                            resultado.Add((pId, cant));
+                        }
+                    }
+                }
+            }
+
+            if (resultado.Count == 0 && prodIdUnico.HasValue && prodIdUnico.Value > 0 && cantUnica > 0)
+            {
+                resultado.Add((prodIdUnico.Value, cantUnica));
+            }
+
+            return resultado;
+        }
+
+        private void CargarDesgloseFloresRamo()
+        {
+            ConexionDB db = new ConexionDB();
+            try
+            {
+                using (SqlConnection con = db.OpenConnection())
+                {
+                    int? prodId = null;
+                    int cantFlores = 0;
+                    string notaBd = "";
+
+                    string qPed = "SELECT ProductoId, ISNULL(CantidadFlores, 0), ISNULL(NotaTarjeta, '') FROM Pedidos WHERE Id = @id AND Sucursal = @s";
+                    using (SqlCommand cmd = new SqlCommand(qPed, con))
+                    {
+                        cmd.Parameters.AddWithValue("@id", _pedidoId);
+                        cmd.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
+                        using (SqlDataReader r = cmd.ExecuteReader())
+                        {
+                            if (r.Read())
+                            {
+                                if (r[0] != DBNull.Value) prodId = Convert.ToInt32(r[0]);
+                                cantFlores = Convert.ToInt32(r[1]);
+                                notaBd = r[2].ToString();
+                            }
+                        }
+                    }
+
+                    txtNota.Text = Regex.Replace(notaBd, @"\s*\[FLORES:[^\]]+\]$", "").Trim();
+                    var flores = ExtraerListaFlores(notaBd, prodId, cantFlores);
+
+                    if (flores.Count > 0)
+                    {
+                        var nombresPorId = new Dictionary<int, string>();
+                        string qProds = "SELECT Id, Nombre FROM Productos WHERE Sucursal = @s";
+                        using (SqlCommand cmdP = new SqlCommand(qProds, con))
+                        {
+                            cmdP.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
+                            using (SqlDataReader rp = cmdP.ExecuteReader())
+                            {
+                                while (rp.Read())
+                                {
+                                    nombresPorId[Convert.ToInt32(rp["Id"])] = rp["Nombre"].ToString();
+                                }
+                            }
+                        }
+
+                        var lineas = flores.Select(f =>
+                        {
+                            string nombre = nombresPorId.ContainsKey(f.ProductoId) ? nombresPorId[f.ProductoId] : $"Flor #{f.ProductoId}";
+                            return $"• {nombre} ({f.Cantidad} tallos/pzs)";
+                        });
+
+                        lblFloresDesglose.Text = string.Join("\n", lineas);
+                    }
+                    else
+                    {
+                        lblFloresDesglose.Text = "Detectar por descripción / Sin flor fija";
+                    }
+                }
+            }
+            catch { }
         }
 
         private decimal ConsultarCostoEnvioDeSeguridad(int idPedido)
@@ -282,8 +380,9 @@ namespace PuntoFlower.Views
                         int cantFlores = 0;
                         bool invDesc = false;
                         bool fleteCobrado = false;
+                        string notaBd = "";
 
-                        string qInfo = "SELECT CostoEnvio, ProductoId, CantidadFlores, InventarioDescontado, FleteCobradoEnCaja FROM Pedidos WHERE Id = @id AND Sucursal = @s";
+                        string qInfo = "SELECT CostoEnvio, ProductoId, CantidadFlores, InventarioDescontado, FleteCobradoEnCaja, ISNULL(NotaTarjeta, '') FROM Pedidos WHERE Id = @id AND Sucursal = @s";
                         using (SqlCommand cmdInfo = new SqlCommand(qInfo, con, tra))
                         {
                             cmdInfo.Parameters.AddWithValue("@id", _pedidoId);
@@ -297,6 +396,7 @@ namespace PuntoFlower.Views
                                     cantFlores = Convert.ToInt32(r["CantidadFlores"]);
                                     invDesc = Convert.ToBoolean(r["InventarioDescontado"]);
                                     fleteCobrado = Convert.ToBoolean(r["FleteCobradoEnCaja"]);
+                                    notaBd = r[5].ToString();
                                 }
                             }
                         }
@@ -337,15 +437,20 @@ namespace PuntoFlower.Views
                             metLiqFinal = "Liquidado Previamente";
                         }
 
-                        if (!invDesc && prodId.HasValue && cantFlores > 0)
+                        // DESCUENTO MÚLTIPLE DE INVENTARIO DIFERIDO
+                        if (!invDesc)
                         {
-                            string qInv = "UPDATE Productos SET StockActual = StockActual - @c WHERE Id = @pid AND Sucursal = @s";
-                            using (SqlCommand cmdI = new SqlCommand(qInv, con, tra))
+                            var floresADescontar = ExtraerListaFlores(notaBd, prodId, cantFlores);
+                            foreach (var itemFlor in floresADescontar)
                             {
-                                cmdI.Parameters.AddWithValue("@c", cantFlores);
-                                cmdI.Parameters.AddWithValue("@pid", prodId.Value);
-                                cmdI.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
-                                cmdI.ExecuteNonQuery();
+                                string qInv = "UPDATE Productos SET StockActual = StockActual - @c WHERE Id = @pid AND Sucursal = @s";
+                                using (SqlCommand cmdI = new SqlCommand(qInv, con, tra))
+                                {
+                                    cmdI.Parameters.AddWithValue("@c", itemFlor.Cantidad);
+                                    cmdI.Parameters.AddWithValue("@pid", itemFlor.ProductoId);
+                                    cmdI.Parameters.AddWithValue("@s", ConexionGlobal.SucursalActual);
+                                    cmdI.ExecuteNonQuery();
+                                }
                             }
                         }
 
