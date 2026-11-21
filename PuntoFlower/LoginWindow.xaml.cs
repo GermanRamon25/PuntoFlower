@@ -2,6 +2,7 @@
 using System;
 using System.Data.SqlClient;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -9,53 +10,65 @@ namespace PuntoFlower
 {
     public partial class LoginWindow : Window
     {
+        private bool passwordVisible = false;
+
         public LoginWindow()
         {
             InitializeComponent();
         }
 
-        // --- LÓGICA PARA MOSTRAR CONTRASEÑA ---
-        private void BtnShowPassword_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            RevelarPassword();
+            if (e.ChangedButton == MouseButton.Left)
+                this.DragMove();
         }
 
-        private void BtnShowPassword_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        // --- LÓGICA DE OJO EN MODO INTERRUPTOR (UN SOLO CLIC) ---
+        private void BtnShowPassword_Click(object sender, RoutedEventArgs e)
         {
-            OcultarPassword();
+            passwordVisible = !passwordVisible;
+
+            if (passwordVisible)
+            {
+                txtPasswordRevelada.Text = txtPassword.Password;
+                txtPassword.Visibility = Visibility.Collapsed;
+                txtPasswordRevelada.Visibility = Visibility.Visible;
+                txtPasswordRevelada.Focus();
+                txtPasswordRevelada.CaretIndex = txtPasswordRevelada.Text.Length;
+                btnShowPassword.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Verde esmeralda activo
+            }
+            else
+            {
+                txtPassword.Password = txtPasswordRevelada.Text;
+                txtPasswordRevelada.Visibility = Visibility.Collapsed;
+                txtPassword.Visibility = Visibility.Visible;
+                txtPassword.Focus();
+                btnShowPassword.Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // Gris suave inactivo
+            }
         }
 
-        private void BtnShowPassword_MouseLeave(object sender, MouseEventArgs e)
+        // Sincroniza en tiempo real lo que se escribe mientras la contraseña está visible
+        private void TxtPasswordRevelada_TextChanged(object sender, TextChangedEventArgs e)
         {
-            OcultarPassword();
-        }
-
-        private void RevelarPassword()
-        {
-            txtPasswordRevelada.Text = txtPassword.Password;
-            txtPassword.Visibility = Visibility.Collapsed;
-            txtPasswordRevelada.Visibility = Visibility.Visible;
-            btnShowPassword.Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96)); // Verde al activar vista
-        }
-
-        private void OcultarPassword()
-        {
-            txtPasswordRevelada.Visibility = Visibility.Collapsed;
-            txtPassword.Visibility = Visibility.Visible;
-            btnShowPassword.Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)); // Vuelve a gris obscuro
+            if (passwordVisible && txtPassword.Password != txtPasswordRevelada.Text)
+            {
+                txtPassword.Password = txtPasswordRevelada.Text;
+            }
         }
 
         // --- LÓGICA DE ACCESO CON BLINDAJE MULTI-SUCURSAL ---
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(txtUsername.Text) || string.IsNullOrEmpty(txtPassword.Password))
+            string passwordActual = passwordVisible ? txtPasswordRevelada.Text : txtPassword.Password;
+
+            if (string.IsNullOrEmpty(txtUsername.Text) || string.IsNullOrEmpty(passwordActual))
             {
                 MessageBox.Show("Por favor, introduce tu usuario y contraseña.", "Campos Requeridos", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             string usuarioFormateado = txtUsername.Text.Trim().ToLower();
-            string passwordIngresada = txtPassword.Password.Trim();
+            string passwordIngresada = passwordActual.Trim();
 
             ConexionDB db = new ConexionDB();
             try

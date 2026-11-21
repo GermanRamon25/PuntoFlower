@@ -20,7 +20,7 @@ namespace PuntoFlower
         // Este es el método exacto que busca el evento Click="BtnActivar_Click" del XAML
         private void BtnActivar_Click(object sender, RoutedEventArgs e)
         {
-            string licenciaIngresada = txtLicencia.Text.Trim();
+            string licenciaIngresada = txtLicencia.Text.Trim().ToUpper();
             string licenciaCorrecta = LicenciaManager.GenerarLicencia(_currentHWID);
 
             if (licenciaIngresada == licenciaCorrecta)
@@ -30,8 +30,9 @@ namespace PuntoFlower
                 {
                     using (SqlConnection con = db.OpenConnection())
                     {
-                        // Limpiar activaciones previas
-                        SqlCommand cmdClear = new SqlCommand("DELETE FROM LicenciaSistema", con);
+                        // Limpiar solo activaciones previas de ESTE equipo (sin borrar las otras sucursales)
+                        SqlCommand cmdClear = new SqlCommand("DELETE FROM LicenciaSistema WHERE EquipoHWID = @hwid", con);
+                        cmdClear.Parameters.AddWithValue("@hwid", _currentHWID);
                         cmdClear.ExecuteNonQuery();
 
                         // Guardar la nueva licencia legítima
@@ -41,6 +42,9 @@ namespace PuntoFlower
                         cmdInsert.Parameters.AddWithValue("@hwid", _currentHWID);
                         cmdInsert.ExecuteNonQuery();
                     }
+
+                    // Guardar también el respaldo local en C:\ProgramData\PuntoFlower
+                    LicenciaManager.GuardarRespaldoLocal(licenciaIngresada);
 
                     MessageBox.Show("¡Sistema Activado con Éxito! Reinicie la aplicación para ingresar.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                     this.DialogResult = true;

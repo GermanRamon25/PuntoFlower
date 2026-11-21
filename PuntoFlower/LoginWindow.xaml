@@ -1,88 +1,220 @@
 ﻿<Window x:Class="PuntoFlower.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="PuntoFlower - Acceso" Height="500" Width="700"
-        WindowStartupLocation="CenterScreen" Background="#F8F9F9" ResizeMode="NoResize"
-        AllowsTransparency="True" WindowStyle="None">
-    <Border CornerRadius="20" Background="White" Margin="30">
+        Title="PuntoFlower - Acceso" Height="520" Width="740"
+        WindowStartupLocation="CenterScreen" Background="Transparent" ResizeMode="NoResize"
+        AllowsTransparency="True" WindowStyle="None" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Window.Resources>
+        <!-- Estilo interactivo para los TextBox -->
+        <Style x:Key="CampoInteractivoTextBox" TargetType="TextBox">
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#2ECC71"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#16A34A"/>
+                                <Setter TargetName="border" Property="Background" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Estilo interactivo para el PasswordBox -->
+        <Style x:Key="CampoInteractivoPasswordBox" TargetType="PasswordBox">
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Padding" Value="12,10,42,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#2ECC71"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#16A34A"/>
+                                <Setter TargetName="border" Property="Background" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="22" Background="White" Margin="25">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="#BDC3C7" Opacity="0.6"/>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="4" Direction="270" Color="#0F172A" Opacity="0.18"/>
         </Border.Effect>
 
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="1.2*"/>
+                <ColumnDefinition Width="1.05*"/>
+                <ColumnDefinition Width="1.25*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" CornerRadius="20,0,0,20">
+            <!-- PANEL IZQUIERDO CON COLORES VIVOS Y LOGO INTACTO -->
+            <Border Grid.Column="0" CornerRadius="22,0,0,22" ClipToBounds="True">
                 <Border.Background>
-                    <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
-                        <GradientStop Color="#F4F6F6" Offset="0"/>
-                        <GradientStop Color="#EAECEE" Offset="1"/>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#065F46" Offset="0"/>
+                        <GradientStop Color="#059669" Offset="0.55"/>
+                        <GradientStop Color="#10B981" Offset="1"/>
                     </LinearGradientBrush>
                 </Border.Background>
 
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <Image Source="/Resources/icono.PuntoFlower.png" Height="100" Width="100" Margin="0,0,0,20"/>
-                    <TextBlock Text="PuntoFlower" FontSize="26" FontWeight="Bold" Foreground="#2C3E50" TextAlignment="Center"/>
-                    <TextBlock Text="Gestión Integral" FontSize="14" Foreground="#7F8C8D" TextAlignment="Center" Margin="0,5,0,0"/>
-                </StackPanel>
+                <Grid>
+                    <!-- Círculos decorativos sutiles -->
+                    <Ellipse Width="220" Height="220" Fill="#FFFFFF" Opacity="0.06" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-70,-70,0,0"/>
+                    <Ellipse Width="180" Height="180" Fill="#FFFFFF" Opacity="0.07" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-50,-50"/>
+
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="20">
+                        <Border Background="White" CornerRadius="60" Width="118" Height="118" Margin="0,0,0,20" HorizontalAlignment="Center">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="18" ShadowDepth="2" Color="#064E3B" Opacity="0.35"/>
+                            </Border.Effect>
+                            <Image Source="/Resources/icono.PuntoFlower.png" Height="86" Width="86" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Border>
+
+                        <TextBlock Text="PuntoFlower" FontSize="28" FontWeight="Bold" Foreground="White" TextAlignment="Center"/>
+                        <TextBlock Text="Gestión Integral" FontSize="14" FontWeight="SemiBold" Foreground="#D1FAE5" TextAlignment="Center" Margin="0,4,0,0"/>
+
+                        <Border Background="#047857" CornerRadius="12" Padding="14,5" Margin="0,18,0,0" HorizontalAlignment="Center">
+                            <TextBlock Text="PUNTO DE VENTA &amp; AGENDA" FontSize="10" FontWeight="Bold" Foreground="#ECFDF5"/>
+                        </Border>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <Grid Grid.Column="1" Margin="40">
+            <!-- PANEL DERECHO: FORMULARIO -->
+            <Grid Grid.Column="1" Margin="40,35,40,35">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Margin="0,0,0,30">
-                    <TextBlock Text="¡Bienvenido!" FontSize="28" FontWeight="Bold" Foreground="#2E4053" Margin="0,0,0,10"/>
-                    <TextBlock Text="Inicia sesión para continuar" FontSize="14" Foreground="#7F8C8D"/>
+                <StackPanel Grid.Row="0" Margin="0,8,0,25">
+                    <TextBlock Text="¡Bienvenido!" FontSize="28" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,6"/>
+                    <TextBlock Text="Inicia sesión con tu cuenta asignada" FontSize="13.5" Foreground="#64748B"/>
                 </StackPanel>
 
                 <StackPanel Grid.Row="1">
-                    <TextBlock Text="Usuario" Foreground="#7F8C8D" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBox x:Name="txtUsername" Height="45" Padding="10" BorderThickness="0,0,0,2" BorderBrush="#D5DBDB" 
-                             FontSize="14" Margin="0,0,0,25" Background="Transparent"/>
+                    <TextBlock Text="Usuario" Foreground="#334155" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,7"/>
+                    <TextBox x:Name="txtUsername" Style="{StaticResource CampoInteractivoTextBox}" Margin="0,0,0,20"/>
 
-                    <TextBlock Text="Contraseña" Foreground="#7F8C8D" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock Text="Contraseña" Foreground="#334155" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,7"/>
 
-                    <!-- Contenedor de Password con Ojo -->
-                    <Grid Margin="0,0,0,20">
-                        <PasswordBox x:Name="txtPassword" Height="45" Padding="10,10,40,10" BorderThickness="0,0,0,2" 
-                                     BorderBrush="#D5DBDB" FontSize="14" Background="Transparent"/>
+                    <!-- Contenedor de Password con Ojo en modo interruptor (1 clic) -->
+                    <Grid Margin="0,0,0,15">
+                        <PasswordBox x:Name="txtPassword" Style="{StaticResource CampoInteractivoPasswordBox}"/>
 
-                        <TextBox x:Name="txtPasswordRevelada" Height="45" Padding="10,10,40,10" BorderThickness="0,0,0,2" 
-                                 BorderBrush="#D5DBDB" FontSize="14" Background="Transparent" Visibility="Collapsed"/>
+                        <TextBox x:Name="txtPasswordRevelada" Style="{StaticResource CampoInteractivoTextBox}"
+                                 Padding="12,10,42,10" Visibility="Collapsed"
+                                 TextChanged="TxtPasswordRevelada_TextChanged"/>
 
-                        <Button x:Name="btnShowPassword" Content="👁" FontFamily="Segoe UI Symbol" FontSize="18" 
-                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0"
-                                Background="Transparent" BorderThickness="0" Cursor="Hand" Foreground="#95A5A6"
-                                PreviewMouseDown="BtnShowPassword_PreviewMouseDown" 
-                                PreviewMouseUp="BtnShowPassword_PreviewMouseUp"
-                                MouseLeave="BtnShowPassword_MouseLeave"/>
+                        <Button x:Name="btnShowPassword" Content="👁" FontFamily="Segoe UI Symbol" FontSize="17"
+                                Width="34" Height="34" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"
+                                Background="Transparent" BorderThickness="0" Cursor="Hand" Foreground="#94A3B8"
+                                ToolTip="Mostrar / Ocultar contraseña"
+                                Click="BtnShowPassword_Click">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="eyeBg" Background="{TemplateBinding Background}" CornerRadius="8">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="eyeBg" Property="Background" Value="#ECFDF5"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
                     </Grid>
                 </StackPanel>
 
                 <StackPanel Grid.Row="2">
-                    <!-- Eliminamos el botón de registrar cuenta de aquí -->
-                    <Button Content="INICIAR SESIÓN" Click="BtnLogin_Click" 
-                            Height="50" Background="#27AE60" Foreground="White" 
-                            FontWeight="Bold" BorderThickness="0" Cursor="Hand" Margin="0,0,0,15">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="10"/>
-                            </Style>
-                        </Button.Resources>
+                    <Button Content="INICIAR SESIÓN" Click="BtnLogin_Click" IsDefault="True"
+                            Height="48" Foreground="White" FontSize="14" FontWeight="Bold"
+                            BorderThickness="0" Cursor="Hand" Margin="0,5,0,5">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="btnBorder" CornerRadius="12">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#16A34A" Offset="0"/>
+                                            <GradientStop Color="#10B981" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="14" ShadowDepth="3" Direction="270" Color="#10B981" Opacity="0.35"/>
+                                    </Border.Effect>
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="btnBorder" Property="Opacity" Value="0.92"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="btnBorder" Property="Opacity" Value="0.82"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
                     </Button>
                 </StackPanel>
             </Grid>
 
-            <Button Content="X" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top" 
-                    Margin="15" Background="Transparent" Foreground="#95A5A6" FontWeight="Bold" 
-                    BorderThickness="0" Cursor="Hand" Click="BtnClose_Click"/>
+            <!-- BOTÓN CERRAR INTERACTIVO -->
+            <Button Content="✕" Grid.Column="1" Width="32" Height="32" HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="14" Background="Transparent" Foreground="#94A3B8" FontWeight="Bold" FontSize="14"
+                    BorderThickness="0" Cursor="Hand" Click="BtnClose_Click">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="closeBorder" Background="Transparent" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="closeBorder" Property="Background" Value="#FEE2E2"/>
+                                <Setter Property="Foreground" Value="#EF4444"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
         </Grid>
     </Border>
 </Window>

@@ -39,30 +39,31 @@ namespace PuntoFlower
         private bool EsLicenciaValida()
         {
             string hwidActual = LicenciaManager.ObtenerHWID();
+            string licenciaEsperada = LicenciaManager.GenerarLicencia(hwidActual);
             ConexionDB db = new ConexionDB();
 
             try
             {
                 using (SqlConnection con = db.OpenConnection())
                 {
-                    string query = "SELECT TOP 1 LicenciaClave, EquipoHWID FROM LicenciaSistema";
+                    // Buscamos específicamente el HWID de esta máquina (soporta las 4 sucursales en la misma BD)
+                    string query = "SELECT TOP 1 LicenciaClave, EquipoHWID FROM LicenciaSistema WHERE EquipoHWID = @hwid";
                     SqlCommand cmd = new SqlCommand(query, con);
+                    cmd.Parameters.AddWithValue("@hwid", hwidActual);
 
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
                         if (reader.Read())
                         {
-                            string licenciaGuardada = reader["LicenciaClave"].ToString();
-                            string hwidGuardado = reader["EquipoHWID"].ToString();
+                            string licenciaGuardada = reader["LicenciaClave"].ToString().Trim();
+                            string hwidGuardado = reader["EquipoHWID"].ToString().Trim();
 
-                            // 1. Validar que el hardware de la máquina coincida con el registrado en la BD
-                            if (hwidActual != hwidGuardado) return false;
-
-                            // 2. Validar mediante algoritmo matemático que la licencia sea la correcta para el HWID
-                            string licenciaVerificadora = LicenciaManager.GenerarLicencia(hwidActual);
-                            if (licenciaGuardada == licenciaVerificadora)
+                            if (hwidActual == hwidGuardado &&
+                                licenciaGuardada.Equals(licenciaEsperada, StringComparison.OrdinalIgnoreCase))
                             {
-                                return true; // Licencia legítima
+                                // Actualizamos/creamos el respaldo local en ProgramData para futuras aperturas sin internet
+                                LicenciaManager.GuardarRespaldoLocal(licenciaGuardada);
+                                return true;
                             }
                         }
                     }
@@ -70,11 +71,16 @@ namespace PuntoFlower
             }
             catch
             {
-                // Si la tabla no existe o falla la conexión base, se bloquea por seguridad
+                // Si hay micro-corte o lentitud en Azure SQL, verificamos el respaldo local ligado al HWID
+                if (LicenciaManager.ValidarRespaldoLocal())
+                {
+                    return true;
+                }
                 return false;
             }
 
-            return false;
+            // Respaldo adicional por si la consulta no falló pero la red devolvió vacío transitoriamente
+            return LicenciaManager.ValidarRespaldoLocal();
         }
     }
 }
